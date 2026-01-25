@@ -4,10 +4,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // IMPORTANT: If your repository name is NOT 'username.github.io', 
-  // uncomment the lines below and replace 'CarnaticPractice' with your actual repository name:
-  // basePath: '/CarnaticPractice',
-  // trailingSlash: true,
+  // Set basePath to match your GitHub repository name
+  // If your repo is 'username.github.io', remove or comment out basePath
+  basePath: '/MusicPractice',
+  trailingSlash: true,
 }
 
 module.exports = nextConfig
