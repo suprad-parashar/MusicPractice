@@ -86,6 +86,51 @@ npm run build
 npm start
 ```
 
+## 🚀 Deployment to GitHub Pages
+
+This project is configured for automatic deployment to GitHub Pages.
+
+### Setup Instructions
+
+1. **Enable GitHub Pages in your repository**:
+   - Go to your repository on GitHub
+   - Navigate to **Settings** → **Pages**
+   - Under **Source**, select **GitHub Actions**
+
+2. **Configure basePath (if needed)**:
+   - If your repository name is **NOT** `username.github.io`, you need to set the basePath
+   - Open `next.config.js` and uncomment/modify:
+     ```javascript
+     basePath: '/YourRepositoryName',
+     trailingSlash: true,
+     ```
+   - Replace `YourRepositoryName` with your actual repository name
+
+3. **Push to main branch**:
+   - The GitHub Actions workflow will automatically:
+     - Build the Next.js app
+     - Export static files
+     - Deploy to GitHub Pages
+   - Your site will be available at:
+     - `https://username.github.io/YourRepositoryName` (if using basePath)
+     - `https://username.github.io` (if repository is `username.github.io`)
+
+### Manual Deployment
+
+If you want to deploy manually:
+
+```bash
+npm run build
+# The static files will be in the /out directory
+# You can then push the /out directory to the gh-pages branch
+```
+
+### Troubleshooting
+
+- **404 errors**: Make sure `basePath` is correctly set in `next.config.js` if your repo is not `username.github.io`
+- **Build fails**: Check that all dependencies are listed in `package.json`
+- **Actions not running**: Ensure GitHub Actions are enabled in repository settings
+
 ## 📖 Usage Guide
 
 ### Tanpura
