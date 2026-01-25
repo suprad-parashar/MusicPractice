@@ -4,8 +4,9 @@ import { useState } from 'react';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
 import RagaPlayer from '@/components/RagaPlayer';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
+import AuditoryPractice from '@/components/AuditoryPractice';
 
-type Tab = 'raga' | 'varisai';
+type Tab = 'raga' | 'varisai' | 'auditory';
 
 export default function Home() {
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
@@ -54,6 +55,21 @@ export default function Home() {
               >
                 Varasai Practise
               </button>
+              <button
+                onClick={() => setActiveTab('auditory')}
+                className={`
+                  px-6 py-3 rounded-t-lg
+                  transition-all duration-200
+                  text-sm font-medium
+                  ${
+                    activeTab === 'auditory'
+                      ? 'bg-slate-800 text-amber-400 border-b-2 border-amber-400'
+                      : 'bg-slate-900 text-slate-400 hover:text-slate-300 hover:bg-slate-800/50'
+                  }
+                `}
+              >
+                Auditory Practice
+              </button>
             </div>
           </div>
 
@@ -61,8 +77,10 @@ export default function Home() {
           <div className="flex-1 flex items-start justify-center p-6 overflow-y-auto">
             {activeTab === 'raga' ? (
               <RagaPlayer baseFreq={baseFreq} />
-            ) : (
+            ) : activeTab === 'varisai' ? (
               <VarisaiPlayer baseFreq={baseFreq} />
+            ) : (
+              <AuditoryPractice baseFreq={baseFreq} />
             )}
           </div>
         </div>
