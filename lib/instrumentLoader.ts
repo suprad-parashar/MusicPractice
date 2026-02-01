@@ -1,11 +1,13 @@
 import { instrument, type Player, type InstrumentName } from 'soundfont-player';
 
-export type InstrumentId = 'sine' | 'piano' | 'violin' | 'flute';
+export type InstrumentId = 'sine' | 'piano' | 'violin' | 'flute' | 'harmonium' | 'sitar';
 
 const INSTRUMENT_MAP: Record<Exclude<InstrumentId, 'sine'>, InstrumentName> = {
   piano: 'acoustic_grand_piano',
   violin: 'violin',
   flute: 'flute',
+  harmonium: 'reed_organ',  // Reed organ closest to harmonium (keyboard reed instrument)
+  sitar: 'sitar',
 };
 
 const cache = new Map<string, Player>();
@@ -65,5 +67,7 @@ export const INSTRUMENT_OPTIONS: { id: InstrumentId; label: string }[] = [
   { id: 'piano', label: 'Piano' },
   { id: 'violin', label: 'Violin' },
   { id: 'flute', label: 'Flute' },
+  { id: 'harmonium', label: 'Harmonium' },
+  { id: 'sitar', label: 'Sitar' },
   { id: 'sine', label: 'Sine' },
 ];

@@ -32,7 +32,7 @@ type StoredSettings = {
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory'];
-const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute'];
+const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
 const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
 

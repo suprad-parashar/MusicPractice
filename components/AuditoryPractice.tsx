@@ -40,6 +40,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const masterGainRef = useRef<GainNode | null>(null);
   const soundfontPlayerRef = useRef<Awaited<ReturnType<typeof getInstrument>> | null>(null);
   const instrumentIdRef = useRef<InstrumentId>(instrumentId);
+  const loadedInstrumentIdRef = useRef<InstrumentId | null>(null);
   const baseFreqRef = useRef(baseFreq);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopwatchIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,19 +53,23 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
     instrumentIdRef.current = instrumentId;
     if (isSineInstrument(instrumentId)) {
       soundfontPlayerRef.current = null;
+      loadedInstrumentIdRef.current = null;
       return;
     }
     if (audioContextRef.current && masterGainRef.current) {
       getInstrument(audioContextRef.current, instrumentId, masterGainRef.current)
         .then((player) => {
           soundfontPlayerRef.current = player;
+          loadedInstrumentIdRef.current = instrumentId;
         })
         .catch((err) => {
           console.error('Failed to load instrument on change:', err);
           soundfontPlayerRef.current = null;
+          loadedInstrumentIdRef.current = null;
         });
     } else {
       soundfontPlayerRef.current = null;
+      loadedInstrumentIdRef.current = null;
     }
   }, [instrumentId]);
 
@@ -217,12 +222,13 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
         masterGainRef.current.connect(audioContextRef.current.destination);
         masterGainRef.current.gain.value = linearToLogGain(volume);
       }
-      if (!isSineInstrument(instrumentId) && !soundfontPlayerRef.current) {
+      if (!isSineInstrument(instrumentId) && (!soundfontPlayerRef.current || loadedInstrumentIdRef.current !== instrumentId)) {
         soundfontPlayerRef.current = await getInstrument(
           audioContextRef.current,
           instrumentId,
           masterGainRef.current
         );
+        loadedInstrumentIdRef.current = instrumentId;
       }
       return true;
     } catch (err) {

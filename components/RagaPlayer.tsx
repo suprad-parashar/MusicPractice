@@ -47,7 +47,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       soundfontPlayerRef.current = null;
       return;
     }
-    if (isPlayingRef.current && audioContextRef.current && masterGainRef.current) {
+    if (audioContextRef.current && masterGainRef.current) {
       getInstrument(audioContextRef.current, instrumentId, masterGainRef.current)
         .then((player) => {
           soundfontPlayerRef.current = player;
