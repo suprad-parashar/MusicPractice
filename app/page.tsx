@@ -81,8 +81,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950">
-      <div className="flex h-screen">
+    <main className="min-h-screen bg-slate-950 flex flex-col">
+      <div className="flex flex-1 min-h-0">
         {/* Sidebar - Key → Voice → Tanpura → Notation Language */}
         <aside className="scroll-area w-80 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto flex flex-col gap-8">
           <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
@@ -154,6 +154,16 @@ export default function Home() {
               <AuditoryPractice baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} />
             )}
           </div>
+
+          {/* Footer - only in main content area */}
+          <footer className="shrink-0 pt-6 px-8 pb-16 text-center border-t border-slate-800/70 bg-slate-950">
+            <p className="text-slate-400 text-sm md:text-base font-light italic max-w-xl mx-auto mb-1.5">
+              &ldquo;Where there is practice, there is perfection.&rdquo;
+            </p>
+            <p className="text-slate-500 text-xs mb-6">
+              Carnatic Practice · v1.1.0
+            </p>
+          </footer>
         </div>
       </div>
     </main>
