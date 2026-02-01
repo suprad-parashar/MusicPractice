@@ -9,7 +9,7 @@ type SortOrder = 'number' | 'alphabetical';
 type PracticeMode = 'untimed' | 'timed';
 type NoteCount = 1 | 2 | 3;
 
-export default function AuditoryPractice({ baseFreq, instrumentId = 'piano' }: { baseFreq: number; instrumentId?: InstrumentId }) {
+export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', volume = 0.5 }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number }) {
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
   );
@@ -22,7 +22,6 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano' }: {
   const [round, setRound] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [currentNotes, setCurrentNotes] = useState<string[]>([]);
-  const [volume, setVolume] = useState(0.5);
   
   // Timer/Stopwatch states
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -813,29 +812,6 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano' }: {
           </div>
         )}
 
-        {/* Volume Control */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Volume
-          </label>
-          <div className="flex items-center gap-4 px-4">
-            <svg className="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-            />
-            <span className="text-slate-400 text-sm w-12 text-right">
-              {Math.round(volume * 100)}%
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );

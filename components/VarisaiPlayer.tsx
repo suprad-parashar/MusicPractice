@@ -19,7 +19,7 @@ const VARISAI_TYPES: { [key in VarisaiType]: { name: string; data: Varisai[] } }
   mandarasthayi: { name: 'Mandarasthayi Varasai', data: MANDARASTHAYI_VARISAI },
 };
 
-export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano' }: { baseFreq: number; instrumentId?: InstrumentId }) {
+export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5 }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number }) {
   const [varisaiType, setVarisaiType] = useState<VarisaiType>('sarali');
   const currentVarisaiData = VARISAI_TYPES[varisaiType].data;
   const [selectedVarisai, setSelectedVarisai] = useState<Varisai>(currentVarisaiData[0]);
@@ -38,7 +38,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano' }: { ba
   const [startFromCurrentIndex, setStartFromCurrentIndex] = useState(0); // which exercise to start from when "start from current" is on
   const [currentPracticeExercise, setCurrentPracticeExercise] = useState(0);
   const [practicePlayCount, setPracticePlayCount] = useState(0); // 0 = first play (with sound), 1 = second play (silent)
-  const [volume, setVolume] = useState(0.5); // Volume control (0-1)
   const practicePlayCountRef = useRef(0); // Ref to track practice play count for closures
   const currentPracticeExerciseRef = useRef(0); // Ref to track current exercise for closures
   
@@ -77,6 +76,13 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano' }: { ba
       soundfontPlayerRef.current = null;
     }
   }, [instrumentId]);
+
+  // Sync sidebar voice volume to master gain when it changes
+  useEffect(() => {
+    if (masterGainRef.current) {
+      masterGainRef.current.gain.value = linearToLogGain(volume);
+    }
+  }, [volume]);
 
   const beatDuration = (60 / baseBPM) * 1000;
   const noteDuration = beatDuration / notesPerBeat;
@@ -570,13 +576,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano' }: { ba
     setNotesPerBeat(newNotesPerBeat);
   };
 
-  const handleVolumeChange = (newVolume: number) => {
-    setVolume(newVolume);
-    if (masterGainRef.current) {
-      masterGainRef.current.gain.value = linearToLogGain(newVolume);
-    }
-  };
-
   useEffect(() => {
     return () => {
       stopPlaying();
@@ -944,30 +943,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano' }: { ba
           </div>
         </div>
 
-        {/* Volume Control */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Volume
-          </label>
-          <div className="flex items-center gap-4 px-4">
-            <svg className="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={volume}
-              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-            />
-            <span className="text-slate-400 text-sm w-12 text-right">
-              {Math.round(volume * 100)}%
-            </span>
-          </div>
-        </div>
-
         {/* Notes Display */}
         <div className="mt-8">
           <div className="text-center">
@@ -997,8 +972,8 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano' }: { ba
                 }
                 
                 const parsed = parseVarisaiNote(note);
-                // Display the full notation (e.g., "R2", "G3", "S", etc.)
-                const displayNote = parsed.swara;
+                // Display base swara only (S R G M P D N), not raga variants (R1, G2, etc.)
+                const displayNote = parsed.swara.charAt(0);
                 return (
                   <div
                     key={index}

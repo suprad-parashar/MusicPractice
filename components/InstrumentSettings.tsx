@@ -5,9 +5,11 @@ import { INSTRUMENT_OPTIONS, type InstrumentId } from '@/lib/instrumentLoader';
 interface InstrumentSettingsProps {
   instrumentId: InstrumentId;
   onInstrumentChange: (id: InstrumentId) => void;
+  volume: number;
+  onVolumeChange: (value: number) => void;
 }
 
-export default function InstrumentSettings({ instrumentId, onInstrumentChange }: InstrumentSettingsProps) {
+export default function InstrumentSettings({ instrumentId, onInstrumentChange, volume, onVolumeChange }: InstrumentSettingsProps) {
   return (
     <div className="w-full">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
@@ -39,6 +41,27 @@ export default function InstrumentSettings({ instrumentId, onInstrumentChange }:
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-slate-300 mb-2">Volume</label>
+          <div className="flex items-center gap-3">
+            <svg className="w-4 h-4 text-slate-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+            </svg>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={volume}
+              onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+            />
+            <span className="text-slate-400 text-sm w-10 text-right shrink-0">
+              {Math.round(volume * 100)}%
+            </span>
+          </div>
         </div>
       </div>
     </div>
