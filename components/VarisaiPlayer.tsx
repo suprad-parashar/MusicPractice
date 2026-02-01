@@ -32,6 +32,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [practiceMode, setPracticeMode] = useState(false);
+  const [singAlongMode, setSingAlongMode] = useState(false);
   const [currentPracticeExercise, setCurrentPracticeExercise] = useState(0);
   const [practicePlayCount, setPracticePlayCount] = useState(0); // 0 = first play (with sound), 1 = second play (silent)
   const [volume, setVolume] = useState(0.5); // Volume control (0-1)
@@ -227,7 +228,32 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
 
       if (index >= totalNotes) {
         // Exercise finished
-        if (practiceMode) {
+        if (singAlongMode) {
+          // Sing along mode: no silent rounds, just go to next exercise
+          setCurrentNoteIndex(0);
+          const currentExercise = currentPracticeExerciseRef.current;
+
+          if (currentExercise < currentVarisaiData.length - 1) {
+            const nextExercise = currentExercise + 1;
+            const nextVarisai = currentVarisaiData[nextExercise];
+            currentPracticeExerciseRef.current = nextExercise;
+            setCurrentPracticeExercise(nextExercise);
+            setSelectedVarisai(nextVarisai);
+
+            setTimeout(() => {
+              if (isPlayingRef.current) {
+                playVarisai(false, nextVarisai);
+              }
+            }, 500);
+          } else {
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            setSingAlongMode(false);
+            setCurrentPracticeExercise(0);
+            currentPracticeExerciseRef.current = 0;
+            setCurrentNoteIndex(0);
+          }
+        } else if (practiceMode) {
           // In practice mode, check if we need to play again (silent) or move to next exercise
           if (!silent && practicePlayCountRef.current === 0) {
             // First play (with sound) finished, now play silently
@@ -378,8 +404,8 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       isPlayingRef.current = true;
       setIsPlaying(true);
       
-      if (practiceMode) {
-        // Practice mode: start with first exercise
+      if (practiceMode || singAlongMode) {
+        // Practice or sing along mode: start with first exercise
         const firstVarisai = currentVarisaiData[0];
         setCurrentPracticeExercise(0);
         currentPracticeExerciseRef.current = 0;
@@ -422,9 +448,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     });
     oscillatorsRef.current = [];
     
-    // Reset practice mode state
-    if (practiceMode) {
+    // Reset practice/sing along mode state
+    if (practiceMode || singAlongMode) {
       setPracticeMode(false);
+      setSingAlongMode(false);
       setCurrentPracticeExercise(0);
       currentPracticeExerciseRef.current = 0;
       setPracticePlayCount(0);
@@ -601,39 +628,61 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
           </div>
         </div>
 
-        {/* Practice Mode Toggle */}
-        <div className="mb-6 flex items-center justify-center gap-4">
+        {/* Practice Mode & Sing Along Mode Toggles */}
+        <div className="mb-6 flex flex-wrap items-center justify-center gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={practiceMode}
               onChange={(e) => {
-                if (isPlaying) {
-                  stopPlaying();
-                }
-                setPracticeMode(e.target.checked);
+                if (isPlaying) stopPlaying();
+                const checked = e.target.checked;
+                setPracticeMode(checked);
+                if (checked) setSingAlongMode(false);
                 setCurrentPracticeExercise(0);
                 currentPracticeExerciseRef.current = 0;
                 setPracticePlayCount(0);
                 practicePlayCountRef.current = 0;
-                if (e.target.checked) {
-                  setSelectedVarisai(currentVarisaiData[0]);
-                }
+                if (checked) setSelectedVarisai(currentVarisaiData[0]);
               }}
               className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
               disabled={isPlaying}
             />
             <span className="text-sm font-medium text-slate-300">Practice Mode</span>
           </label>
-          {practiceMode && (
-            <div className="text-sm text-slate-400">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={singAlongMode}
+              onChange={(e) => {
+                if (isPlaying) stopPlaying();
+                const checked = e.target.checked;
+                setSingAlongMode(checked);
+                if (checked) setPracticeMode(false);
+                setCurrentPracticeExercise(0);
+                currentPracticeExerciseRef.current = 0;
+                setPracticePlayCount(0);
+                practicePlayCountRef.current = 0;
+                if (checked) setSelectedVarisai(currentVarisaiData[0]);
+              }}
+              className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
+              disabled={isPlaying}
+            />
+            <span className="text-sm font-medium text-slate-300">Sing Along Mode</span>
+          </label>
+          {(practiceMode || singAlongMode) && (
+            <div className="text-sm text-slate-400 w-full text-center">
               {isPlaying ? (
                 <span>
-                  Exercise {currentPracticeExercise + 1}/{currentVarisaiData.length} - 
-                  {practicePlayCount === 0 ? ' With Sound' : ' Silent'}
+                  Exercise {currentPracticeExercise + 1}/{currentVarisaiData.length}
+                  {practiceMode && ` - ${practicePlayCount === 0 ? 'With Sound' : 'Silent'}`}
                 </span>
               ) : (
-                <span>Ready to start - will play all exercises twice</span>
+                <span>
+                  {practiceMode
+                    ? 'Ready to start - will play all exercises twice (with sound, then silent)'
+                    : 'Ready to start - will play all exercises once with sound'}
+                </span>
               )}
             </div>
           )}
@@ -648,15 +697,15 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             {currentVarisaiData.map((varisai) => (
               <button
                 key={varisai.number}
-                onClick={() => !practiceMode && handleVarisaiChange(varisai.number)}
-                disabled={practiceMode}
+                onClick={() => !practiceMode && !singAlongMode && handleVarisaiChange(varisai.number)}
+                disabled={practiceMode || singAlongMode}
                 className={`
                   py-3 px-4 rounded-lg
                   transition-all duration-200
                   text-sm font-medium
                   w-full max-w-[60px]
                   ${
-                    practiceMode
+                    practiceMode || singAlongMode
                       ? 'opacity-50 cursor-not-allowed'
                       : 'cursor-pointer'
                   }
@@ -724,10 +773,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
               id="varisai-loop-toggle"
               checked={loop}
               onChange={(e) => setLoop(e.target.checked)}
-              disabled={practiceMode}
-              className={`w-4 h-4 rounded accent-amber-500 ${practiceMode ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              disabled={practiceMode || singAlongMode}
+              className={`w-4 h-4 rounded accent-amber-500 ${practiceMode || singAlongMode ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
-            <label htmlFor="varisai-loop-toggle" className={`text-slate-300 text-sm ${practiceMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+            <label htmlFor="varisai-loop-toggle" className={`text-slate-300 text-sm ${practiceMode || singAlongMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
               Loop playback
             </label>
           </div>
