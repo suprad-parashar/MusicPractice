@@ -32,21 +32,21 @@ interface KeySectionProps {
  */
 export default function KeySection({ selectedKey, onKeyChange }: KeySectionProps) {
   return (
-    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
-      <div className="text-center mb-4">
-        <h2 className="text-xl font-light mb-1 tracking-wide">Key</h2>
+    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-700/50">
+      <div className="text-center mb-3 sm:mb-4">
+        <h2 className="text-lg sm:text-xl font-light mb-1 tracking-wide">Key</h2>
         <p className="text-slate-400 text-xs">Reference pitch for practice</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
         {(Object.keys(KEYS) as KeyName[]).map((key) => (
           <button
             key={key}
             onClick={() => onKeyChange(key)}
             className={`
-              py-2 px-1 rounded
+              py-1.5 sm:py-2 px-1 rounded
               transition-all duration-200
-              text-xs font-medium
+              text-[10px] sm:text-xs font-medium
               ${
                 selectedKey === key
                   ? 'bg-amber-500 text-slate-900 shadow-md scale-105'

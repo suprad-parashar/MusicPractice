@@ -113,27 +113,28 @@ export default function TanpuraSidebar({
   };
 
   return (
-    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-light mb-1 tracking-wide">Tanpura</h2>
+    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-700/50">
+        <div className="text-center mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-light mb-1 tracking-wide">Tanpura</h2>
           <p className="text-slate-400 text-xs">Drone Control</p>
         </div>
 
-        <div className="flex flex-col items-center mb-4">
+        <div className="flex flex-col items-center mb-3 sm:mb-4">
           <button
             onClick={toggleTanpura}
             className={`
-              relative w-20 h-20 rounded-full
+              relative w-16 h-16 sm:w-20 sm:h-20 rounded-full
+              border-2 border-[var(--border)]
               transition-all duration-300 ease-out
               ${isPlaying 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105' 
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105 border-[var(--accent)]' 
                 : 'bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
               }
               flex items-center justify-center
             `}
           >
             <svg
-              className={`w-8 h-8 transition-transform duration-300`}
+              className={`w-6 h-6 sm:w-8 sm:h-8 transition-transform duration-300`}
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -149,7 +150,7 @@ export default function TanpuraSidebar({
           </p>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
             Octave
           </label>
@@ -159,7 +160,7 @@ export default function TanpuraSidebar({
                 key={opt}
                 onClick={() => handleOctaveChange(opt)}
                 className={`
-                  flex-1 py-2 px-2 text-xs font-medium transition-all duration-200 capitalize
+                  flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 text-[10px] sm:text-xs font-medium transition-all duration-200 capitalize
                   border-r border-slate-600 last:border-r-0
                   focus:outline-none focus:ring-0
                   ${octave === opt
@@ -174,7 +175,7 @@ export default function TanpuraSidebar({
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
             Pluck delay (s)
           </label>
@@ -195,7 +196,7 @@ export default function TanpuraSidebar({
           </div>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
             Note length (s)
           </label>

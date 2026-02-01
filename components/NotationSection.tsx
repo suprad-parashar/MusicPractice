@@ -19,9 +19,9 @@ interface NotationSectionProps {
  */
 export default function NotationSection({ notationLanguage, onNotationChange }: NotationSectionProps) {
   return (
-    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
-      <div className="text-center mb-4">
-        <h2 className="text-xl font-light tracking-wide">Notation Language</h2>
+    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-700/50">
+      <div className="text-center mb-3 sm:mb-4">
+        <h2 className="text-lg sm:text-xl font-light tracking-wide">Notation Language</h2>
       </div>
 
       <select

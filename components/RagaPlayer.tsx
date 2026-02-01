@@ -372,9 +372,10 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             onClick={isPlaying ? stopPlaying : startPlaying}
             className={`
               relative w-32 h-32 md:w-40 md:h-40 rounded-full
+              border-2 border-[var(--border)]
               transition-all duration-300 ease-out
               ${isPlaying 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105' 
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105 border-[var(--accent)]' 
                 : 'bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
               }
               flex items-center justify-center
@@ -448,7 +449,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             {/* Arohana (Ascending) */}
             <div className="mb-4">
               <p className="text-slate-500 text-xs mb-2">Arohana (Ascending)</p>
-              <div className="flex justify-center gap-2 flex-wrap">
+              <div className="grid grid-cols-4 sm:flex sm:flex-wrap sm:justify-center gap-2">
                 {arohana.map((note, index) => {
                   const globalIndex = index;
                   const parsed = parseVarisaiNote(note);
@@ -486,7 +487,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             {/* Avarohana (Descending) */}
             <div>
               <p className="text-slate-500 text-xs mb-2">Avarohana (Descending)</p>
-              <div className="flex justify-center gap-2 flex-wrap">
+              <div className="grid grid-cols-4 sm:flex sm:flex-wrap sm:justify-center gap-2">
                 {avarohana.map((note, index) => {
                   const globalIndex = arohana.length + index;
                   const parsed = parseVarisaiNote(note);
