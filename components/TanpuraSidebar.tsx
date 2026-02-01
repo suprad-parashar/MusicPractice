@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import * as tanpuraTone from '@/lib/tanpuraTone';
+import type { Octave } from '@/lib/tanpuraTone';
 
 interface TanpuraSidebarProps {
   baseFreq: number;
@@ -11,6 +12,8 @@ interface TanpuraSidebarProps {
   onPluckDelayChange: (v: number) => void;
   noteLength: number;
   onNoteLengthChange: (v: number) => void;
+  octave: Octave;
+  onOctaveChange: (v: Octave) => void;
 }
 
 const PLUCK_DELAY_MIN = 0.8;
@@ -26,6 +29,8 @@ export default function TanpuraSidebar({
   onPluckDelayChange,
   noteLength,
   onNoteLengthChange,
+  octave,
+  onOctaveChange,
 }: TanpuraSidebarProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef<boolean>(false);
@@ -38,7 +43,7 @@ export default function TanpuraSidebar({
     };
   }, []);
 
-  // When baseFreq changes while playing, update the drone
+  // When baseFreq or octave changes while playing, update the drone
   useEffect(() => {
     if (!isPlayingRef.current) return;
     tanpuraTone.setTanpuraFrequency(baseFreq);
@@ -47,7 +52,7 @@ export default function TanpuraSidebar({
   const startTanpura = async () => {
     if (isPlayingRef.current) return;
     try {
-      await tanpuraTone.startTanpura(baseFreq, volume, pluckDelay, noteLength);
+      await tanpuraTone.startTanpura(baseFreq, volume, pluckDelay, noteLength, octave);
       isPlayingRef.current = true;
       setIsPlaying(true);
     } catch (error) {
@@ -88,6 +93,11 @@ export default function TanpuraSidebar({
     tanpuraTone.setTanpuraNoteLength(clamped);
   };
 
+  const handleOctaveChange = (newOctave: Octave) => {
+    onOctaveChange(newOctave);
+    tanpuraTone.setTanpuraOctave(newOctave); // Immediate response
+  };
+
   return (
     <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
         <div className="text-center mb-4">
@@ -123,6 +133,29 @@ export default function TanpuraSidebar({
           <p className="mt-2 text-slate-400 text-xs">
             {isPlaying ? 'Playing' : 'Stopped'}
           </p>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
+            Octave
+          </label>
+          <div className="flex gap-1">
+            {(['low', 'medium', 'high'] as Octave[]).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => handleOctaveChange(opt)}
+                className={`
+                  flex-1 py-1.5 rounded text-xs font-medium transition-all capitalize
+                  ${octave === opt
+                    ? 'bg-amber-500 text-slate-900'
+                    : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                  }
+                `}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="mb-4">
@@ -179,7 +212,7 @@ export default function TanpuraSidebar({
               type="range"
               min="0"
               max="1"
-              step="0.05"
+              step="0.02"
               value={volume}
               onInput={(e) => handleVolumeChange(parseFloat((e.target as HTMLInputElement).value))}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}

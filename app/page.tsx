@@ -10,6 +10,7 @@ import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
 import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
+import { getOctaveMultiplier, type Octave } from '@/lib/tanpuraTone';
 import { getStored, setStored } from '@/lib/storage';
 
 type Tab = 'raga' | 'varisai' | 'auditory';
@@ -25,12 +26,15 @@ type StoredSettings = {
   tanpuraVolume?: number;
   tanpuraPluckDelay?: number;
   tanpuraNoteLength?: number;
+  tanpuraOctave?: Octave;
+  voiceOctave?: Octave;
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
+const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
 
 export default function Home() {
   const [storageReady, setStorageReady] = useState(false);
@@ -43,6 +47,8 @@ export default function Home() {
   const [tanpuraVolume, setTanpuraVolume] = useState(0.5);
   const [tanpuraPluckDelay, setTanpuraPluckDelay] = useState(1.4);
   const [tanpuraNoteLength, setTanpuraNoteLength] = useState(5);
+  const [tanpuraOctave, setTanpuraOctave] = useState<Octave>('medium');
+  const [voiceOctave, setVoiceOctave] = useState<Octave>('medium');
   const hasLoadedRef = useRef(false);
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
@@ -59,6 +65,8 @@ export default function Home() {
     if (typeof stored.tanpuraVolume === 'number' && stored.tanpuraVolume >= 0 && stored.tanpuraVolume <= 1) setTanpuraVolume(stored.tanpuraVolume);
     if (typeof stored.tanpuraPluckDelay === 'number' && stored.tanpuraPluckDelay >= 0.8 && stored.tanpuraPluckDelay <= 2.5) setTanpuraPluckDelay(stored.tanpuraPluckDelay);
     if (typeof stored.tanpuraNoteLength === 'number' && stored.tanpuraNoteLength >= 2 && stored.tanpuraNoteLength <= 8) setTanpuraNoteLength(stored.tanpuraNoteLength);
+    if (stored.tanpuraOctave && VALID_OCTAVES.includes(stored.tanpuraOctave)) setTanpuraOctave(stored.tanpuraOctave);
+    if (stored.voiceOctave && VALID_OCTAVES.includes(stored.voiceOctave)) setVoiceOctave(stored.voiceOctave);
     hasLoadedRef.current = true;
     setStorageReady(true);
   }, []);
@@ -75,8 +83,10 @@ export default function Home() {
       tanpuraVolume,
       tanpuraPluckDelay,
       tanpuraNoteLength,
+      tanpuraOctave,
+      voiceOctave,
     });
-  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength]);
+  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, voiceOctave]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
@@ -98,7 +108,7 @@ export default function Home() {
         {/* Sidebar - Key → Voice → Tanpura → Notation Language */}
         <aside className="scroll-area w-80 min-h-0 shrink-0 flex flex-col overflow-y-auto overflow-x-hidden bg-slate-900 border-r border-slate-800 p-6 gap-8">
           <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
-          <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} />
+          <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
           <TanpuraSidebar
             baseFreq={baseFreq}
             volume={tanpuraVolume}
@@ -107,6 +117,8 @@ export default function Home() {
             onPluckDelayChange={setTanpuraPluckDelay}
             noteLength={tanpuraNoteLength}
             onNoteLengthChange={setTanpuraNoteLength}
+            octave={tanpuraOctave}
+            onOctaveChange={setTanpuraOctave}
           />
           <NotationSection notationLanguage={notationLanguage} onNotationChange={setNotationLanguage} />
         </aside>
@@ -168,11 +180,11 @@ export default function Home() {
           <div className="scroll-area flex-1 min-h-0 flex flex-col overflow-y-auto">
             <div className="flex-1 flex items-start justify-center p-6">
               {activeTab === 'raga' ? (
-                <RagaPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+                <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'varisai' ? (
-                <VarisaiPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+                <VarisaiPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : (
-                <AuditoryPractice baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} />
+                <AuditoryPractice baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} />
               )}
             </div>
             <footer className="shrink-0 pt-6 px-8 pb-16 text-center border-t border-slate-800/70 bg-slate-950">

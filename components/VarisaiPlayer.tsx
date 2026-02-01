@@ -213,8 +213,8 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
 
     if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
       const noteName = freqToNoteNameForInstrument(freq, instrumentIdRef.current);
-      // Use fixed gain 0.6 for soundfont; volume is controlled by masterGainRef (no double-apply)
-      const gain = silent ? 0 : 0.6;
+      // Use fixed gain 1.5 for soundfont; volume is controlled by masterGainRef (no double-apply)
+      const gain = silent ? 0 : 1.5;
       soundfontPlayerRef.current.start(noteName, now, { duration: duration / 1000, gain });
       const state = { stopTime };
       return {
@@ -223,7 +223,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
         },
         extend(additionalDuration: number, extSilent: boolean) {
           if (!soundfontPlayerRef.current) return;
-          const extGain = extSilent ? 0 : 0.6;
+          const extGain = extSilent ? 0 : 1.5;
           soundfontPlayerRef.current!.start(noteName, state.stopTime, { duration: additionalDuration / 1000, gain: extGain });
           state.stopTime += additionalDuration / 1000;
         },

@@ -1,15 +1,18 @@
 'use client';
 
 import { INSTRUMENT_OPTIONS, type InstrumentId } from '@/lib/instrumentLoader';
+import type { Octave } from '@/lib/tanpuraTone';
 
 interface InstrumentSettingsProps {
   instrumentId: InstrumentId;
   onInstrumentChange: (id: InstrumentId) => void;
   volume: number;
   onVolumeChange: (value: number) => void;
+  octave: Octave;
+  onOctaveChange: (value: Octave) => void;
 }
 
-export default function InstrumentSettings({ instrumentId, onInstrumentChange, volume, onVolumeChange }: InstrumentSettingsProps) {
+export default function InstrumentSettings({ instrumentId, onInstrumentChange, volume, onVolumeChange, octave, onOctaveChange }: InstrumentSettingsProps) {
   return (
     <div className="w-full">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
@@ -41,6 +44,28 @@ export default function InstrumentSettings({ instrumentId, onInstrumentChange, v
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-slate-300 mb-2">Octave</label>
+          <div className="flex gap-2">
+            {(['low', 'medium', 'high'] as Octave[]).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onOctaveChange(opt)}
+                className={`
+                  flex-1 py-2 rounded-lg text-xs font-medium transition-all capitalize
+                  ${octave === opt
+                    ? 'bg-amber-500 text-slate-900'
+                    : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                  }
+                `}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="mt-4">

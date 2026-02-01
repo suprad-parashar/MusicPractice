@@ -14,12 +14,21 @@ const PLUCK_SAMPLE_BASE_FREQ = 293.66; // D4 - matches tanpura-d.wav from browse
 
 // 4 strings: P (Pancham), High S, High S, S (Shadja - kharj)
 const PLUCK_RATIOS = [1.5, 2.0, 2.0, 1.0];
-const PITCH_OCTAVE_DOWN = 0.5; // One octave lower
+const PITCH_OCTAVE_DOWN = 0.5; // One octave lower (medium)
+const VOLUME_ATTENUATION_DB = -12; // Tanpura sits quieter in the mix
+
+export type Octave = 'low' | 'medium' | 'high';
+
+export function getOctaveMultiplier(octave: Octave): number {
+  switch (octave) {
+    case 'low': return 0.5;
+    case 'high': return 2;
+    default: return 1; // medium
+  }
+}
 
 const DEFAULT_PLUCK_DELAY_SEC = 1.4; // Delay between each pluck (P, High S, High S, S)
 const DEFAULT_NOTE_LENGTH_SEC = 5;   // How long each pluck resonates (synth) / reverb tail (sample)
-
-type TanpuraOctave = 'low' | 'medium' | 'high';
 
 let volumeNode: Tone.Volume | null = null;
 let pluckPlayers: Tone.Player[] = [];
@@ -27,7 +36,7 @@ let pluckReverb: Tone.Reverb | null = null;
 let pluckLoop: Tone.Loop | null = null;
 let polySynth: Tone.PolySynth<Tone.PluckSynth> | null = null;
 let baseFreqRef = 261.63;
-let octaveRef: TanpuraOctave = 'medium';
+let octaveRef: Octave = 'medium';
 let volumeRef = 0.5;
 let pluckDelaySecRef = DEFAULT_PLUCK_DELAY_SEC;
 let noteLengthSecRef = DEFAULT_NOTE_LENGTH_SEC;
@@ -40,12 +49,10 @@ function linearToDb(linear: number): number {
   return 20 * Math.log10(Math.max(0.01, linear));
 }
 
-function octaveMultiplier(octave: TanpuraOctave): number {
-  switch (octave) {
-    case 'low': return 0.63;
-    case 'high': return 1.26;
-    default: return 0.84;
-  }
+// Perceptually uniform: upper half of slider has bigger audible steps
+function sliderToGain(slider: number): number {
+  if (slider <= 0) return 0;
+  return Math.pow(slider, 2); // Square curve: clearer changes in typical range
 }
 
 async function tryLoadPluckSample(): Promise<{ url: string; baseFreq: number } | null> {
@@ -69,7 +76,7 @@ async function createPluckSampleChain(
   sampleUrl: string,
   sampleBase: number
 ) {
-  const volume = new Tone.Volume(linearToDb(volumeLinear)).toDestination();
+  const volume = new Tone.Volume(linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB).toDestination();
   const reverb = new Tone.Reverb({
     decay: noteLengthSecRef,
     wet: 0.42,
@@ -92,7 +99,7 @@ async function createPluckSampleChain(
 
 function schedulePluckCycle(time: number): void {
   if (pluckPlayers.length < 4) return;
-  const base = baseFreqRef * octaveMultiplier(octaveRef) * PITCH_OCTAVE_DOWN;
+  const base = baseFreqRef * PITCH_OCTAVE_DOWN * getOctaveMultiplier(octaveRef);
   const delayPerPluck = pluckDelaySecRef;
 
   PLUCK_RATIOS.forEach((ratio, i) => {
@@ -104,10 +111,7 @@ function schedulePluckCycle(time: number): void {
   });
 }
 
-function createSynthPluckChain(baseFreqHz: number) {
-  const mult = octaveMultiplier(octaveRef);
-  const droneFreq = baseFreqHz * mult;
-
+function createSynthPluckChain(_baseFreqHz: number) {
   const volume = new Tone.Volume(0).toDestination();
   const rev = new Tone.Reverb({ decay: 6, wet: 0.45 }).connect(volume);
 
@@ -124,7 +128,7 @@ function createSynthPluckChain(baseFreqHz: number) {
 
 function scheduleSynthPluckCycle(time: number): void {
   if (!polySynth) return;
-  const base = baseFreqRef * octaveMultiplier(octaveRef) * PITCH_OCTAVE_DOWN;
+  const base = baseFreqRef * PITCH_OCTAVE_DOWN * getOctaveMultiplier(octaveRef);
   const delayPerPluck = pluckDelaySecRef;
 
   PLUCK_RATIOS.forEach((ratio, i) => {
@@ -138,13 +142,14 @@ export async function startTanpura(
   baseFreqHz: number,
   volumeLinear: number,
   pluckDelaySec: number = DEFAULT_PLUCK_DELAY_SEC,
-  noteLengthSec: number = DEFAULT_NOTE_LENGTH_SEC
+  noteLengthSec: number = DEFAULT_NOTE_LENGTH_SEC,
+  octave: Octave = 'medium'
 ): Promise<void> {
   if (typeof window === 'undefined') return;
   await Tone.start();
 
   baseFreqRef = baseFreqHz;
-  octaveRef = 'medium';
+  octaveRef = octave;
   volumeRef = volumeLinear;
   pluckDelaySecRef = Math.max(0.8, Math.min(2.5, pluckDelaySec));
   noteLengthSecRef = Math.max(2, Math.min(8, noteLengthSec));
@@ -156,7 +161,7 @@ export async function startTanpura(
       sampleInfo.url,
       sampleInfo.baseFreq
     );
-    volume.volume.value = linearToDb(volumeLinear);
+    volume.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
 
     const periodSec = pluckDelaySecRef * 4;
     pluckLoop = new Tone.Loop((time) => schedulePluckCycle(time), periodSec).start(0);
@@ -166,7 +171,7 @@ export async function startTanpura(
     useSample = true;
   } else {
     const { volume, poly } = createSynthPluckChain(baseFreqHz);
-    volume.volume.value = linearToDb(volumeLinear);
+    volume.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
 
     const periodSec = pluckDelaySecRef * 4;
     pluckLoop = new Tone.Loop((time) => scheduleSynthPluckCycle(time), periodSec).start(0);
@@ -199,11 +204,19 @@ export function stopTanpura(): void {
 }
 
 export function setTanpuraVolume(volumeLinear: number): void {
-  if (volumeNode) volumeNode.volume.value = linearToDb(volumeLinear);
+  if (volumeNode) volumeNode.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
 }
 
 export function setTanpuraFrequency(baseFreqHz: number): void {
   baseFreqRef = baseFreqHz;
+}
+
+export function setTanpuraOctave(octave: Octave): void {
+  octaveRef = octave;
+  if (!isStarted) return;
+  const now = Tone.getTransport().seconds;
+  if (useSample) schedulePluckCycle(now);
+  else scheduleSynthPluckCycle(now);
 }
 
 export function setTanpuraPluckDelay(seconds: number): void {

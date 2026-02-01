@@ -114,8 +114,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     const now = audioContextRef.current.currentTime;
     const durationSec = duration / 1000;
     if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
-      // Fixed gain 0.6; volume is controlled by masterGainRef (sidebar)
-      soundfontPlayerRef.current.start(freqToNoteNameForInstrument(freq, instrumentIdRef.current), now, { duration: durationSec, gain: 0.6 });
+      // Fixed gain 1.5; volume is controlled by masterGainRef (sidebar)
+      soundfontPlayerRef.current.start(freqToNoteNameForInstrument(freq, instrumentIdRef.current), now, { duration: durationSec, gain: 1.5 });
       return;
     }
 
