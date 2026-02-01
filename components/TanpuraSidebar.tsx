@@ -21,6 +21,20 @@ const PLUCK_DELAY_MAX = 2.5;
 const NOTE_LENGTH_MIN = 2;
 const NOTE_LENGTH_MAX = 8;
 
+/**
+ * Renders a control sidebar for the tanpura drone with playback and synthesis parameters.
+ *
+ * @param baseFreq - Base frequency of the drone in hertz.
+ * @param volume - Playback volume in the range 0 (silent) to 1 (full).
+ * @param onVolumeChange - Callback invoked with a new volume value when the user adjusts the volume.
+ * @param pluckDelay - Time in seconds between successive plucks.
+ * @param onPluckDelayChange - Callback invoked with a clamped pluck delay when the user adjusts the pluck delay.
+ * @param noteLength - Duration in seconds of each plucked note.
+ * @param onNoteLengthChange - Callback invoked with a clamped note length when the user adjusts the note length.
+ * @param octave - Selected octave ('low' | 'medium' | 'high') for the drone.
+ * @param onOctaveChange - Callback invoked when the user selects a different octave.
+ * @returns A React element rendering the tanpura control sidebar.
+ */
 export default function TanpuraSidebar({
   baseFreq,
   volume,

@@ -40,6 +40,13 @@ export const NOTATION_LANGUAGES: { value: NotationLanguage; label: string }[] = 
   { value: 'kannada', label: 'Kannada' },
 ];
 
+/**
+ * Convert a base swara symbol to its script representation for the given notation language.
+ *
+ * @param baseSwara - The base swara symbol (for example `'S'`, `'r'`, `'g'`); input is treated case-insensitively.
+ * @param language - The target notation language (`'english' | 'devanagari' | 'kannada'`).
+ * @returns The script string for the swara in the specified language, or the uppercased `baseSwara` if no mapping exists.
+ */
 export function getSwaraInScript(baseSwara: string, language: NotationLanguage): string {
   const upper = baseSwara.toUpperCase();
   const map = SWARA_TO_SCRIPT[language];

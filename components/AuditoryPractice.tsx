@@ -10,6 +10,19 @@ type SortOrder = 'number' | 'alphabetical';
 type PracticeMode = 'untimed' | 'timed';
 type NoteCount = 1 | 2 | 3;
 
+/**
+ * Interactive auditory note-identification practice component for Carnatic music.
+ *
+ * Renders a UI that lets users practice identifying swaras by ear with configurable
+ * raga selection, practice mode (timed or untimed), note-count per round, instrument,
+ * and volume. Handles audio playback, input normalization, scoring, timing, persistence
+ * of user settings, and feedback for correct/incorrect answers.
+ *
+ * @param baseFreq - Reference tonic frequency in Hz used to compute swara pitches.
+ * @param instrumentId - Optional instrument identifier to use for playback (default: `'piano'`).
+ * @param volume - Optional master volume as a linear value between 0 and 1 (default: `0.5`).
+ * @returns The rendered React component for the auditory practice UI.
+ */
 export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', volume = 0.5 }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number }) {
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]

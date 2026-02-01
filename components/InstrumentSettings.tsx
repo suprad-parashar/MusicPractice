@@ -12,6 +12,17 @@ interface InstrumentSettingsProps {
   onOctaveChange: (value: Octave) => void;
 }
 
+/**
+ * Renders a UI for selecting the playback instrument, octave, and volume.
+ *
+ * @param instrumentId - Currently selected instrument identifier.
+ * @param onInstrumentChange - Called with the new instrument id when the selection changes.
+ * @param volume - Current volume value between 0 and 1.
+ * @param onVolumeChange - Called with the new volume (0–1) when the slider value changes.
+ * @param octave - Currently selected octave ("low", "medium", or "high").
+ * @param onOctaveChange - Called with the new octave when an octave button is clicked.
+ * @returns The instrument settings React element.
+ */
 export default function InstrumentSettings({ instrumentId, onInstrumentChange, volume, onVolumeChange, octave, onOctaveChange }: InstrumentSettingsProps) {
   return (
     <div className="w-full">

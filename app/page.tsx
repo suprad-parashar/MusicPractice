@@ -36,6 +36,14 @@ const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', '
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
 const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
 
+/**
+ * Renders the main practice UI with a left settings sidebar and a tabbed practice area.
+ *
+ * The component hydrates user settings from persistent storage before rendering to avoid flashing defaults,
+ * persists setting changes after initial load, and switches between Raga, Varisai, and Auditory practice views.
+ *
+ * @returns The rendered Home page React element containing the sidebar, tab navigation, active practice content, and footer.
+ */
 export default function Home() {
   const [storageReady, setStorageReady] = useState(false);
   const [selectedKey, setSelectedKey] = useState<KeyName>('C');
