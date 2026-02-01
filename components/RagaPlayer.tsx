@@ -448,7 +448,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             {/* Arohana (Ascending) */}
             <div className="mb-4">
               <p className="text-slate-500 text-xs mb-2">Arohana (Ascending)</p>
-              <div className="flex justify-center gap-2 flex-wrap">
+              <div className="grid grid-cols-4 sm:flex sm:flex-wrap sm:justify-center gap-2">
                 {arohana.map((note, index) => {
                   const globalIndex = index;
                   const parsed = parseVarisaiNote(note);
@@ -486,7 +486,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             {/* Avarohana (Descending) */}
             <div>
               <p className="text-slate-500 text-xs mb-2">Avarohana (Descending)</p>
-              <div className="flex justify-center gap-2 flex-wrap">
+              <div className="grid grid-cols-4 sm:flex sm:flex-wrap sm:justify-center gap-2">
                 {avarohana.map((note, index) => {
                   const globalIndex = arohana.length + index;
                   const parsed = parseVarisaiNote(note);

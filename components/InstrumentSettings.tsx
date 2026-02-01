@@ -26,9 +26,9 @@ interface InstrumentSettingsProps {
 export default function InstrumentSettings({ instrumentId, onInstrumentChange, volume, onVolumeChange, octave, onOctaveChange }: InstrumentSettingsProps) {
   return (
     <div className="w-full">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-light mb-1 tracking-wide">Voice</h2>
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-700/50">
+        <div className="text-center mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-light mb-1 tracking-wide">Voice</h2>
           <p className="text-slate-400 text-xs">Note playback instrument</p>
         </div>
 
@@ -47,7 +47,7 @@ export default function InstrumentSettings({ instrumentId, onInstrumentChange, v
           </select>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-4 sm:mt-5">
           <label className="block text-sm font-medium text-slate-300 mb-2">Octave</label>
           <div className="flex border border-slate-600 rounded-lg overflow-hidden bg-slate-800/30">
             {(['low', 'medium', 'high'] as Octave[]).map((opt) => (
@@ -56,7 +56,7 @@ export default function InstrumentSettings({ instrumentId, onInstrumentChange, v
                 type="button"
                 onClick={() => onOctaveChange(opt)}
                 className={`
-                  flex-1 py-2 px-3 text-xs font-medium transition-all duration-200 capitalize
+                  flex-1 py-1.5 sm:py-2 px-2 sm:px-3 text-[10px] sm:text-xs font-medium transition-all duration-200 capitalize
                   border-r border-slate-600 last:border-r-0
                   focus:outline-none focus:ring-0
                   ${octave === opt

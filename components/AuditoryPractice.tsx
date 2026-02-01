@@ -29,10 +29,13 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   );
   const [sortOrder, setSortOrder] = useState<SortOrder>('number');
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('untimed');
+  const [endGameIfWrong, setEndGameIfWrong] = useState(false);
   const [noteCount, setNoteCount] = useState<NoteCount>(1);
   const [timerMinutes, setTimerMinutes] = useState(5);
   const [isGameActive, setIsGameActive] = useState(false);
   const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [newHighScoreThisGame, setNewHighScoreThisGame] = useState(false);
   const [round, setRound] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [currentNotes, setCurrentNotes] = useState<string[]>([]);
@@ -59,8 +62,14 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const stopwatchIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scoreRef = useRef(0);
   const roundRef = useRef(0);
+  const practiceModeRef = useRef(practiceMode);
+  const endGameIfWrongRef = useRef(endGameIfWrong);
+  const noteCountRef = useRef(noteCount);
   baseFreqRef.current = baseFreq;
   instrumentIdRef.current = instrumentId;
+  practiceModeRef.current = practiceMode;
+  endGameIfWrongRef.current = endGameIfWrong;
+  noteCountRef.current = noteCount;
 
   useEffect(() => {
     instrumentIdRef.current = instrumentId;
@@ -86,9 +95,14 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
     }
   }, [instrumentId]);
 
+  // High score storage key per game mode (untimed/timed × endGameIfWrong × noteCount)
+  const getHighScoreKey = (mode: PracticeMode, endIfWrong: boolean, notes: NoteCount) => `${mode}_${endIfWrong}_${notes}`;
+
   // Load persisted auditory practice settings before first paint (avoids flash of defaults)
   const AUDITORY_STORAGE_KEY = 'auditorySettings';
-  type StoredAuditorySettings = { ragaNumber?: number; sortOrder?: SortOrder; practiceMode?: PracticeMode; noteCount?: NoteCount; timerMinutes?: number };
+  const AUDITORY_HIGH_SCORES_KEY = 'auditoryHighScores';
+  type StoredAuditorySettings = { ragaNumber?: number; sortOrder?: SortOrder; practiceMode?: PracticeMode; endGameIfWrong?: boolean; noteCount?: NoteCount; timerMinutes?: number };
+  type HighScoresByMode = Record<string, number>;
   useLayoutEffect(() => {
     const stored = getStored<StoredAuditorySettings>(AUDITORY_STORAGE_KEY, {});
     if (typeof stored.ragaNumber === 'number') {
@@ -97,11 +111,34 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
     }
     if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
     if (stored.practiceMode === 'untimed' || stored.practiceMode === 'timed') setPracticeMode(stored.practiceMode);
+    if (typeof stored.endGameIfWrong === 'boolean') setEndGameIfWrong(stored.endGameIfWrong);
     if (stored.noteCount === 1 || stored.noteCount === 2 || stored.noteCount === 3) setNoteCount(stored.noteCount);
     if (typeof stored.timerMinutes === 'number' && stored.timerMinutes >= 1 && stored.timerMinutes <= 60) setTimerMinutes(stored.timerMinutes);
+    const highScores = getStored<HighScoresByMode>(AUDITORY_HIGH_SCORES_KEY, {});
+    const mode = stored.practiceMode ?? 'untimed';
+    const endIfWrong = stored.endGameIfWrong ?? false;
+    const notes = stored.noteCount === 1 || stored.noteCount === 2 || stored.noteCount === 3 ? stored.noteCount : 1;
+    const key = getHighScoreKey(mode, endIfWrong, notes);
+    const savedHigh = typeof highScores[key] === 'number' && highScores[key] >= 0 ? highScores[key]! : 0;
+    setHighScore(savedHigh);
     hasLoadedAuditoryRef.current = true;
     setStorageReady(true);
   }, []);
+
+  useEffect(() => {
+    practiceModeRef.current = practiceMode;
+    endGameIfWrongRef.current = endGameIfWrong;
+    noteCountRef.current = noteCount;
+  }, [practiceMode, endGameIfWrong, noteCount]);
+
+  // When mode changes (and not in a game), show high score for the selected mode
+  useEffect(() => {
+    if (!hasLoadedAuditoryRef.current || isGameActive) return;
+    const highScores = getStored<HighScoresByMode>(AUDITORY_HIGH_SCORES_KEY, {});
+    const key = getHighScoreKey(practiceMode, endGameIfWrong, noteCount);
+    const val = typeof highScores[key] === 'number' && highScores[key] >= 0 ? highScores[key]! : 0;
+    setHighScore(val);
+  }, [practiceMode, endGameIfWrong, noteCount, isGameActive]);
 
   useEffect(() => {
     if (!hasLoadedAuditoryRef.current) return;
@@ -109,10 +146,11 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
       ragaNumber: selectedRaga?.number,
       sortOrder,
       practiceMode,
+      endGameIfWrong,
       noteCount,
       timerMinutes,
     });
-  }, [selectedRaga, sortOrder, practiceMode, noteCount, timerMinutes]);
+  }, [selectedRaga, sortOrder, practiceMode, endGameIfWrong, noteCount, timerMinutes]);
 
   // Get sorted ragas
   const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => {
@@ -141,15 +179,27 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const endGame = useCallback(() => {
     setIsGameActive(false);
     setGameEnded(true);
-    
-    // Calculate performance message using refs for current values
-    // Exclude the current incomplete round from calculations
+
     const currentScore = scoreRef.current;
+    const mode = practiceModeRef.current;
+    const endIfWrong = endGameIfWrongRef.current;
+    const notes = noteCountRef.current;
+    const key = getHighScoreKey(mode, endIfWrong, notes);
+    const highScores = getStored<HighScoresByMode>(AUDITORY_HIGH_SCORES_KEY, {});
+    const prevHigh = typeof highScores[key] === 'number' && highScores[key]! >= 0 ? highScores[key]! : 0;
+    if (currentScore > prevHigh) {
+      const next = { ...highScores, [key]: currentScore };
+      setStored(AUDITORY_HIGH_SCORES_KEY, next);
+      setHighScore(currentScore);
+      setNewHighScoreThisGame(true);
+    }
+
+    // Calculate performance message using refs for current values
     const currentRound = roundRef.current;
     const completedRounds = Math.max(0, currentRound - 1);
     const accuracy = completedRounds > 0 ? (currentScore / completedRounds) * 100 : 0;
     let message = '';
-    
+
     if (accuracy >= 90) {
       message = 'Excellent! You have a great ear for Carnatic music!';
     } else if (accuracy >= 75) {
@@ -161,7 +211,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
     } else {
       message = 'Keep practicing! You\'ll improve with time!';
     }
-    
+
     setFinalMessage(message);
   }, []);
 
@@ -487,7 +537,9 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
 
   const checkAnswer = () => {
     if (!isGameActive || gameEnded) return;
-    
+    // Lock out further answers until next round (after correct/wrong feedback)
+    if (feedbackMessage) return;
+
     if (!userInput.trim()) {
       return; // Don't check empty input
     }
@@ -524,18 +576,26 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
     } else {
       // Wrong answer - show feedback with correct answer
       const correctAnswer = correctNotes.join(' ');
-      setFeedbackMessage({ 
-        type: 'wrong', 
-        message: `Incorrect. The correct answer is: ${correctAnswer}` 
+      setFeedbackMessage({
+        type: 'wrong',
+        message: endGameIfWrong
+          ? `Incorrect. The correct answer is: ${correctAnswer}. Game over!`
+          : `Incorrect. The correct answer is: ${correctAnswer}`,
       });
-      // Update display values to keep accuracy correct during feedback
       setDisplayScore(score);
       setDisplayRound(round);
-      // Auto-advance to next round after showing feedback (don't increment score)
-      setTimeout(() => {
-        setFeedbackMessage(null);
-        startNewRound();
-      }, 2000);
+      if (endGameIfWrong) {
+        // End game after brief feedback (don't increment score)
+        setTimeout(() => {
+          setFeedbackMessage(null);
+          endGame();
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          setFeedbackMessage(null);
+          startNewRound();
+        }, 2000);
+      }
     }
   };
 
@@ -711,12 +771,51 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
           </div>
         )}
 
+        {/* End game if wrong (high-score mode) */}
+        {!isGameActive && (
+          <div className="mb-6 flex justify-center">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={endGameIfWrong}
+                onChange={(e) => setEndGameIfWrong(e.target.checked)}
+                className="w-4 h-4 rounded accent-amber-500 cursor-pointer"
+              />
+              <span className="text-sm text-slate-300">End game if wrong (high-score mode)</span>
+            </label>
+          </div>
+        )}
+
+        {/* High score for selected mode (before game starts) */}
+        {!isGameActive && (
+          <div className="mb-6 text-center">
+            <div className="inline-block rounded-xl bg-slate-800/50 border border-slate-700 min-w-[12rem]">
+              <div className="px-3 py-2">
+                <p className="text-slate-400 text-xs tracking-wide mb-2">High Score for this Mode</p>
+                {highScore > 0 ? (
+                  <p className="text-2xl font-bold text-amber-400">{highScore}</p>
+                ) : (
+                  <p className="text-slate-400 text-sm italic max-w-xs">
+                    No high score yet. Start a game to set one!
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Game Stats */}
         {isGameActive && !gameEnded && (
-          <div className="mb-6 flex justify-center gap-6">
+          <div className="mb-6 flex flex-wrap justify-center gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-amber-400">{score}</div>
-              <div className="text-slate-400 text-xs">Score</div>
+              <div className="text-2xl font-bold text-amber-400">
+                {feedbackMessage ? displayScore : score}
+              </div>
+              <div className="text-slate-400 text-xs">Current Score</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-slate-300">{highScore}</div>
+              <div className="text-slate-400 text-xs">High Score</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-slate-300">{round}</div>
@@ -725,13 +824,10 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
             <div className="text-center">
               <div className="text-2xl font-bold text-slate-300">
                 {(() => {
-                  // Use display values if feedback is showing (to avoid timing issues)
-                  // Otherwise use current values
                   const currentScore = feedbackMessage ? displayScore : score;
                   const currentRound = feedbackMessage ? displayRound : round;
                   const completedRounds = Math.max(0, currentRound - 1);
                   if (completedRounds === 0) return 0;
-                  // Cap accuracy at 100% to prevent going over
                   const accuracy = Math.min(100, Math.round((currentScore / completedRounds) * 100));
                   return accuracy;
                 })()}%
@@ -797,16 +893,11 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
               <input
                 type="text"
                 value={userInput}
-                onChange={(e) => {
-                  setUserInput(e.target.value);
-                  // Clear feedback when user starts typing again
-                  if (feedbackMessage) {
-                    setFeedbackMessage(null);
-                  }
-                }}
+                onChange={(e) => setUserInput(e.target.value)}
                 onKeyPress={handleKeyPress}
+                disabled={!!feedbackMessage}
                 placeholder={`Enter ${noteCount} note${noteCount > 1 ? 's' : ''} (e.g., ${noteCount === 1 ? 'S' : noteCount === 2 ? 'SR or Sa Re' : 'SRG or Sa Re Ga'})`}
-                className={`flex-1 px-4 py-3 bg-slate-700/50 border rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-center text-lg transition-all duration-200 ${
+                className={`flex-1 px-4 py-3 bg-slate-700/50 border rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-center text-lg transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed ${
                   feedbackMessage?.type === 'correct' 
                     ? 'border-green-500 bg-green-500/20' 
                     : feedbackMessage?.type === 'wrong'
@@ -817,7 +908,8 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
               />
               <button
                 onClick={checkAnswer}
-                className="px-6 py-3 rounded-lg bg-amber-500 text-slate-900 hover:bg-amber-600 transition-all duration-200 text-sm font-medium"
+                disabled={!!feedbackMessage}
+                className="px-6 py-3 rounded-lg bg-amber-500 text-slate-900 hover:bg-amber-600 transition-all duration-200 text-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 Check
               </button>
@@ -844,7 +936,19 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
           <div className="mb-6 text-center">
             <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700">
               <h2 className="text-2xl font-bold text-amber-400 mb-4">Game Over!</h2>
-              <div className="text-4xl font-bold text-slate-200 mb-2">{score}</div>
+              <div className="flex justify-center gap-8 mb-2">
+                <div>
+                  <div className="text-3xl font-bold text-slate-200">{score}</div>
+                  <div className="text-slate-400 text-xs">Current Score</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-amber-400">{highScore}</div>
+                  <div className="text-slate-400 text-xs">High Score</div>
+                </div>
+              </div>
+              {newHighScoreThisGame && (
+                <p className="text-amber-400 font-semibold text-sm mb-2">New high score!</p>
+              )}
               <div className="text-slate-400 text-sm mb-4">
                 {(() => {
                   const completedRounds = Math.max(0, round - 1);
@@ -859,6 +963,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
                   setIsGameActive(false);
                   setScore(0);
                   setRound(0);
+                  setNewHighScoreThisGame(false);
                   setUserInput('');
                   setCurrentNotes([]);
                 }}

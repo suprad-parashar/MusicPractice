@@ -57,6 +57,7 @@ export default function Home() {
   const [tanpuraNoteLength, setTanpuraNoteLength] = useState(5);
   const [tanpuraOctave, setTanpuraOctave] = useState<Octave>('medium');
   const [voiceOctave, setVoiceOctave] = useState<Octave>('medium');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const hasLoadedRef = useRef(false);
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
@@ -111,10 +112,40 @@ export default function Home() {
   }
 
   return (
-    <main className="h-screen overflow-hidden bg-slate-950 flex flex-col">
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+    <main className="h-screen overflow-hidden bg-slate-950 flex flex-col min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        {/* Mobile sidebar backdrop */}
+        <button
+          type="button"
+          aria-label="Close settings"
+          onClick={() => setSidebarOpen(false)}
+          className={`
+            lg:hidden fixed inset-0 z-40 bg-black/60 transition-opacity duration-200
+            ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+          `}
+        />
+
         {/* Sidebar - Key → Voice → Tanpura → Notation Language */}
-        <aside className="scroll-area w-80 min-h-0 shrink-0 flex flex-col overflow-y-auto overflow-x-hidden bg-slate-900 border-r border-slate-800 p-6 gap-8">
+        <aside
+          className={`
+            scroll-area flex flex-col overflow-y-auto overflow-x-hidden bg-slate-900 border-r border-slate-800 gap-6
+            w-80 min-w-[280px] max-w-[85vw] shrink-0
+            lg:relative lg:translate-x-0 lg:border-r lg:p-6 lg:gap-8
+            fixed top-0 left-0 bottom-0 z-50 p-4 pt-14
+            transition-transform duration-300 ease-out
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          `}
+        >
+          <button
+            type="button"
+            aria-label="Close settings"
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
           <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
           <TanpuraSidebar
@@ -132,16 +163,25 @@ export default function Home() {
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Tab Navigation */}
-          <div className="bg-slate-900 border-b border-slate-800 px-6 pt-4">
-            <div className="flex gap-2">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* Tab bar + Settings button (mobile) */}
+          <div className="bg-slate-900 border-b border-slate-800 px-3 sm:px-6 pt-3 sm:pt-4 flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Open settings"
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden shrink-0 p-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-thin min-h-[48px] items-center pb-px">
               <button
                 onClick={() => setActiveTab('raga')}
                 className={`
-                  px-6 py-3 rounded-t-lg
-                  transition-all duration-200
-                  text-sm font-medium
+                  shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                  transition-all duration-200 text-xs sm:text-sm font-medium
                   ${
                     activeTab === 'raga'
                       ? 'bg-slate-800 text-amber-400 border-b-2 border-amber-400'
@@ -154,9 +194,8 @@ export default function Home() {
               <button
                 onClick={() => setActiveTab('varisai')}
                 className={`
-                  px-6 py-3 rounded-t-lg
-                  transition-all duration-200
-                  text-sm font-medium
+                  shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                  transition-all duration-200 text-xs sm:text-sm font-medium
                   ${
                     activeTab === 'varisai'
                       ? 'bg-slate-800 text-amber-400 border-b-2 border-amber-400'
@@ -169,9 +208,8 @@ export default function Home() {
               <button
                 onClick={() => setActiveTab('auditory')}
                 className={`
-                  px-6 py-3 rounded-t-lg
-                  transition-all duration-200
-                  text-sm font-medium
+                  shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                  transition-all duration-200 text-xs sm:text-sm font-medium
                   ${
                     activeTab === 'auditory'
                       ? 'bg-slate-800 text-amber-400 border-b-2 border-amber-400'
@@ -185,8 +223,8 @@ export default function Home() {
           </div>
 
           {/* Tab Content + Footer – scroll together */}
-          <div className="scroll-area flex-1 min-h-0 flex flex-col overflow-y-auto">
-            <div className="flex-1 flex items-start justify-center p-6">
+          <div className="scroll-area flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">
+            <div className="flex-1 flex items-start justify-center p-4 sm:p-6 min-w-0 w-full">
               {activeTab === 'raga' ? (
                 <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'varisai' ? (
@@ -195,11 +233,11 @@ export default function Home() {
                 <AuditoryPractice baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} />
               )}
             </div>
-            <footer className="shrink-0 pt-6 px-8 pb-16 text-center border-t border-slate-800/70 bg-slate-950">
-              <p className="text-slate-400 text-sm md:text-base font-light italic max-w-xl mx-auto mb-1.5">
+            <footer className="shrink-0 pt-4 sm:pt-6 px-4 sm:px-8 pb-8 sm:pb-16 text-center border-t border-slate-800/70 bg-slate-950">
+              <p className="text-slate-400 text-xs sm:text-sm md:text-base font-light italic max-w-xl mx-auto mb-1.5">
                 &ldquo;Where there is practice, there is perfection.&rdquo;
               </p>
-              <p className="text-slate-500 text-xs mb-6">
+              <p className="text-slate-500 text-xs mb-4 sm:mb-6">
                 Carnatic Practice · v1.1.0
               </p>
             </footer>

@@ -896,6 +896,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                   disabled={inPracticeOrSingAlong && !canChangeStartFrom}
                   style={isStartFromExercise && !isStartFromFirst ? { backgroundColor: '#2563eb', color: '#fff' } : undefined}
                   className={`
+                    flex items-center justify-center
                     py-3 px-4 rounded-lg
                     transition-all duration-200
                     text-sm font-medium
@@ -917,7 +918,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
               );
             })}
           </div>
-          <div className="mt-4 text-center">
+          <div className="mt-4 w-full text-center">
             <p className="text-slate-400 text-sm">
               <span className="text-amber-400 font-semibold">{selectedVarisai.name}</span>
             </p>
@@ -999,30 +1000,31 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
           </div>
         </div>
 
-        {/* Notes Per Beat Controls */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Notes Per Beat: {notesPerBeat}
-          </label>
-          <div className="flex gap-2 justify-center">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                onClick={() => handleNotesPerBeatChange(n)}
-                className={`
-                  px-4 py-2 rounded-lg
-                  transition-all duration-200
-                  text-sm font-medium
-                  ${
-                    notesPerBeat === n
-                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
-                  }
-                `}
-              >
-                {n} note{n > 1 ? 's' : ''}
-              </button>
-            ))}
+        {/* Notes Per Beat Control */}
+        <div className="mb-6 flex flex-row flex-wrap items-center justify-center gap-3">
+          <label className="text-sm font-medium text-slate-300 shrink-0">Notes per beat</label>
+          <div className="flex flex-row items-stretch rounded-lg border border-slate-600 bg-slate-800/50 overflow-hidden shrink-0">
+            <button
+              type="button"
+              onClick={() => handleNotesPerBeatChange(Math.max(1, notesPerBeat - 1))}
+              disabled={notesPerBeat <= 1}
+              aria-label="Decrease notes per beat"
+              className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors border-r border-slate-600"
+            >
+              −
+            </button>
+            <span className="w-10 flex items-center justify-center text-sm font-semibold text-slate-900 bg-amber-500 border-r border-slate-600">
+              {notesPerBeat}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleNotesPerBeatChange(Math.min(5, notesPerBeat + 1))}
+              disabled={notesPerBeat >= 5}
+              aria-label="Increase notes per beat"
+              className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors"
+            >
+              +
+            </button>
           </div>
         </div>
 
@@ -1030,7 +1032,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
         <div className="mt-8">
           <div className="text-center">
             <p className="text-slate-400 text-sm mb-4">Exercise Notes</p>
-            <div className="grid grid-cols-8 gap-2 justify-items-center max-w-2xl mx-auto">
+            <div className="grid grid-cols-4 lg:grid-cols-8 gap-1.5 sm:gap-2 justify-items-center max-w-2xl mx-auto px-2">
               {notes.map((note, index) => {
                 // Handle ";" as continuation marker
                 if (note === ";") {
@@ -1038,7 +1040,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                     <div
                       key={index}
                       className={`
-                        w-12 h-12 flex items-center justify-center rounded-lg text-lg font-semibold relative
+                        w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
                         transition-all duration-200
                         ${
                           isPlaying && index === currentNoteIndex
@@ -1062,7 +1064,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                   <div
                     key={index}
                     className={`
-                      w-12 h-12 flex items-center justify-center rounded-lg text-lg font-semibold relative
+                      w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
                       transition-all duration-200
                       ${
                         isPlaying && index === currentNoteIndex
