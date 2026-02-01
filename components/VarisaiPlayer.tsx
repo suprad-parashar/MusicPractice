@@ -8,6 +8,7 @@ import { MANDARASTHAYI_VARISAI } from '@/data/mandarasthayiVarisai';
 import { getSwarafrequency } from '@/data/melakartaRagas';
 import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/melakartaRagas';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
 
 type SortOrder = 'number' | 'alphabetical';
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
@@ -19,7 +20,7 @@ const VARISAI_TYPES: { [key in VarisaiType]: { name: string; data: Varisai[] } }
   mandarasthayi: { name: 'Mandarasthayi Varasai', data: MANDARASTHAYI_VARISAI },
 };
 
-export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5 }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number }) {
+export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
   const [varisaiType, setVarisaiType] = useState<VarisaiType>('sarali');
   const currentVarisaiData = VARISAI_TYPES[varisaiType].data;
   const [selectedVarisai, setSelectedVarisai] = useState<Varisai>(currentVarisaiData[0]);
@@ -972,8 +973,9 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                 }
                 
                 const parsed = parseVarisaiNote(note);
-                // Display base swara only (S R G M P D N), not raga variants (R1, G2, etc.)
-                const displayNote = parsed.swara.charAt(0);
+                // Display base swara in selected script (S R G M P D N → English/Devanagari/Kannada)
+                const baseSwara = parsed.swara.charAt(0);
+                const displayNote = getSwaraInScript(baseSwara, notationLanguage);
                 return (
                   <div
                     key={index}

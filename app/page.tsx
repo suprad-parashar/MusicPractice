@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import KeySection, { KEYS, type KeyName } from '@/components/KeySection';
+import NotationSection from '@/components/NotationSection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
 import InstrumentSettings from '@/components/InstrumentSettings';
 import RagaPlayer from '@/components/RagaPlayer';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
 import type { InstrumentId } from '@/lib/instrumentLoader';
+import type { NotationLanguage } from '@/lib/swaraNotation';
 
 type Tab = 'raga' | 'varisai' | 'auditory';
 
@@ -17,6 +19,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('raga');
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
   const [voiceVolume, setVoiceVolume] = useState(0.5);
+  const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
@@ -26,11 +29,12 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950">
       <div className="flex h-screen">
-        {/* Sidebar - Key → Voice → Tanpura */}
+        {/* Sidebar - Key → Voice → Tanpura → Notation Language */}
         <aside className="scroll-area w-80 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto flex flex-col gap-8">
           <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
           <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} />
           <TanpuraSidebar baseFreq={baseFreq} />
+          <NotationSection notationLanguage={notationLanguage} onNotationChange={setNotationLanguage} />
         </aside>
 
         {/* Main Content */}
@@ -89,9 +93,9 @@ export default function Home() {
           {/* Tab Content */}
           <div className="scroll-area flex-1 flex items-start justify-center p-6 overflow-y-auto">
             {activeTab === 'raga' ? (
-              <RagaPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} />
+              <RagaPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
             ) : activeTab === 'varisai' ? (
-              <VarisaiPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} />
+              <VarisaiPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
             ) : (
               <AuditoryPractice baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} />
             )}

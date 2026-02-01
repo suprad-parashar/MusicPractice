@@ -4,17 +4,17 @@ import { useState, useEffect, useRef } from 'react';
 import { MELAKARTA_RAGAS, MelakartaRaga, getSwarafrequency } from '@/data/melakartaRagas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
 
 type SortOrder = 'number' | 'alphabetical';
 
-export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5 }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number }) {
+export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
   );
   const [sortOrder, setSortOrder] = useState<SortOrder>('number');
   const [isPlaying, setIsPlaying] = useState(false);
   const [baseBPM, setBaseBPM] = useState(90); // Base BPM (30-120)
-  const [notesPerBeat, setNotesPerBeat] = useState(1); // Number of notes per beat (1-5)
   const [loop, setLoop] = useState(false); // Loop playback
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   
@@ -27,10 +27,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   const instrumentIdRef = useRef<InstrumentId>(instrumentId);
   const baseFreqRef = useRef(baseFreq);
   const baseBPMRef = useRef(baseBPM);
-  const notesPerBeatRef = useRef(notesPerBeat);
   baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
-  notesPerBeatRef.current = notesPerBeat;
   instrumentIdRef.current = instrumentId;
 
   // Sync sidebar voice volume to master gain when it changes
@@ -59,10 +57,6 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       soundfontPlayerRef.current = null;
     }
   }, [instrumentId]);
-
-  // Calculate note duration: (60 seconds / baseBPM) / notesPerBeat
-  const beatDuration = (60 / baseBPM) * 1000; // milliseconds per beat
-  const noteDuration = beatDuration / notesPerBeat; // milliseconds per note
 
   // Get sorted ragas
   const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => {
@@ -132,8 +126,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       }
 
       // Read current tempo from refs so changes apply on next note without restart
-      const beatDurationMs = (60 / baseBPMRef.current) * 1000;
-      const noteDurationMs = beatDurationMs / notesPerBeatRef.current;
+      const noteDurationMs = (60 / baseBPMRef.current) * 1000; // one note per beat
 
       // If reached the end, either loop or stop
       if (index >= totalNotes) {
@@ -250,11 +243,6 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     }
   };
 
-  const handleNotesPerBeatChange = (newNotesPerBeat: number) => {
-    notesPerBeatRef.current = newNotesPerBeat;
-    setNotesPerBeat(newNotesPerBeat);
-  };
-
   const handleBaseBPMChange = (newBaseBPM: number) => {
     baseBPMRef.current = newBaseBPM;
     setBaseBPM(newBaseBPM);
@@ -364,7 +352,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
           </button>
           
           <p className="mt-4 text-slate-400 text-sm">
-            {isPlaying ? `Playing at ${baseBPM} BPM (${notesPerBeat} note${notesPerBeat > 1 ? 's' : ''} per beat)` : 'Stopped'}
+            {isPlaying ? `Playing at ${baseBPM} BPM` : 'Stopped'}
           </p>
           
           {/* Loop Toggle */}
@@ -402,33 +390,6 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
           </div>
         </div>
 
-        {/* Notes Per Beat Controls */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Notes Per Beat: {notesPerBeat}
-          </label>
-          <div className="flex gap-2 justify-center">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                onClick={() => handleNotesPerBeatChange(n)}
-                className={`
-                  px-4 py-2 rounded-lg
-                  transition-all duration-200
-                  text-sm font-medium
-                  ${
-                    notesPerBeat === n
-                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
-                  }
-                `}
-              >
-                {n} note{n > 1 ? 's' : ''}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Notes Display */}
         <div className="mt-8">
           <div className="text-center">
@@ -441,7 +402,9 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                 {arohana.map((note, index) => {
                   const globalIndex = index;
                   const parsed = parseVarisaiNote(note);
-                  const displayNote = parsed.swara;
+                  const baseSwara = parsed.swara.charAt(0);
+                  const numberSuffix = parsed.swara.slice(1); // e.g. "1", "2", "3" for R1, G2, M1
+                  const displayNote = getSwaraInScript(baseSwara, notationLanguage) + numberSuffix;
                   return (
                     <div
                       key={`arohana-${index}`}
@@ -477,7 +440,9 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                 {avarohana.map((note, index) => {
                   const globalIndex = arohana.length + index;
                   const parsed = parseVarisaiNote(note);
-                  const displayNote = parsed.swara;
+                  const baseSwara = parsed.swara.charAt(0);
+                  const numberSuffix = parsed.swara.slice(1); // e.g. "1", "2", "3" for R1, G2, M1
+                  const displayNote = getSwaraInScript(baseSwara, notationLanguage) + numberSuffix;
                   return (
                     <div
                       key={`avarohana-${index}`}
