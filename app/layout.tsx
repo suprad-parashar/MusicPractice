@@ -17,6 +17,14 @@ const themeScript = `
       if (o.accentColor && /^#[0-9A-Fa-f]{6}$/.test(o.accentColor))
         document.documentElement.style.setProperty('--accent', o.accentColor);
     }
+
+    // Defaults when no saved settings are available
+    if (!document.documentElement.dataset.theme)
+      document.documentElement.dataset.theme = 'dark';
+    var currentAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '';
+    if (!currentAccent || currentAccent.trim() === '' || currentAccent.indexOf('var(') === 0)
+      document.documentElement.style.setProperty('--accent', '#f59e0b');
+
   } catch (e) {}
 })();
 `;
@@ -27,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

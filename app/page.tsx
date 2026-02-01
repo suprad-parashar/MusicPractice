@@ -5,7 +5,6 @@ import KeySection, { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
 import InstrumentSettings from '@/components/InstrumentSettings';
-import ThemeSection, { type ThemeMode } from '@/components/ThemeSection';
 import RagaPlayer from '@/components/RagaPlayer';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
@@ -15,10 +14,11 @@ import { getOctaveMultiplier, type Octave } from '@/lib/tanpuraTone';
 import { getStored, setStored } from '@/lib/storage';
 
 type Tab = 'raga' | 'varisai' | 'auditory';
+type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
 
 const STORAGE_KEY = 'settings';
 
-type SidebarSection = 'music' | 'ui';
+type SidebarSection = 'music';
 
 type StoredSettings = {
   selectedKey?: KeyName;
@@ -38,9 +38,35 @@ type StoredSettings = {
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory'];
-const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music', 'ui'];
+const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
+
+const NOTATION_BADGES: Record<NotationLanguage, { abbr: string; symbol: string; title: string }> = {
+  english: { abbr: 'EN', symbol: 'S', title: 'English' },
+  devanagari: { abbr: 'DN', symbol: 'स', title: 'Devanagari' },
+  kannada: { abbr: 'KA', symbol: 'ಸ', title: 'Kannada' },
+};
+
+const NOTATION_ORDER: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
+
+const THEME_BADGES: Record<ThemeMode, { abbr: string; icon: string; title: string }> = {
+  light: { abbr: 'L', icon: '☀️', title: 'Light' },
+  'light-warm': { abbr: 'LW', icon: '🌅', title: 'Light (Warm)' },
+  dark: { abbr: 'D', icon: '🌙', title: 'Dark (Grey)' },
+  'dark-slate': { abbr: 'DS', icon: '🌑', title: 'Dark (Slate)' },
+};
+
+const THEME_ORDER: ThemeMode[] = ['light', 'light-warm', 'dark', 'dark-slate'];
+
+const ACCENT_COLOR_PRESETS: { name: string; value: string }[] = [
+  { name: 'Amber', value: '#f59e0b' },
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Emerald', value: '#10b981' },
+  { name: 'Rose', value: '#f43f5e' },
+  { name: 'Violet', value: '#8b5cf6' },
+];
+
 const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
 const VALID_THEMES: ThemeMode[] = ['light', 'light-warm', 'dark', 'dark-slate'];
 const DEFAULT_ACCENT = '#f59e0b';
@@ -61,6 +87,41 @@ export default function Home() {
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
+
+  // Notation dropdown state and outside click / ESC handler
+  const [notationOpen, setNotationOpen] = useState(false);
+  const notationRef = useRef<HTMLDivElement | null>(null);
+
+  // Theme & Accent color dropdown state
+  const [themeAccentOpen, setThemeAccentOpen] = useState(false);
+  const themeAccentRef = useRef<HTMLDivElement | null>(null);
+
+  // Accent color picker input
+  const accentColorInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (notationRef.current && !notationRef.current.contains(e.target as Node)) {
+        setNotationOpen(false);
+      }
+      if (themeAccentRef.current && !themeAccentRef.current.contains(e.target as Node)) {
+        setThemeAccentOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setNotationOpen(false);
+        setThemeAccentOpen(false);
+      }
+    }
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
   const [tanpuraVolume, setTanpuraVolume] = useState(0.5);
   const [tanpuraPluckDelay, setTanpuraPluckDelay] = useState(1.4);
   const [tanpuraNoteLength, setTanpuraNoteLength] = useState(5);
@@ -244,105 +305,205 @@ export default function Home() {
             </svg>
           </button>
 
-          <div className="mb-3 sm:mb-4">
-            <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
-              Settings
-            </label>
-            <div className="flex border border-slate-600 rounded-lg overflow-hidden bg-slate-800/30">
-              <button
-                onClick={() => setSidebarSection('music')}
-                className={`flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 text-[10px] sm:text-xs font-medium transition-all duration-200 capitalize border-r border-slate-600 last:border-r-0 focus:outline-none focus:ring-0 ${sidebarSection === 'music' ? 'bg-amber-500 text-slate-900' : 'bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}>
-                Music
-              </button>
-              <button
-                onClick={() => setSidebarSection('ui')}
-                className={`flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 text-[10px] sm:text-xs font-medium transition-all duration-200 capitalize border-r border-slate-600 last:border-r-0 focus:outline-none focus:ring-0 ${sidebarSection === 'ui' ? 'bg-amber-500 text-slate-900' : 'bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}>
-                UI
-              </button>
-            </div>
-          </div>
-
-          {sidebarSection === 'music' ? (
-            <>
-              <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
-              <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
-              <TanpuraSidebar
-                baseFreq={baseFreq}
-                volume={tanpuraVolume}
-                onVolumeChange={setTanpuraVolume}
-                pluckDelay={tanpuraPluckDelay}
-                onPluckDelayChange={setTanpuraPluckDelay}
-                noteLength={tanpuraNoteLength}
-                onNoteLengthChange={setTanpuraNoteLength}
-                octave={tanpuraOctave}
-                onOctaveChange={setTanpuraOctave}
-              />
-            </>
-          ) : (
-            <>
-              <NotationSection notationLanguage={notationLanguage} onNotationChange={setNotationLanguage} />
-              <ThemeSection theme={theme} onThemeChange={setTheme} accentColor={accentColor} onAccentChange={setAccentColor} />
-            </>
-          ) }
+          <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
+          <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
+          <TanpuraSidebar
+            baseFreq={baseFreq}
+            volume={tanpuraVolume}
+            onVolumeChange={setTanpuraVolume}
+            pluckDelay={tanpuraPluckDelay}
+            onPluckDelayChange={setTanpuraPluckDelay}
+            noteLength={tanpuraNoteLength}
+            onNoteLengthChange={setTanpuraNoteLength}
+            octave={tanpuraOctave}
+            onOctaveChange={setTanpuraOctave}
+          />
         </aside>
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Tab bar + Settings button (mobile) */}
-          <div className="bg-[var(--header-bg)] border-b px-3 sm:px-6 pt-3 sm:pt-4 flex items-center gap-2 border-[var(--border)]">
-            <button
-              type="button"
-              aria-label="Open settings"
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden shrink-0 p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-thin min-h-[48px] items-center pb-px">
+          <div className="bg-[var(--header-bg)] border-b border-[var(--border)] flex items-center">
+            <div className="flex-1 flex items-center gap-2 px-3 sm:px-6">
               <button
-                onClick={() => setActiveTab('raga')}
-                className={`
-                  shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
-                  transition-all duration-200 text-xs sm:text-sm font-medium
-                  ${
-                    activeTab === 'raga'
-                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
-                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
-                  }
-                `}
+                type="button"
+                aria-label="Open settings"
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden shrink-0 p-2.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]"
               >
-                Raga Practice
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
               </button>
-              <button
-                onClick={() => setActiveTab('varisai')}
-                className={`
-                  shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
-                  transition-all duration-200 text-xs sm:text-sm font-medium
-                  ${
-                    activeTab === 'varisai'
-                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
-                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
-                  }
-                `}
-              >
-                Varasai Practise
-              </button>
-              <button
-                onClick={() => setActiveTab('auditory')}
-                className={`
-                  shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
-                  transition-all duration-200 text-xs sm:text-sm font-medium
-                  ${
-                    activeTab === 'auditory'
-                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
-                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
-                  }
-                `}
-              >
-                Auditory Practice
-              </button>
+              <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-thin min-h-[48px] items-center pb-px">
+                <button
+                  onClick={() => setActiveTab('raga')}
+                  className={`
+                    shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                    transition-all duration-200 text-xs sm:text-sm font-medium
+                    ${
+                      activeTab === 'raga'
+                        ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                        : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    }
+                  `}
+                >
+                  Raga Practice
+                </button>
+                <button
+                  onClick={() => setActiveTab('varisai')}
+                  className={`
+                    shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                    transition-all duration-200 text-xs sm:text-sm font-medium
+                    ${
+                      activeTab === 'varisai'
+                        ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                        : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    }
+                  `}
+                >
+                  Varasai Practise
+                </button>
+                <button
+                  onClick={() => setActiveTab('auditory')}
+                  className={`
+                    shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                    transition-all duration-200 text-xs sm:text-sm font-medium
+                    ${
+                      activeTab === 'auditory'
+                        ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                        : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    }
+                  `}
+                >
+                  Auditory Practice
+                </button>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="w-0.5 h-16 bg-[var(--border)]" />
+
+            {/* Dropdowns Section */}
+            <div className="flex items-center gap-2 px-3 sm:px-6">
+              {/* Combined Theme & Accent Dropdown */}
+              <div className="relative" ref={themeAccentRef}>
+                <button
+                  type="button"
+                  aria-haspopup="true"
+                  aria-expanded={themeAccentOpen}
+                  title="Theme & Accent Colour"
+                  onClick={() => setThemeAccentOpen(v => !v)}
+                  className="shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-md border border-[var(--border)] bg-[var(--card-bg)] text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:opacity-90 transition flex items-center justify-center gap-2 min-w-[120px] h-10"
+                >
+                  <span className="w-4 h-4 rounded-full border border-[var(--border)]" style={{ backgroundColor: accentColor }} />
+                  <span className="text-base">{THEME_BADGES[theme].icon}</span>
+                  <svg className="w-3 h-3 text-[var(--text-muted)]" viewBox="0 0 20 20" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M6 8l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {themeAccentOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
+                    {/* Theme Section */}
+                    <div className="border-b border-[var(--border)] p-2">
+                      <div className="text-xs font-semibold text-[var(--text-muted)] px-2 py-1 mb-1">Theme</div>
+                      {THEME_ORDER.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => { setTheme(t); setThemeAccentOpen(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] rounded ${theme === t ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{THEME_BADGES[t].icon}</span>
+                            <span>{THEME_BADGES[t].title}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Accent Color Section */}
+                    <div className="p-3">
+                      <div className="text-xs font-semibold text-[var(--text-muted)] mb-3">Accent Colour</div>
+                      <div className="flex gap-2 items-center">
+                        {ACCENT_COLOR_PRESETS.map((preset) => (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() => { setAccentColor(preset.value); setThemeAccentOpen(false); }}
+                            title={preset.name}
+                            className="w-6 h-6 rounded-full border-2 transition hover:scale-110 flex-shrink-0"
+                            style={{
+                              backgroundColor: preset.value,
+                              borderColor: accentColor === preset.value ? 'var(--text-primary)' : 'var(--border)',
+                              borderWidth: accentColor === preset.value ? '3px' : '2px',
+                            }}
+                          />
+                        ))}
+                        <input
+                          ref={accentColorInputRef}
+                          type="color"
+                          value={accentColor}
+                          onChange={(e) => { setAccentColor(e.target.value); setThemeAccentOpen(false); }}
+                          className="sr-only"
+                          aria-label="Custom accent colour"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => accentColorInputRef.current?.click()}
+                          title="Custom colour"
+                          className="w-6 h-6 rounded-full border-2 transition hover:scale-110 flex-shrink-0 cursor-pointer"
+                          style={{
+                            background: 'conic-gradient(from 180deg at 50% 50%, #f44336, #ffeb3b, #4caf50, #2196f3, #9c27b0, #f44336)',
+                            borderColor: !ACCENT_COLOR_PRESETS.some(p => p.value === accentColor) ? 'var(--text-primary)' : 'var(--border)',
+                            borderWidth: !ACCENT_COLOR_PRESETS.some(p => p.value === accentColor) ? '3px' : '2px',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Notation Dropdown */}
+              <div className="relative" ref={notationRef}>
+                <button
+                  type="button"
+                  aria-haspopup="true"
+                  aria-expanded={notationOpen}
+                  title={`Notation: ${NOTATION_BADGES[notationLanguage].title}`}
+                  onClick={() => setNotationOpen(v => !v)}
+                  className="shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-md border border-[var(--border)] bg-[var(--card-bg)] text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:opacity-90 transition flex items-center justify-center gap-2 min-w-[120px] h-10"
+                >
+                  <span className="font-semibold">{NOTATION_BADGES[notationLanguage].abbr}</span>
+                  <span className="text-[var(--text-muted)]">({NOTATION_BADGES[notationLanguage].symbol})</span>
+                  <svg className="w-3 h-3 ml-1 text-[var(--text-muted)]" viewBox="0 0 20 20" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M6 8l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+              {notationOpen && (
+                <div className="absolute right-0 top-full mt-2 w-40 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
+                  {NOTATION_ORDER.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => { setNotationLanguage(lang); setNotationOpen(false); }}
+                      className={`w-full text-left px-3 py-2 text-sm sm:text-sm hover:bg-[var(--sidebar-bg)] ${notationLanguage === lang ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col">
+                          <span className="font-semibold">{NOTATION_BADGES[lang].abbr}</span>
+                          <span className="text-[var(--text-muted)] text-[12px]">({NOTATION_BADGES[lang].symbol})</span>
+                        </div>
+                        <span className="ml-auto text-[var(--text-muted)] text-xs">{NOTATION_BADGES[lang].title}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             </div>
           </div>
 
