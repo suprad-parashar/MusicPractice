@@ -9,6 +9,19 @@ import { getStored, setStored } from '@/lib/storage';
 
 type SortOrder = 'number' | 'alphabetical';
 
+/**
+ * Interactive Raga practice component with selectable melakarta ragas, playback controls, and notation display.
+ *
+ * Renders a UI to select a melakarta raga, control playback (start/stop, loop, tempo), and visualize arohana/avarohana
+ * while playing audible notes using either a synth oscillator or a loaded instrument.
+ *
+ * @param baseFreq - Reference base frequency (Hz) used to compute swara frequencies
+ * @param instrumentId - Instrument identifier to use for playback; sine-based instruments use an internal oscillator,
+ *   other values load a soundfont-backed player
+ * @param volume - Linear volume in the range [0, 1]; mapped to a perceptual gain curve for audio output
+ * @param notationLanguage - Script/notation choice for rendering swara labels in the UI
+ * @returns The React element rendering the raga practice interface
+ */
 export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]

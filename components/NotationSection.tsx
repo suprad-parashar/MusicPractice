@@ -7,6 +7,16 @@ interface NotationSectionProps {
   onNotationChange: (language: NotationLanguage) => void;
 }
 
+/**
+ * Renders a styled UI section for selecting the notation language.
+ *
+ * The component displays a header and a controlled select populated from NOTATION_LANGUAGES;
+ * when the user changes the selection, `onNotationChange` is invoked with the new NotationLanguage.
+ *
+ * @param notationLanguage - The currently selected notation language
+ * @param onNotationChange - Callback invoked with the newly selected notation language
+ * @returns The JSX element for the notation language selection section
+ */
 export default function NotationSection({ notationLanguage, onNotationChange }: NotationSectionProps) {
   return (
     <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">

@@ -23,6 +23,13 @@ interface KeySectionProps {
   onKeyChange: (key: KeyName) => void;
 }
 
+/**
+ * Render a selectable key picker UI that displays musical keys and the selected reference pitch.
+ *
+ * @param selectedKey - The currently selected musical key shown as highlighted in the grid.
+ * @param onKeyChange - Callback invoked with the selected `KeyName` when a key button is clicked.
+ * @returns The component UI containing a 4-column grid of key buttons and the selected key's frequency (Hz, rounded to an integer).
+ */
 export default function KeySection({ selectedKey, onKeyChange }: KeySectionProps) {
   return (
     <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">

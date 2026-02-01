@@ -21,6 +21,18 @@ const VARISAI_TYPES: { [key in VarisaiType]: { name: string; data: Varisai[] } }
   mandarasthayi: { name: 'Mandarasthayi Varasai', data: MANDARASTHAYI_VARISAI },
 };
 
+/**
+ * Interactive React component for selecting, configuring, and playing Carnatic varisai exercises.
+ *
+ * Renders UI to choose varisai type, raga, tempo, subdivision, playback modes (practice, sing-along, loop),
+ * and starts/stops instrument-aware audio playback of the selected exercise while persisting user settings.
+ *
+ * @param baseFreq - Reference tonic frequency in Hz used to compute swara frequencies (e.g., 440).
+ * @param instrumentId - Instrument identifier to use for playback; supports sine and soundfont instruments. Defaults to `'piano'`.
+ * @param volume - Master linear volume in the range 0–1. Defaults to `0.5`.
+ * @param notationLanguage - Script used to render swaras in the UI (e.g., `'english'`, `'devanagari'`). Defaults to `'english'`.
+ * @returns A JSX element containing the full Varisai player UI and controls.
+ */
 export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
   const [varisaiType, setVarisaiType] = useState<VarisaiType>('sarali');
   const currentVarisaiData = VARISAI_TYPES[varisaiType].data;
