@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { MELAKARTA_RAGAS, MelakartaRaga, getSwarafrequency } from '@/data/melakartaRagas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
+import { getStored, setStored } from '@/lib/storage';
 
 type SortOrder = 'number' | 'alphabetical';
 
@@ -17,7 +18,9 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   const [baseBPM, setBaseBPM] = useState(90); // Base BPM (30-120)
   const [loop, setLoop] = useState(false); // Loop playback
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
-  
+  const [storageReady, setStorageReady] = useState(false);
+  const hasLoadedRagaRef = useRef(false);
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -57,6 +60,32 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       soundfontPlayerRef.current = null;
     }
   }, [instrumentId]);
+
+  // Load persisted raga practice settings before first paint (avoids flash of defaults)
+  const RAGA_STORAGE_KEY = 'ragaSettings';
+  type StoredRagaSettings = { ragaNumber?: number; sortOrder?: SortOrder; baseBPM?: number; loop?: boolean };
+  useLayoutEffect(() => {
+    const stored = getStored<StoredRagaSettings>(RAGA_STORAGE_KEY, {});
+    if (typeof stored.ragaNumber === 'number') {
+      const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
+      if (raga) setSelectedRaga(raga);
+    }
+    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
+    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) setBaseBPM(stored.baseBPM);
+    if (typeof stored.loop === 'boolean') setLoop(stored.loop);
+    hasLoadedRagaRef.current = true;
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedRagaRef.current) return;
+    setStored(RAGA_STORAGE_KEY, {
+      ragaNumber: selectedRaga?.number,
+      sortOrder,
+      baseBPM,
+      loop,
+    });
+  }, [selectedRaga, sortOrder, baseBPM, loop]);
 
   // Get sorted ragas
   const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => {
@@ -260,6 +289,14 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   // Notes for display - include higher Sa twice (at end of arohana and start of avarohana)
   const arohana = selectedRaga.arohana;
   const avarohana = selectedRaga.avarohana;
+
+  if (!storageReady) {
+    return (
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-[200px]">
+        <span className="text-slate-500 text-sm">Loading…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto">

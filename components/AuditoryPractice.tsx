@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { MELAKARTA_RAGAS, MelakartaRaga, getSwarafrequency } from '@/data/melakartaRagas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { getStored, setStored } from '@/lib/storage';
 
 type SortOrder = 'number' | 'alphabetical';
 type PracticeMode = 'untimed' | 'timed';
@@ -31,7 +32,9 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'correct' | 'wrong'; message: string } | null>(null);
   const [displayScore, setDisplayScore] = useState(0); // Score to display (accounts for timing)
   const [displayRound, setDisplayRound] = useState(0); // Round to display (accounts for timing)
-  
+  const [storageReady, setStorageReady] = useState(false);
+  const hasLoadedAuditoryRef = useRef(false);
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const masterGainRef = useRef<GainNode | null>(null);
@@ -64,6 +67,34 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
       soundfontPlayerRef.current = null;
     }
   }, [instrumentId]);
+
+  // Load persisted auditory practice settings before first paint (avoids flash of defaults)
+  const AUDITORY_STORAGE_KEY = 'auditorySettings';
+  type StoredAuditorySettings = { ragaNumber?: number; sortOrder?: SortOrder; practiceMode?: PracticeMode; noteCount?: NoteCount; timerMinutes?: number };
+  useLayoutEffect(() => {
+    const stored = getStored<StoredAuditorySettings>(AUDITORY_STORAGE_KEY, {});
+    if (typeof stored.ragaNumber === 'number') {
+      const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
+      if (raga) setSelectedRaga(raga);
+    }
+    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
+    if (stored.practiceMode === 'untimed' || stored.practiceMode === 'timed') setPracticeMode(stored.practiceMode);
+    if (stored.noteCount === 1 || stored.noteCount === 2 || stored.noteCount === 3) setNoteCount(stored.noteCount);
+    if (typeof stored.timerMinutes === 'number' && stored.timerMinutes >= 1 && stored.timerMinutes <= 60) setTimerMinutes(stored.timerMinutes);
+    hasLoadedAuditoryRef.current = true;
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedAuditoryRef.current) return;
+    setStored(AUDITORY_STORAGE_KEY, {
+      ragaNumber: selectedRaga?.number,
+      sortOrder,
+      practiceMode,
+      noteCount,
+      timerMinutes,
+    });
+  }, [selectedRaga, sortOrder, practiceMode, noteCount, timerMinutes]);
 
   // Get sorted ragas
   const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => {
@@ -500,6 +531,14 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (!storageReady) {
+    return (
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-[200px]">
+        <span className="text-slate-500 text-sm">Loading…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto">

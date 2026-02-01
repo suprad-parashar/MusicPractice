@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { SARALI_VARISAI, Varisai, convertVarisaiNote, parseVarisaiNote } from '@/data/saraliVarisai';
 import { JANTA_VARISAI } from '@/data/jantaVarisai';
 import { MELASTHAYI_VARISAI } from '@/data/melasthayiVarisai';
@@ -9,6 +9,7 @@ import { getSwarafrequency } from '@/data/melakartaRagas';
 import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/melakartaRagas';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
+import { getStored, setStored } from '@/lib/storage';
 
 type SortOrder = 'number' | 'alphabetical';
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
@@ -39,9 +40,11 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   const [startFromCurrentIndex, setStartFromCurrentIndex] = useState(0); // which exercise to start from when "start from current" is on
   const [currentPracticeExercise, setCurrentPracticeExercise] = useState(0);
   const [practicePlayCount, setPracticePlayCount] = useState(0); // 0 = first play (with sound), 1 = second play (silent)
+  const [storageReady, setStorageReady] = useState(false);
   const practicePlayCountRef = useRef(0); // Ref to track practice play count for closures
   const currentPracticeExerciseRef = useRef(0); // Ref to track current exercise for closures
-  
+  const hasLoadedVarisaiRef = useRef(false);
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -77,6 +80,65 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       soundfontPlayerRef.current = null;
     }
   }, [instrumentId]);
+
+  // Load persisted varisai settings before first paint (avoids flash of defaults)
+  const VARISAI_STORAGE_KEY = 'varisaiSettings';
+  type StoredVarisaiSettings = {
+    varisaiType?: VarisaiType;
+    selectedVarisaiNumber?: number;
+    ragaNumber?: number;
+    sortOrder?: SortOrder;
+    baseBPM?: number;
+    notesPerBeat?: number;
+    loop?: boolean;
+    practiceMode?: boolean;
+    singAlongMode?: boolean;
+    startFromCurrentExercise?: boolean;
+    startFromCurrentIndex?: number;
+  };
+  useLayoutEffect(() => {
+    const stored = getStored<StoredVarisaiSettings>(VARISAI_STORAGE_KEY, {});
+    const validTypes: VarisaiType[] = ['sarali', 'janta', 'melasthayi', 'mandarasthayi'];
+    const type = stored.varisaiType && validTypes.includes(stored.varisaiType) ? stored.varisaiType : 'sarali';
+    setVarisaiType(type);
+    const data = VARISAI_TYPES[type].data;
+    const varisaiNum = typeof stored.selectedVarisaiNumber === 'number' && stored.selectedVarisaiNumber >= 1
+      ? Math.min(stored.selectedVarisaiNumber, data.length)
+      : 1;
+    setSelectedVarisai(data.find(v => v.number === varisaiNum) || data[0]);
+    if (typeof stored.ragaNumber === 'number') {
+      const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
+      if (raga) setSelectedRaga(raga);
+    }
+    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
+    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) setBaseBPM(stored.baseBPM);
+    if (typeof stored.notesPerBeat === 'number' && [1, 2, 3, 4, 5].includes(stored.notesPerBeat)) setNotesPerBeat(stored.notesPerBeat);
+    if (typeof stored.loop === 'boolean') setLoop(stored.loop);
+    if (typeof stored.practiceMode === 'boolean') setPracticeMode(stored.practiceMode);
+    if (typeof stored.singAlongMode === 'boolean') setSingAlongMode(stored.singAlongMode);
+    if (typeof stored.startFromCurrentExercise === 'boolean') setStartFromCurrentExercise(stored.startFromCurrentExercise);
+    if (typeof stored.startFromCurrentIndex === 'number' && stored.startFromCurrentIndex >= 0) setStartFromCurrentIndex(stored.startFromCurrentIndex);
+    hasLoadedVarisaiRef.current = true;
+    setStorageReady(true);
+  }, []);
+
+  // Persist varisai settings when they change
+  useEffect(() => {
+    if (!hasLoadedVarisaiRef.current) return;
+    setStored(VARISAI_STORAGE_KEY, {
+      varisaiType,
+      selectedVarisaiNumber: selectedVarisai?.number,
+      ragaNumber: selectedRaga?.number,
+      sortOrder,
+      baseBPM,
+      notesPerBeat,
+      loop,
+      practiceMode,
+      singAlongMode,
+      startFromCurrentExercise,
+      startFromCurrentIndex,
+    });
+  }, [varisaiType, selectedVarisai, selectedRaga, sortOrder, baseBPM, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
 
   // Sync sidebar voice volume to master gain when it changes
   useEffect(() => {
@@ -609,6 +671,14 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   };
 
   const optimalColumns = calculateOptimalColumns(currentVarisaiData.length);
+
+  if (!storageReady) {
+    return (
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-[200px]">
+        <span className="text-slate-500 text-sm">Loading…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto overflow-visible">

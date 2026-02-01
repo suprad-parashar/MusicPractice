@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import KeySection, { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
@@ -10,21 +10,75 @@ import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
 import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
+import { getStored, setStored } from '@/lib/storage';
 
 type Tab = 'raga' | 'varisai' | 'auditory';
 
+const STORAGE_KEY = 'settings';
+
+type StoredSettings = {
+  selectedKey?: KeyName;
+  activeTab?: Tab;
+  instrumentId?: InstrumentId;
+  voiceVolume?: number;
+  notationLanguage?: NotationLanguage;
+};
+
+const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory'];
+const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute'];
+const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
+
 export default function Home() {
+  const [storageReady, setStorageReady] = useState(false);
   const [selectedKey, setSelectedKey] = useState<KeyName>('C');
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
   const [activeTab, setActiveTab] = useState<Tab>('raga');
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
-  const [voiceVolume, setVoiceVolume] = useState(0.5);
+  const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
+  const hasLoadedRef = useRef(false);
+
+  // Load persisted settings before showing UI (avoids any flash of defaults)
+  useLayoutEffect(() => {
+    const stored = getStored<StoredSettings>(STORAGE_KEY, {});
+    if (stored.selectedKey && VALID_KEYS.includes(stored.selectedKey)) {
+      setSelectedKey(stored.selectedKey);
+      setBaseFreq(KEYS[stored.selectedKey]);
+    }
+    if (stored.activeTab && VALID_TABS.includes(stored.activeTab)) setActiveTab(stored.activeTab);
+    if (stored.instrumentId && VALID_INSTRUMENTS.includes(stored.instrumentId)) setInstrumentId(stored.instrumentId);
+    if (typeof stored.voiceVolume === 'number' && stored.voiceVolume >= 0 && stored.voiceVolume <= 1) setVoiceVolume(stored.voiceVolume);
+    if (stored.notationLanguage && VALID_NOTATION.includes(stored.notationLanguage)) setNotationLanguage(stored.notationLanguage);
+    hasLoadedRef.current = true;
+    setStorageReady(true);
+  }, []);
+
+  // Persist settings when they change (after initial load)
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    setStored(STORAGE_KEY, {
+      selectedKey,
+      activeTab,
+      instrumentId,
+      voiceVolume,
+      notationLanguage,
+    });
+  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
     setBaseFreq(KEYS[key]);
   };
+
+  // Don't render persisted UI until we've read from storage (prevents jump)
+  if (!storageReady) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-slate-500 text-sm" aria-label="Loading">Loading…</div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-950">

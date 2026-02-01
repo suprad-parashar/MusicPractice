@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { getStored, setStored } from '@/lib/storage';
 
 interface TanpuraString {
   noiseSource: AudioBufferSourceNode | null;
@@ -16,9 +17,13 @@ interface TanpuraSidebarProps {
   baseFreq: number;
 }
 
+const TANPURA_VOLUME_KEY = 'tanpuraVolume';
+
 export default function TanpuraSidebar({ baseFreq }: TanpuraSidebarProps) {
+  const [storageReady, setStorageReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
+  const hasLoadedRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const stringsRef = useRef<TanpuraString[]>([]);
   const masterGainRef = useRef<GainNode | null>(null);
@@ -30,6 +35,20 @@ export default function TanpuraSidebar({ baseFreq }: TanpuraSidebarProps) {
       stopTanpura();
     };
   }, []);
+
+  // Load persisted tanpura volume before showing UI (avoids flash of default)
+  useLayoutEffect(() => {
+    const stored = getStored<number>(TANPURA_VOLUME_KEY, 0.5);
+    if (typeof stored === 'number' && stored >= 0 && stored <= 1) setVolume(stored);
+    hasLoadedRef.current = true;
+    setStorageReady(true);
+  }, []);
+
+  // Persist tanpura volume when it changes
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    setStored(TANPURA_VOLUME_KEY, volume);
+  }, [volume]);
 
   // Restart tanpura when baseFreq changes (e.g. key changed in sidebar)
   useEffect(() => {
@@ -247,6 +266,22 @@ export default function TanpuraSidebar({ baseFreq }: TanpuraSidebarProps) {
       masterGainRef.current.gain.value = linearToLogGain(newVolume);
     }
   };
+
+  if (!storageReady) {
+    return (
+      <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50 animate-pulse">
+        <div className="text-center mb-4">
+          <div className="h-6 bg-slate-700 rounded w-24 mx-auto mb-1" />
+          <div className="h-3 bg-slate-700/70 rounded w-20 mx-auto" />
+        </div>
+        <div className="flex flex-col items-center mb-4">
+          <div className="w-20 h-20 rounded-full bg-slate-700" />
+          <div className="h-3 w-12 bg-slate-700/70 rounded mt-2" />
+        </div>
+        <div className="h-8 bg-slate-700/50 rounded" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
