@@ -81,10 +81,10 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col">
-      <div className="flex flex-1 min-h-0">
+    <main className="h-screen overflow-hidden bg-slate-950 flex flex-col">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Sidebar - Key → Voice → Tanpura → Notation Language */}
-        <aside className="scroll-area w-80 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto flex flex-col gap-8">
+        <aside className="scroll-area w-80 min-h-0 shrink-0 flex flex-col overflow-y-auto overflow-x-hidden bg-slate-900 border-r border-slate-800 p-6 gap-8">
           <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
           <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} />
           <TanpuraSidebar baseFreq={baseFreq} />
@@ -144,26 +144,26 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Tab Content */}
-          <div className="scroll-area flex-1 flex items-start justify-center p-6 overflow-y-auto">
-            {activeTab === 'raga' ? (
-              <RagaPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
-            ) : activeTab === 'varisai' ? (
-              <VarisaiPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
-            ) : (
-              <AuditoryPractice baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} />
-            )}
+          {/* Tab Content + Footer – scroll together */}
+          <div className="scroll-area flex-1 min-h-0 flex flex-col overflow-y-auto">
+            <div className="flex-1 flex items-start justify-center p-6">
+              {activeTab === 'raga' ? (
+                <RagaPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+              ) : activeTab === 'varisai' ? (
+                <VarisaiPlayer baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+              ) : (
+                <AuditoryPractice baseFreq={baseFreq} instrumentId={instrumentId} volume={voiceVolume} />
+              )}
+            </div>
+            <footer className="shrink-0 pt-6 px-8 pb-16 text-center border-t border-slate-800/70 bg-slate-950">
+              <p className="text-slate-400 text-sm md:text-base font-light italic max-w-xl mx-auto mb-1.5">
+                &ldquo;Where there is practice, there is perfection.&rdquo;
+              </p>
+              <p className="text-slate-500 text-xs mb-6">
+                Carnatic Practice · v1.1.0
+              </p>
+            </footer>
           </div>
-
-          {/* Footer - only in main content area */}
-          <footer className="shrink-0 pt-6 px-8 pb-16 text-center border-t border-slate-800/70 bg-slate-950">
-            <p className="text-slate-400 text-sm md:text-base font-light italic max-w-xl mx-auto mb-1.5">
-              &ldquo;Where there is practice, there is perfection.&rdquo;
-            </p>
-            <p className="text-slate-500 text-xs mb-6">
-              Carnatic Practice · v1.1.0
-            </p>
-          </footer>
         </div>
       </div>
     </main>
