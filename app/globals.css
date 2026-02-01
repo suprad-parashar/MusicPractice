@@ -2,13 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* Default (dark grey) – neutral, no blue tint */
+:root,
+html[data-theme="dark"] {
   --background: #0a0a0a;
-  --foreground: #ededed;
-  --scrollbar-track: #0f172a;
-  --scrollbar-thumb: #334155;
-  --scrollbar-thumb-hover: #475569;
+  --foreground: #fafafa;
+  --page-bg: #0a0a0a;
+  --sidebar-bg: #171717;
+  --header-bg: #171717;
+  --card-bg: #262626;
+  --input-bg: #404040;
+  --text-primary: #fafafa;
+  --text-muted: #a3a3a3;
+  --border: #404040;
+  --scrollbar-track: #171717;
+  --scrollbar-thumb: #525252;
+  --scrollbar-thumb-hover: #737373;
   --scrollbar-size: 8px;
+  --accent: #f59e0b;
+}
+
+/* Dark Slate – blueish slate background */
+html[data-theme="dark-slate"] {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --page-bg: #0f172a;
+  --sidebar-bg: #0f172a;
+  --header-bg: #0f172a;
+  --card-bg: #1e293b;
+  --input-bg: #334155;
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --border: #475569;
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+  --scrollbar-size: 8px;
+  --accent: #f59e0b;
+}
+
+/* Light – cool slate greys */
+html[data-theme="light"] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --page-bg: #f1f5f9;
+  --sidebar-bg: #e2e8f0;
+  --header-bg: #e2e8f0;
+  --card-bg: #ffffff;
+  --input-bg: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-muted: #475569;
+  --border: #cbd5e1;
+  --scrollbar-track: #e2e8f0;
+  --scrollbar-thumb: #94a3b8;
+  --scrollbar-thumb-hover: #64748b;
+}
+
+/* Light Warm – stone/cream tones */
+html[data-theme="light-warm"] {
+  --background: #fafaf9;
+  --foreground: #1c1917;
+  --page-bg: #fafaf9;
+  --sidebar-bg: #f5f5f4;
+  --header-bg: #f5f5f4;
+  --card-bg: #ffffff;
+  --input-bg: #f5f5f4;
+  --text-primary: #1c1917;
+  --text-muted: #78716c;
+  --border: #d6d3d1;
+  --scrollbar-track: #f5f5f4;
+  --scrollbar-thumb: #a8a29e;
+  --scrollbar-thumb-hover: #78716c;
+}
+
+/* All themes: map hardcoded slate classes to theme CSS variables */
+html[data-theme] [class*="bg-slate-950"],
+html[data-theme] .bg-slate-950 { background-color: var(--page-bg) !important; }
+html[data-theme] [class*="bg-slate-900"],
+html[data-theme] .bg-slate-900 { background-color: var(--sidebar-bg) !important; }
+html[data-theme] [class*="bg-slate-800"],
+html[data-theme] .bg-slate-800 { background-color: var(--card-bg) !important; }
+html[data-theme] [class*="bg-slate-700"],
+html[data-theme] .bg-slate-700 { background-color: var(--input-bg) !important; }
+html[data-theme] [class*="bg-slate-600"],
+html[data-theme] .bg-slate-600 { background-color: var(--border) !important; }
+html[data-theme] [class*="text-slate-100"],
+html[data-theme] .text-slate-100 { color: var(--text-primary) !important; }
+html[data-theme] [class*="text-slate-200"],
+html[data-theme] .text-slate-200 { color: var(--text-primary) !important; }
+html[data-theme] [class*="text-slate-300"],
+html[data-theme] .text-slate-300 { color: var(--text-primary) !important; }
+html[data-theme] [class*="text-slate-400"],
+html[data-theme] .text-slate-400 { color: var(--text-muted) !important; }
+html[data-theme] [class*="text-slate-500"],
+html[data-theme] .text-slate-500 { color: var(--text-muted) !important; }
+html[data-theme] [class*="border-slate-"],
+html[data-theme] .border-slate-800,
+html[data-theme] .border-slate-700,
+html[data-theme] .border-slate-600 { border-color: var(--border) !important; }
+html[data-theme] [class*="from-slate-"],
+html[data-theme] [class*="via-slate-"],
+html[data-theme] [class*="to-slate-"] { background: var(--card-bg) !important; }
+html[data-theme] [class*="hover:bg-slate-"]:hover { background-color: var(--border) !important; }
+/* Amber → accent (user-chosen) in all themes */
+html[data-theme] [class*="focus:ring-amber-"]:focus { --tw-ring-color: var(--accent) !important; }
+html[data-theme] [class*="hover:bg-amber-"]:hover { background-color: var(--accent) !important; }
+html[data-theme] [class*="bg-amber-"],
+html[data-theme] .bg-amber-500,
+html[data-theme] .bg-amber-400 { background-color: var(--accent) !important; }
+html[data-theme] [class*="text-amber-"],
+html[data-theme] .text-amber-400,
+html[data-theme] .text-amber-500 { color: var(--accent) !important; }
+html[data-theme] [class*="border-amber-"],
+html[data-theme] .border-amber-500,
+html[data-theme] .border-amber-400 { border-color: var(--accent) !important; }
+/* Slider thumbs, checkboxes, and other accent-colored form controls use theme accent */
+html { accent-color: var(--accent); }
+/* Override Tailwind accent-amber-* so range/checkbox use theme accent */
+html [class*="accent-amber-"] { accent-color: var(--accent) !important; }
+/* Amber/orange gradients (play buttons, etc.) use theme accent */
+html[data-theme] [class*="from-amber-"],
+html[data-theme] [class*="to-orange-"],
+html[data-theme] [class*="to-amber-"] { background: var(--accent) !important; background-image: none !important; }
+/* Amber box-shadows (glow on selected buttons) use theme accent */
+html[data-theme] [class*="shadow-amber-"] {
+  box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--accent) 30%, transparent), 0 4px 6px -4px color-mix(in srgb, var(--accent) 30%, transparent) !important;
 }
 
 html {

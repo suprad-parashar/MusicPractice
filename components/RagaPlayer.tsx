@@ -372,9 +372,10 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             onClick={isPlaying ? stopPlaying : startPlaying}
             className={`
               relative w-32 h-32 md:w-40 md:h-40 rounded-full
+              border-2 border-[var(--border)]
               transition-all duration-300 ease-out
               ${isPlaying 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105' 
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105 border-[var(--accent)]' 
                 : 'bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
               }
               flex items-center justify-center
