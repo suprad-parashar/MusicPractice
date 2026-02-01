@@ -139,16 +139,18 @@ export default function TanpuraSidebar({
           <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
             Octave
           </label>
-          <div className="flex gap-1">
+          <div className="flex border border-slate-600 rounded-lg overflow-hidden bg-slate-800/30">
             {(['low', 'medium', 'high'] as Octave[]).map((opt) => (
               <button
                 key={opt}
                 onClick={() => handleOctaveChange(opt)}
                 className={`
-                  flex-1 py-1.5 rounded text-xs font-medium transition-all capitalize
+                  flex-1 py-2 px-2 text-xs font-medium transition-all duration-200 capitalize
+                  border-r border-slate-600 last:border-r-0
+                  focus:outline-none focus:ring-0
                   ${octave === opt
                     ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
+                    : 'bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                   }
                 `}
               >

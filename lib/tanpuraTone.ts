@@ -34,7 +34,7 @@ let volumeNode: Tone.Volume | null = null;
 let pluckPlayers: Tone.Player[] = [];
 let pluckReverb: Tone.Reverb | null = null;
 let pluckLoop: Tone.Loop | null = null;
-let polySynth: Tone.PolySynth<Tone.PluckSynth> | null = null;
+let polySynth: Tone.PolySynth | null = null;
 let baseFreqRef = 261.63;
 let octaveRef: Octave = 'medium';
 let volumeRef = 0.5;
@@ -97,15 +97,16 @@ async function createPluckSampleChain(
   return { volume, players };
 }
 
-function schedulePluckCycle(time: number): void {
+function schedulePluckCycle(_time?: number): void {
   if (pluckPlayers.length < 4) return;
+  const baseTime = Tone.now() + 0.02; // AudioContext time, small lookahead
   const base = baseFreqRef * PITCH_OCTAVE_DOWN * getOctaveMultiplier(octaveRef);
   const delayPerPluck = pluckDelaySecRef;
 
   PLUCK_RATIOS.forEach((ratio, i) => {
     const freq = base * ratio;
     const playbackRate = freq / sampleBaseFreq;
-    const pluckTime = time + i * delayPerPluck;
+    const pluckTime = baseTime + i * delayPerPluck;
     pluckPlayers[i].playbackRate = playbackRate;
     pluckPlayers[i].start(pluckTime);
   });
@@ -115,11 +116,12 @@ function createSynthPluckChain(_baseFreqHz: number) {
   const volume = new Tone.Volume(0).toDestination();
   const rev = new Tone.Reverb({ decay: 6, wet: 0.45 }).connect(volume);
 
-  const poly = new Tone.PolySynth(Tone.PluckSynth, {
+  // PluckSynth doesn't extend Monophonic in Tone.js types; cast to satisfy PolySynth generic
+  const poly = new Tone.PolySynth(Tone.PluckSynth as any, {
     volume: -8,
     resonance: 0.98,
     release: noteLengthSecRef,
-  }).connect(rev);
+  } as any).connect(rev);
 
   volumeNode = volume;
   polySynth = poly;
@@ -243,7 +245,7 @@ export function setTanpuraNoteLength(seconds: number): void {
   noteLengthSecRef = Math.max(2, Math.min(8, seconds));
   if (!isStarted) return;
   if (pluckReverb) pluckReverb.decay = noteLengthSecRef;
-  if (polySynth) polySynth.set({ release: noteLengthSecRef });
+  if (polySynth) polySynth.set({ release: noteLengthSecRef } as any);
 }
 
 export function disposeTanpura(): void {
