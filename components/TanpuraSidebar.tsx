@@ -1,215 +1,72 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-
-// Carnatic music keys (Swaras) - frequencies in Hz
-const KEYS = {
-  'C': 261.63,
-  'C#': 277.18,
-  'D': 293.66,
-  'D#': 311.13,
-  'E': 329.63,
-  'F': 349.23,
-  'F#': 369.99,
-  'G': 392.00,
-  'G#': 415.30,
-  'A': 440.00,
-  'A#': 466.16,
-  'B': 493.88,
-};
-
-type KeyName = keyof typeof KEYS;
-
-interface TanpuraString {
-  noiseSource: AudioBufferSourceNode | null;
-  oscillators: OscillatorNode[];
-  gainNodes: GainNode[];
-  filters: BiquadFilterNode[];
-  formantFilters: BiquadFilterNode[];
-  lfo?: OscillatorNode;
-  lfoGain?: GainNode;
-}
+import * as tanpuraTone from '@/lib/tanpuraTone';
+import type { Octave } from '@/lib/tanpuraTone';
 
 interface TanpuraSidebarProps {
-  onKeyChange: (freq: number) => void;
+  baseFreq: number;
+  volume: number;
+  onVolumeChange: (v: number) => void;
+  pluckDelay: number;
+  onPluckDelayChange: (v: number) => void;
+  noteLength: number;
+  onNoteLengthChange: (v: number) => void;
+  octave: Octave;
+  onOctaveChange: (v: Octave) => void;
 }
 
-export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
-  const [selectedKey, setSelectedKey] = useState<KeyName>('C');
+const PLUCK_DELAY_MIN = 0.8;
+const PLUCK_DELAY_MAX = 2.5;
+const NOTE_LENGTH_MIN = 2;
+const NOTE_LENGTH_MAX = 8;
+
+/**
+ * Renders a control sidebar for the tanpura drone with playback and synthesis parameters.
+ *
+ * @param baseFreq - Base frequency of the drone in hertz.
+ * @param volume - Playback volume in the range 0 (silent) to 1 (full).
+ * @param onVolumeChange - Callback invoked with a new volume value when the user adjusts the volume.
+ * @param pluckDelay - Time in seconds between successive plucks.
+ * @param onPluckDelayChange - Callback invoked with a clamped pluck delay when the user adjusts the pluck delay.
+ * @param noteLength - Duration in seconds of each plucked note.
+ * @param onNoteLengthChange - Callback invoked with a clamped note length when the user adjusts the note length.
+ * @param octave - Selected octave ('low' | 'medium' | 'high') for the drone.
+ * @param onOctaveChange - Callback invoked when the user selects a different octave.
+ * @returns A React element rendering the tanpura control sidebar.
+ */
+export default function TanpuraSidebar({
+  baseFreq,
+  volume,
+  onVolumeChange,
+  pluckDelay,
+  onPluckDelayChange,
+  noteLength,
+  onNoteLengthChange,
+  octave,
+  onOctaveChange,
+}: TanpuraSidebarProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.5);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const stringsRef = useRef<TanpuraString[]>([]);
-  const masterGainRef = useRef<GainNode | null>(null);
   const isPlayingRef = useRef<boolean>(false);
 
-  // Initialize cleanup
+  // Cleanup on unmount
   useEffect(() => {
-    onKeyChange(KEYS[selectedKey]);
     return () => {
-      stopTanpura();
+      tanpuraTone.disposeTanpura();
+      isPlayingRef.current = false;
     };
   }, []);
 
-  // Notify parent when key changes
+  // When baseFreq or octave changes while playing, update the drone
   useEffect(() => {
-    onKeyChange(KEYS[selectedKey]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKey]);
+    if (!isPlayingRef.current) return;
+    tanpuraTone.setTanpuraFrequency(baseFreq);
+  }, [baseFreq]);
 
-  // Create a tanpura string with proper jawari timbre
-  const createTanpuraString = (
-    audioContext: AudioContext,
-    baseFreq: number,
-    volume: number,
-    stringIndex: number
-  ): TanpuraString => {
-    const stringGain = audioContext.createGain();
-    stringGain.gain.value = volume;
-    stringGain.connect(masterGainRef.current!);
-
-    const oscillators: OscillatorNode[] = [];
-    const gainNodes: GainNode[] = [];
-    const filters: BiquadFilterNode[] = [];
-    const formantFilters: BiquadFilterNode[] = [];
-
-    // Create fundamental and strong harmonics (1st, 2nd, 3rd, 4th, 5th, 8th)
-    const harmonicWeights = [
-      { harmonic: 1, weight: 1.0 },
-      { harmonic: 2, weight: 0.6 },
-      { harmonic: 3, weight: 0.4 },
-      { harmonic: 4, weight: 0.25 },
-      { harmonic: 5, weight: 0.15 },
-      { harmonic: 8, weight: 0.1 },
-    ];
-
-    harmonicWeights.forEach(({ harmonic, weight }, index) => {
-      const osc = audioContext.createOscillator();
-      const oscGain = audioContext.createGain();
-      const filter = audioContext.createBiquadFilter();
-      const formantFilter = audioContext.createBiquadFilter();
-
-      osc.type = 'triangle';
-      osc.frequency.value = baseFreq * harmonic;
-      
-      const detune = (Math.random() - 0.5) * 2;
-      osc.detune.value = detune;
-
-      filter.type = 'lowpass';
-      filter.frequency.value = baseFreq * 12;
-      filter.Q.value = 0.7;
-
-      formantFilter.type = 'bandpass';
-      const formantFreq = baseFreq * harmonic * (1.2 + Math.random() * 0.3);
-      formantFilter.frequency.value = formantFreq;
-      formantFilter.Q.value = 8 + Math.random() * 4;
-
-      oscGain.gain.value = weight * (index === 0 ? 1 : 0.5);
-
-      osc.connect(filter);
-      filter.connect(formantFilter);
-      formantFilter.connect(oscGain);
-      oscGain.connect(stringGain);
-
-      osc.start();
-      oscillators.push(osc);
-      gainNodes.push(oscGain);
-      filters.push(filter);
-      formantFilters.push(formantFilter);
-    });
-
-    // Add noise for jawari effect
-    let noiseSource: AudioBufferSourceNode | null = null;
+  const startTanpura = async () => {
+    if (isPlayingRef.current) return;
     try {
-      const bufferSize = audioContext.sampleRate * 2;
-      const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1;
-      }
-      
-      noiseSource = audioContext.createBufferSource();
-      noiseSource.buffer = buffer;
-      noiseSource.loop = true;
-      
-      const noiseGain = audioContext.createGain();
-      const noiseFilter = audioContext.createBiquadFilter();
-      
-      noiseFilter.type = 'bandpass';
-      noiseFilter.frequency.value = baseFreq * 2;
-      noiseFilter.Q.value = 2;
-      noiseGain.gain.value = 0.08;
-      
-      noiseSource.connect(noiseFilter);
-      noiseFilter.connect(noiseGain);
-      noiseGain.connect(stringGain);
-      
-      noiseSource.start();
-    } catch (error) {
-      console.warn('Could not create noise source:', error);
-    }
-
-    // Add subtle LFO for natural vibrato
-    const lfo = audioContext.createOscillator();
-    const lfoGain = audioContext.createGain();
-    lfo.type = 'sine';
-    lfo.frequency.value = 0.1 + Math.random() * 0.1;
-    lfoGain.gain.value = 0.03;
-    lfo.connect(lfoGain);
-    lfoGain.connect(stringGain.gain);
-    lfo.start();
-
-    return { noiseSource, oscillators, gainNodes, filters, formantFilters, lfo, lfoGain };
-  };
-
-  // Convert linear volume (0-1) to logarithmic gain
-  const linearToLogGain = (linearValue: number): number => {
-    if (linearValue === 0) return 0;
-    // Use cubic curve for logarithmic feel: gain = volume^3
-    return Math.pow(linearValue, 3);
-  };
-
-  const startTanpura = () => {
-    if (isPlayingRef.current && audioContextRef.current) {
-      stopTanpura();
-      setTimeout(() => {
-        startTanpura();
-      }, 100);
-      return;
-    }
-
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const audioContext = new AudioContextClass();
-      audioContextRef.current = audioContext;
-
-      const masterGain = audioContext.createGain();
-      masterGain.gain.value = linearToLogGain(volume);
-      masterGain.connect(audioContext.destination);
-      masterGainRef.current = masterGain;
-
-      const baseFreq = KEYS[selectedKey];
-      
-      const stringConfigs = [
-        { freq: baseFreq * 0.75, volume: 0.45 },
-        { freq: baseFreq * 1.0, volume: 0.55 },
-        { freq: baseFreq * 1.0, volume: 0.50 },
-        { freq: baseFreq * 0.5, volume: 0.40 },
-      ];
-
-      const strings: TanpuraString[] = [];
-
-      stringConfigs.forEach((config, index) => {
-        const string = createTanpuraString(
-          audioContext,
-          config.freq,
-          config.volume,
-          index
-        );
-        strings.push(string);
-      });
-
-      stringsRef.current = strings;
+      await tanpuraTone.startTanpura(baseFreq, volume, pluckDelay, noteLength, octave);
       isPlayingRef.current = true;
       setIsPlaying(true);
     } catch (error) {
@@ -220,34 +77,7 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
   };
 
   const stopTanpura = () => {
-    stringsRef.current.forEach((string) => {
-      if (string.noiseSource) {
-        try {
-          string.noiseSource.stop();
-        } catch (e) {}
-      }
-      
-      string.oscillators.forEach(osc => {
-        try {
-          osc.stop();
-        } catch (e) {}
-      });
-      
-      if (string.lfo) {
-        try {
-          string.lfo.stop();
-        } catch (e) {}
-      }
-    });
-
-    stringsRef.current = [];
-
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-
-    masterGainRef.current = null;
+    tanpuraTone.stopTanpura();
     isPlayingRef.current = false;
     setIsPlaying(false);
   };
@@ -260,36 +90,36 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
     }
   };
 
-  const handleKeyChange = (key: KeyName) => {
-    const wasPlaying = isPlayingRef.current;
-    setSelectedKey(key);
-    
-    if (wasPlaying) {
-      stopTanpura();
-      setTimeout(() => {
-        startTanpura();
-      }, 100);
-    }
+  const handleVolumeChange = (newVolume: number) => {
+    onVolumeChange(newVolume);
+    tanpuraTone.setTanpuraVolume(newVolume);
   };
 
-  const handleVolumeChange = (newVolume: number) => {
-    setVolume(newVolume);
-    if (masterGainRef.current) {
-      masterGainRef.current.gain.value = linearToLogGain(newVolume);
-    }
+  const handlePluckDelayChange = (val: number) => {
+    const clamped = Math.max(PLUCK_DELAY_MIN, Math.min(PLUCK_DELAY_MAX, val));
+    onPluckDelayChange(clamped);
+    tanpuraTone.setTanpuraPluckDelay(clamped);
+  };
+
+  const handleNoteLengthChange = (val: number) => {
+    const clamped = Math.max(NOTE_LENGTH_MIN, Math.min(NOTE_LENGTH_MAX, val));
+    onNoteLengthChange(clamped);
+    tanpuraTone.setTanpuraNoteLength(clamped);
+  };
+
+  const handleOctaveChange = (newOctave: Octave) => {
+    onOctaveChange(newOctave);
+    tanpuraTone.setTanpuraOctave(newOctave); // Immediate response
   };
 
   return (
-    <div className="w-full">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-light mb-1 tracking-wide">Tanpura</h2>
+    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-light mb-1 tracking-wide">Tanpura</h2>
           <p className="text-slate-400 text-xs">Drone Control</p>
         </div>
 
-        {/* Play/Pause Button */}
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-4">
           <button
             onClick={toggleTanpura}
             className={`
@@ -319,39 +149,73 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
           </p>
         </div>
 
-        {/* Key Selection */}
-        <div className="mb-6">
+        <div className="mb-4">
           <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
-            Key
+            Octave
           </label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {(Object.keys(KEYS) as KeyName[]).map((key) => (
+          <div className="flex border border-slate-600 rounded-lg overflow-hidden bg-slate-800/30">
+            {(['low', 'medium', 'high'] as Octave[]).map((opt) => (
               <button
-                key={key}
-                onClick={() => handleKeyChange(key)}
+                key={opt}
+                onClick={() => handleOctaveChange(opt)}
                 className={`
-                  py-2 px-1 rounded
-                  transition-all duration-200
-                  text-xs font-medium
-                  ${
-                    selectedKey === key
-                      ? 'bg-amber-500 text-slate-900 shadow-md scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                  flex-1 py-2 px-2 text-xs font-medium transition-all duration-200 capitalize
+                  border-r border-slate-600 last:border-r-0
+                  focus:outline-none focus:ring-0
+                  ${octave === opt
+                    ? 'bg-amber-500 text-slate-900'
+                    : 'bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                   }
                 `}
               >
-                {key}
+                {opt}
               </button>
             ))}
           </div>
-          <div className="mt-2 text-center">
-            <p className="text-slate-400 text-xs">
-              {selectedKey} ({KEYS[selectedKey].toFixed(0)} Hz)
-            </p>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
+            Pluck delay (s)
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={PLUCK_DELAY_MIN}
+              max={PLUCK_DELAY_MAX}
+              step="0.1"
+              value={pluckDelay}
+              onInput={(e) => handlePluckDelayChange(parseFloat((e.target as HTMLInputElement).value))}
+              onChange={(e) => handlePluckDelayChange(parseFloat(e.target.value))}
+              className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+            />
+            <span className="text-slate-400 text-xs w-8 text-right">
+              {pluckDelay.toFixed(1)}
+            </span>
           </div>
         </div>
 
-        {/* Volume Control */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
+            Note length (s)
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={NOTE_LENGTH_MIN}
+              max={NOTE_LENGTH_MAX}
+              step="0.5"
+              value={noteLength}
+              onInput={(e) => handleNoteLengthChange(parseFloat((e.target as HTMLInputElement).value))}
+              onChange={(e) => handleNoteLengthChange(parseFloat(e.target.value))}
+              className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+            />
+            <span className="text-slate-400 text-xs w-8 text-right">
+              {noteLength.toFixed(1)}
+            </span>
+          </div>
+        </div>
+
         <div>
           <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
             Volume
@@ -364,8 +228,9 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
               type="range"
               min="0"
               max="1"
-              step="0.05"
+              step="0.02"
               value={volume}
+              onInput={(e) => handleVolumeChange(parseFloat((e.target as HTMLInputElement).value))}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
               className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
             />
@@ -374,7 +239,6 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
             </span>
           </div>
         </div>
-      </div>
     </div>
   );
 }

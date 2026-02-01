@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { SARALI_VARISAI, Varisai, convertVarisaiNote, parseVarisaiNote } from '@/data/saraliVarisai';
 import { JANTA_VARISAI } from '@/data/jantaVarisai';
 import { MELASTHAYI_VARISAI } from '@/data/melasthayiVarisai';
 import { MANDARASTHAYI_VARISAI } from '@/data/mandarasthayiVarisai';
 import { getSwarafrequency } from '@/data/melakartaRagas';
 import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/melakartaRagas';
+import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
+import { getStored, setStored } from '@/lib/storage';
 
 type SortOrder = 'number' | 'alphabetical';
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
@@ -18,7 +21,19 @@ const VARISAI_TYPES: { [key in VarisaiType]: { name: string; data: Varisai[] } }
   mandarasthayi: { name: 'Mandarasthayi Varasai', data: MANDARASTHAYI_VARISAI },
 };
 
-export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
+/**
+ * Interactive React component for selecting, configuring, and playing Carnatic varisai exercises.
+ *
+ * Renders UI to choose varisai type, raga, tempo, subdivision, playback modes (practice, sing-along, loop),
+ * and starts/stops instrument-aware audio playback of the selected exercise while persisting user settings.
+ *
+ * @param baseFreq - Reference tonic frequency in Hz used to compute swara frequencies (e.g., 440).
+ * @param instrumentId - Instrument identifier to use for playback; supports sine and soundfont instruments. Defaults to `'piano'`.
+ * @param volume - Master linear volume in the range 0–1. Defaults to `0.5`.
+ * @param notationLanguage - Script used to render swaras in the UI (e.g., `'english'`, `'devanagari'`). Defaults to `'english'`.
+ * @returns A JSX element containing the full Varisai player UI and controls.
+ */
+export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
   const [varisaiType, setVarisaiType] = useState<VarisaiType>('sarali');
   const currentVarisaiData = VARISAI_TYPES[varisaiType].data;
   const [selectedVarisai, setSelectedVarisai] = useState<Varisai>(currentVarisaiData[0]);
@@ -32,17 +47,117 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [practiceMode, setPracticeMode] = useState(false);
+  const [singAlongMode, setSingAlongMode] = useState(false);
+  const [startFromCurrentExercise, setStartFromCurrentExercise] = useState(false);
+  const [startFromCurrentIndex, setStartFromCurrentIndex] = useState(0); // which exercise to start from when "start from current" is on
   const [currentPracticeExercise, setCurrentPracticeExercise] = useState(0);
   const [practicePlayCount, setPracticePlayCount] = useState(0); // 0 = first play (with sound), 1 = second play (silent)
-  const [volume, setVolume] = useState(0.5); // Volume control (0-1)
+  const [storageReady, setStorageReady] = useState(false);
   const practicePlayCountRef = useRef(0); // Ref to track practice play count for closures
   const currentPracticeExerciseRef = useRef(0); // Ref to track current exercise for closures
-  
+  const hasLoadedVarisaiRef = useRef(false);
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const playheadTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const isPlayingRef = useRef(false);
   const masterGainRef = useRef<GainNode | null>(null);
+  const soundfontPlayerRef = useRef<Awaited<ReturnType<typeof getInstrument>> | null>(null);
+  const instrumentIdRef = useRef<InstrumentId>(instrumentId);
+  const baseFreqRef = useRef(baseFreq);
+  const baseBPMRef = useRef(baseBPM);
+  const notesPerBeatRef = useRef(notesPerBeat);
+  baseFreqRef.current = baseFreq;
+  baseBPMRef.current = baseBPM;
+  notesPerBeatRef.current = notesPerBeat;
+  instrumentIdRef.current = instrumentId;
+
+  useEffect(() => {
+    instrumentIdRef.current = instrumentId;
+    if (isSineInstrument(instrumentId)) {
+      soundfontPlayerRef.current = null;
+      return;
+    }
+    if (audioContextRef.current && masterGainRef.current) {
+      getInstrument(audioContextRef.current, instrumentId, masterGainRef.current)
+        .then((player) => {
+          soundfontPlayerRef.current = player;
+        })
+        .catch((err) => {
+          console.error('Failed to load instrument on change:', err);
+          soundfontPlayerRef.current = null;
+        });
+    } else {
+      soundfontPlayerRef.current = null;
+    }
+  }, [instrumentId]);
+
+  // Load persisted varisai settings before first paint (avoids flash of defaults)
+  const VARISAI_STORAGE_KEY = 'varisaiSettings';
+  type StoredVarisaiSettings = {
+    varisaiType?: VarisaiType;
+    selectedVarisaiNumber?: number;
+    ragaNumber?: number;
+    sortOrder?: SortOrder;
+    baseBPM?: number;
+    notesPerBeat?: number;
+    loop?: boolean;
+    practiceMode?: boolean;
+    singAlongMode?: boolean;
+    startFromCurrentExercise?: boolean;
+    startFromCurrentIndex?: number;
+  };
+  useLayoutEffect(() => {
+    const stored = getStored<StoredVarisaiSettings>(VARISAI_STORAGE_KEY, {});
+    const validTypes: VarisaiType[] = ['sarali', 'janta', 'melasthayi', 'mandarasthayi'];
+    const type = stored.varisaiType && validTypes.includes(stored.varisaiType) ? stored.varisaiType : 'sarali';
+    setVarisaiType(type);
+    const data = VARISAI_TYPES[type].data;
+    const varisaiNum = typeof stored.selectedVarisaiNumber === 'number' && stored.selectedVarisaiNumber >= 1
+      ? Math.min(stored.selectedVarisaiNumber, data.length)
+      : 1;
+    setSelectedVarisai(data.find(v => v.number === varisaiNum) || data[0]);
+    if (typeof stored.ragaNumber === 'number') {
+      const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
+      if (raga) setSelectedRaga(raga);
+    }
+    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
+    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) setBaseBPM(stored.baseBPM);
+    if (typeof stored.notesPerBeat === 'number' && [1, 2, 3, 4, 5].includes(stored.notesPerBeat)) setNotesPerBeat(stored.notesPerBeat);
+    if (typeof stored.loop === 'boolean') setLoop(stored.loop);
+    if (typeof stored.practiceMode === 'boolean') setPracticeMode(stored.practiceMode);
+    if (typeof stored.singAlongMode === 'boolean') setSingAlongMode(stored.singAlongMode);
+    if (typeof stored.startFromCurrentExercise === 'boolean') setStartFromCurrentExercise(stored.startFromCurrentExercise);
+    if (typeof stored.startFromCurrentIndex === 'number' && stored.startFromCurrentIndex >= 0) setStartFromCurrentIndex(stored.startFromCurrentIndex);
+    hasLoadedVarisaiRef.current = true;
+    setStorageReady(true);
+  }, []);
+
+  // Persist varisai settings when they change
+  useEffect(() => {
+    if (!hasLoadedVarisaiRef.current) return;
+    setStored(VARISAI_STORAGE_KEY, {
+      varisaiType,
+      selectedVarisaiNumber: selectedVarisai?.number,
+      ragaNumber: selectedRaga?.number,
+      sortOrder,
+      baseBPM,
+      notesPerBeat,
+      loop,
+      practiceMode,
+      singAlongMode,
+      startFromCurrentExercise,
+      startFromCurrentIndex,
+    });
+  }, [varisaiType, selectedVarisai, selectedRaga, sortOrder, baseBPM, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
+
+  // Sync sidebar voice volume to master gain when it changes
+  useEffect(() => {
+    if (masterGainRef.current) {
+      masterGainRef.current.gain.value = linearToLogGain(volume);
+    }
+  }, [volume]);
 
   const beatDuration = (60 / baseBPM) * 1000;
   const noteDuration = beatDuration / notesPerBeat;
@@ -84,9 +199,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   };
 
   interface NotePlayer {
-    osc: OscillatorNode;
-    gain: GainNode;
+    osc?: OscillatorNode;
+    gain?: GainNode;
     stopTime: number;
+    extend?: (additionalDuration: number, silent: boolean) => void;
   }
 
   // Convert linear volume (0-1) to logarithmic gain
@@ -99,28 +215,38 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   const playNote = (swara: string, duration: number, silent: boolean = false): NotePlayer | null => {
     if (!audioContextRef.current || !masterGainRef.current) return null;
 
-    // Parse octave indicator
     const parsed = parseVarisaiNote(swara);
-    let freq = getSwarafrequency(baseFreq, parsed.swara);
-    
-    // Adjust frequency based on octave
-    if (parsed.octave === 'higher') {
-      freq = freq * 2; // One octave higher
-    } else if (parsed.octave === 'lower') {
-      freq = freq * 0.5; // One octave lower
-    }
-    
-    const osc = audioContextRef.current.createOscillator();
-    const gain = audioContextRef.current.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = freq;
+    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
+    if (parsed.octave === 'higher') freq = freq * 2;
+    else if (parsed.octave === 'lower') freq = freq * 0.5;
 
     const now = audioContextRef.current.currentTime;
     const stopTime = now + duration / 1000;
-    
+
+    if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
+      const noteName = freqToNoteNameForInstrument(freq, instrumentIdRef.current);
+      // Use fixed gain 1.5 for soundfont; volume is controlled by masterGainRef (no double-apply)
+      const gain = silent ? 0 : 1.5;
+      soundfontPlayerRef.current.start(noteName, now, { duration: duration / 1000, gain });
+      const state = { stopTime };
+      return {
+        get stopTime() {
+          return state.stopTime;
+        },
+        extend(additionalDuration: number, extSilent: boolean) {
+          if (!soundfontPlayerRef.current) return;
+          const extGain = extSilent ? 0 : 1.5;
+          soundfontPlayerRef.current!.start(noteName, state.stopTime, { duration: additionalDuration / 1000, gain: extGain });
+          state.stopTime += additionalDuration / 1000;
+        },
+      };
+    }
+
+    const osc = audioContextRef.current.createOscillator();
+    const gain = audioContextRef.current.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
     if (silent) {
-      // Silent mode - set gain to 0
       gain.gain.setValueAtTime(0, now);
     } else {
       gain.gain.setValueAtTime(0, now);
@@ -128,23 +254,17 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       gain.gain.setValueAtTime(0.3, stopTime - 0.05);
       gain.gain.linearRampToValueAtTime(0, stopTime);
     }
-
     osc.connect(gain);
     gain.connect(masterGainRef.current);
-
     osc.start(now);
     osc.stop(stopTime);
-
     oscillatorsRef.current.push(osc);
     return { osc, gain, stopTime };
   };
 
   const stopNote = (notePlayer: NotePlayer) => {
-    if (!audioContextRef.current) return;
-    
+    if (!audioContextRef.current || !notePlayer.osc || !notePlayer.gain) return;
     const now = audioContextRef.current.currentTime;
-    
-    // Cancel all scheduled values
     notePlayer.gain.gain.cancelScheduledValues(now);
     
     // Fade out quickly
@@ -161,50 +281,35 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     }
   };
 
-  const extendNote = (notePlayer: NotePlayer, additionalDuration: number) => {
-    if (!audioContextRef.current) return;
-    
+  const extendNote = (notePlayer: NotePlayer, additionalDuration: number, silent: boolean = false) => {
+    if (notePlayer.extend) {
+      notePlayer.extend(additionalDuration, silent);
+      return;
+    }
+    if (!audioContextRef.current || !notePlayer.osc || !notePlayer.gain) return;
     const now = audioContextRef.current.currentTime;
-    
-    // Calculate new stop time by extending from the current stop time
-    // This ensures consecutive ";" properly extend the note
     const currentStopTime = Math.max(notePlayer.stopTime, now);
     const newStopTime = currentStopTime + additionalDuration / 1000;
-    
-    // Cancel all scheduled values to prevent any fade
     notePlayer.gain.gain.cancelScheduledValues(now);
-    
-    // Always maintain at sustain level (0.3) when extending
-    // This ensures the note continues at full volume, even if it was fading
-    const sustainGain = 0.3;
-    
-    // Get current gain value
-    const currentGain = notePlayer.gain.gain.value;
-    
-    // Always try to extend - if note is still playing, extend it
-    // If note was fading, bring it back up to sustain level
-    if (currentGain < sustainGain) {
-      // Note was fading, bring it back up quickly
-      notePlayer.gain.gain.setValueAtTime(currentGain, now);
-      notePlayer.gain.gain.linearRampToValueAtTime(sustainGain, now + 0.01);
+    if (silent) {
+      notePlayer.gain.gain.setValueAtTime(0, now);
+      notePlayer.gain.gain.setValueAtTime(0, newStopTime);
     } else {
-      // Note is at or above sustain level, maintain it
-      notePlayer.gain.gain.setValueAtTime(sustainGain, now);
+      const sustainGain = 0.3;
+      const currentGain = notePlayer.gain.gain.value;
+      if (currentGain < sustainGain) {
+        notePlayer.gain.gain.setValueAtTime(currentGain, now);
+        notePlayer.gain.gain.linearRampToValueAtTime(sustainGain, now + 0.01);
+      } else {
+        notePlayer.gain.gain.setValueAtTime(sustainGain, now);
+      }
+      notePlayer.gain.gain.setValueAtTime(sustainGain, newStopTime - 0.05);
+      notePlayer.gain.gain.linearRampToValueAtTime(0, newStopTime);
     }
-    
-    // Keep the note at sustain level until just before the new stop time
-    notePlayer.gain.gain.setValueAtTime(sustainGain, newStopTime - 0.05);
-    
-    // Fade out at the new stop time
-    notePlayer.gain.gain.linearRampToValueAtTime(0, newStopTime);
-    
-    // Extend oscillator stop time (only if it hasn't stopped yet)
     try {
-      notePlayer.osc.stop(newStopTime);
+      notePlayer.osc!.stop(newStopTime);
       notePlayer.stopTime = newStopTime;
-    } catch (e) {
-      // Oscillator might have already stopped, that's okay
-    }
+    } catch (e) {}
   };
 
   const playVarisai = (silent: boolean = false, varisaiOverride?: Varisai) => {
@@ -223,9 +328,37 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
         return;
       }
 
+      // Read current tempo from refs so changes apply on next note without restart
+      const beatDurationMs = (60 / baseBPMRef.current) * 1000;
+      const noteDuration = beatDurationMs / notesPerBeatRef.current;
+
       if (index >= totalNotes) {
         // Exercise finished
-        if (practiceMode) {
+        if (singAlongMode) {
+          // Sing along mode: no silent rounds, just go to next exercise
+          setCurrentNoteIndex(0);
+          const currentExercise = currentPracticeExerciseRef.current;
+
+          if (currentExercise < currentVarisaiData.length - 1) {
+            const nextExercise = currentExercise + 1;
+            const nextVarisai = currentVarisaiData[nextExercise];
+            currentPracticeExerciseRef.current = nextExercise;
+            setCurrentPracticeExercise(nextExercise);
+            setSelectedVarisai(nextVarisai);
+
+            if (isPlayingRef.current) {
+              playVarisai(false, nextVarisai);
+            }
+          } else {
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            setSingAlongMode(false);
+            setCurrentPracticeExercise(0);
+            currentPracticeExerciseRef.current = 0;
+            setCurrentNoteIndex(0);
+            setSelectedVarisai(currentVarisaiData[0]);
+          }
+        } else if (practiceMode) {
           // In practice mode, check if we need to play again (silent) or move to next exercise
           if (!silent && practicePlayCountRef.current === 0) {
             // First play (with sound) finished, now play silently
@@ -234,11 +367,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             setCurrentNoteIndex(0);
             // Use the current varisai from the closure
             const currentVarisai = varisaiToPlay;
-            setTimeout(() => {
-              if (isPlayingRef.current) {
-                playVarisai(true, currentVarisai); // Play silently
-              }
-            }, 100);
+            if (isPlayingRef.current) {
+              playVarisai(true, currentVarisai); // Play silently
+            }
           } else if (silent && practicePlayCountRef.current === 1) {
             // Second play (silent) finished, move to next exercise
             practicePlayCountRef.current = 0;
@@ -256,12 +387,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
               setCurrentPracticeExercise(nextExercise);
               setSelectedVarisai(nextVarisai);
               
-              setTimeout(() => {
-                if (isPlayingRef.current) {
-                  // Pass the varisai directly to avoid stale state
-                  playVarisai(false, nextVarisai); // Play with sound
-                }
-              }, 500); // Small pause between exercises
+              if (isPlayingRef.current) {
+                playVarisai(false, nextVarisai); // Play with sound
+              }
             } else {
               // All exercises finished
               setIsPlaying(false);
@@ -272,27 +400,42 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
               setPracticePlayCount(0);
               practicePlayCountRef.current = 0;
               setCurrentNoteIndex(0);
+              setSelectedVarisai(currentVarisaiData[0]);
             }
           }
         } else if (loop) {
           setCurrentNoteIndex(0);
           const swara = notes[0];
           if (swara !== ";") {
-            lastNotePlayer = playNote(swara, noteDuration, silent);
-            // Check if next note is ";" and extend proactively
-            // Extend before the release phase starts (50ms before stop time)
-            if (notes.length > 1 && notes[1] === ";") {
-              setTimeout(() => {
-                if (lastNotePlayer && isPlayingRef.current) {
-                  extendNote(lastNotePlayer, noteDuration);
-                }
-              }, noteDuration - 60); // Extend 60ms before note would start fading (50ms release + 10ms buffer)
+            if (!isSineInstrument(instrumentIdRef.current)) {
+              const holdCount = (() => { let c = 0; while (1 + c < notes.length && notes[1 + c] === ";") c++; return c; })();
+              const totalDurationMs = noteDuration * (1 + holdCount);
+              lastNotePlayer = playNote(swara, totalDurationMs, silent);
+              playheadTimeoutsRef.current.forEach((t) => clearTimeout(t));
+              playheadTimeoutsRef.current = [];
+              for (let i = 1; i <= holdCount; i++) {
+                const t = setTimeout(() => {
+                  if (isPlayingRef.current) setCurrentNoteIndex(i);
+                }, noteDuration * i);
+                playheadTimeoutsRef.current.push(t);
+              }
+              const nextTimeout = setTimeout(() => playNextNote(1 + holdCount), totalDurationMs);
+              playheadTimeoutsRef.current.push(nextTimeout);
+              timeoutRef.current = nextTimeout;
+            } else {
+              lastNotePlayer = playNote(swara, noteDuration, silent);
+              if (notes.length > 1 && notes[1] === ";") {
+                setTimeout(() => {
+                  if (lastNotePlayer && isPlayingRef.current) {
+                    extendNote(lastNotePlayer, noteDuration, silent);
+                  }
+                }, noteDuration - 60);
+              }
+              timeoutRef.current = setTimeout(() => playNextNote(1), noteDuration);
             }
+          } else {
+            timeoutRef.current = setTimeout(() => playNextNote(1), noteDuration);
           }
-          
-          timeoutRef.current = setTimeout(() => {
-            playNextNote(1);
-          }, noteDuration);
         } else {
           setIsPlaying(false);
           isPlayingRef.current = false;
@@ -303,57 +446,73 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
 
       setCurrentNoteIndex(index);
       const swara = notes[index];
-      
+
+      // Count consecutive ";" after this index (for soundfont: play one long note instead of re-triggering)
+      const countSemicolonsAhead = (from: number): number => {
+        let c = 0;
+        while (from + 1 + c < totalNotes && notes[from + 1 + c] === ";") c++;
+        return c;
+      };
+
       if (swara === ";") {
-        // Extend the previous note instead of playing a new one
-        // This handles consecutive ";" characters by extending the same note multiple times
+        // Sine only: extend the previous note (soundfont skips ";" by playing one long note)
         if (lastNotePlayer) {
-          extendNote(lastNotePlayer, noteDuration);
+          extendNote(lastNotePlayer, noteDuration, silent);
         }
-        // Don't update lastNotePlayer - keep the same note for consecutive ";"
-      } else {
-        // Stop the previous note if it's still playing to avoid overlap
-        // Stop it exactly when the new note starts (now)
-        if (lastNotePlayer && audioContextRef.current) {
-          const now = audioContextRef.current.currentTime;
-          if (now < lastNotePlayer.stopTime) {
-            // Cancel scheduled fade and stop immediately with quick fade
-            lastNotePlayer.gain.gain.cancelScheduledValues(now);
-            const currentGain = lastNotePlayer.gain.gain.value;
-            lastNotePlayer.gain.gain.setValueAtTime(currentGain, now);
-            lastNotePlayer.gain.gain.linearRampToValueAtTime(0, now + 0.02); // Quick fade out
-            
-            try {
-              lastNotePlayer.osc.stop(now + 0.02);
-            } catch (e) {
-              // Oscillator might have already stopped
-            }
-          }
-        }
-        
-        // Play a new note (with or without sound based on silent parameter)
-        lastNotePlayer = playNote(swara, noteDuration, silent);
-        
-        // Check if next note is ";" and extend proactively
-        // Extend before the release phase starts (50ms before stop time)
-        if (index + 1 < totalNotes && notes[index + 1] === ";") {
-          setTimeout(() => {
-            if (lastNotePlayer && isPlayingRef.current) {
-              extendNote(lastNotePlayer, noteDuration);
-            }
-          }, noteDuration - 60); // Extend 60ms before note would start fading (50ms release + 10ms buffer)
+        timeoutRef.current = setTimeout(() => playNextNote(index + 1), noteDuration);
+        return;
+      }
+
+      // Stop the previous note if still playing (oscillator only)
+      if (lastNotePlayer?.osc && lastNotePlayer?.gain && audioContextRef.current) {
+        const now = audioContextRef.current.currentTime;
+        if (now < lastNotePlayer.stopTime) {
+          lastNotePlayer.gain.gain.cancelScheduledValues(now);
+          const currentGain = lastNotePlayer.gain.gain.value;
+          lastNotePlayer.gain.gain.setValueAtTime(currentGain, now);
+          lastNotePlayer.gain.gain.linearRampToValueAtTime(0, now + 0.02);
+          try {
+            lastNotePlayer.osc.stop(now + 0.02);
+          } catch (e) {}
         }
       }
 
-      timeoutRef.current = setTimeout(() => {
-        playNextNote(index + 1);
-      }, noteDuration);
+      if (!isSineInstrument(instrumentIdRef.current)) {
+        // Soundfont: play one note for full hold (note + all following ";") so it sustains, no re-trigger
+        const holdCount = countSemicolonsAhead(index);
+        const totalDurationMs = noteDuration * (1 + holdCount);
+        lastNotePlayer = playNote(swara, totalDurationMs, silent);
+        // Advance playhead through each dash (tie) so the orange highlight moves through note — — —
+        playheadTimeoutsRef.current.forEach((t) => clearTimeout(t));
+        playheadTimeoutsRef.current = [];
+        for (let i = 1; i <= holdCount; i++) {
+          const t = setTimeout(() => {
+            if (isPlayingRef.current) setCurrentNoteIndex(index + i);
+          }, noteDuration * i);
+          playheadTimeoutsRef.current.push(t);
+        }
+        const nextTimeout = setTimeout(() => playNextNote(index + 1 + holdCount), totalDurationMs);
+        playheadTimeoutsRef.current.push(nextTimeout);
+        timeoutRef.current = nextTimeout;
+        return;
+      }
+
+      // Sine: play one segment, extend proactively for ";"
+      lastNotePlayer = playNote(swara, noteDuration, silent);
+      if (index + 1 < totalNotes && notes[index + 1] === ";" && lastNotePlayer?.osc) {
+        setTimeout(() => {
+          if (lastNotePlayer && isPlayingRef.current) {
+            extendNote(lastNotePlayer, noteDuration, silent);
+          }
+        }, noteDuration - 60);
+      }
+      timeoutRef.current = setTimeout(() => playNextNote(index + 1), noteDuration);
     };
 
     playNextNote(0);
   };
 
-  const startPlaying = () => {
+  const startPlaying = async (varisaiOverride?: Varisai) => {
     if (isPlayingRef.current) return;
 
     try {
@@ -361,35 +520,50 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContextClass();
       }
-      
       if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
+        await audioContextRef.current.resume();
       }
-
-      // Create master gain node if it doesn't exist
       if (!masterGainRef.current) {
         masterGainRef.current = audioContextRef.current.createGain();
         masterGainRef.current.connect(audioContextRef.current.destination);
         masterGainRef.current.gain.value = linearToLogGain(volume);
       }
 
+      if (!isSineInstrument(instrumentIdRef.current)) {
+        try {
+          soundfontPlayerRef.current = await getInstrument(
+            audioContextRef.current,
+            instrumentIdRef.current,
+            masterGainRef.current
+          );
+        } catch (err) {
+          console.error('Failed to load instrument:', err);
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+          return;
+        }
+      }
+
       isPlayingRef.current = true;
       setIsPlaying(true);
-      
-      if (practiceMode) {
-        // Practice mode: start with first exercise
-        const firstVarisai = currentVarisaiData[0];
-        setCurrentPracticeExercise(0);
-        currentPracticeExerciseRef.current = 0;
+
+      if (practiceMode || singAlongMode) {
+        const startIndex = startFromCurrentExercise ? Math.min(startFromCurrentIndex, currentVarisaiData.length - 1) : 0;
+        const startVarisai = currentVarisaiData[startIndex];
+        setCurrentPracticeExercise(startIndex);
+        currentPracticeExerciseRef.current = startIndex;
         setPracticePlayCount(0);
         practicePlayCountRef.current = 0;
-        setSelectedVarisai(firstVarisai);
+        setSelectedVarisai(startVarisai);
         setTimeout(() => {
-          // Pass the varisai directly to avoid stale state
-          playVarisai(false, firstVarisai); // Play with sound first
+          playVarisai(false, startVarisai);
         }, 100);
       } else {
-        playVarisai(false);
+        const varisaiToPlay = varisaiOverride ?? selectedVarisai;
+        if (varisaiOverride) {
+          setSelectedVarisai(varisaiOverride);
+        }
+        playVarisai(false, varisaiToPlay);
       }
     } catch (error) {
       console.error('Error starting varisai playback:', error);
@@ -403,6 +577,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     setIsPlaying(false);
     setCurrentNoteIndex(0);
 
+    playheadTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    playheadTimeoutsRef.current = [];
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -414,14 +591,24 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       } catch (e) {}
     });
     oscillatorsRef.current = [];
-    
-    // Reset practice mode state
-    if (practiceMode) {
+
+    if (soundfontPlayerRef.current) {
+      try {
+        soundfontPlayerRef.current.stop();
+      } catch (e) {}
+      soundfontPlayerRef.current = null;
+    }
+
+    // Reset practice/sing along mode state
+    if (practiceMode || singAlongMode) {
       setPracticeMode(false);
+      setSingAlongMode(false);
+      setStartFromCurrentExercise(false);
       setCurrentPracticeExercise(0);
       currentPracticeExerciseRef.current = 0;
       setPracticePlayCount(0);
       practicePlayCountRef.current = 0;
+      setSelectedVarisai(currentVarisaiData[0]);
     }
   };
 
@@ -435,7 +622,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       setSelectedVarisai(varisai);
       if (wasPlaying) {
         setTimeout(() => {
-          startPlaying();
+          startPlaying(varisai); // Pass explicitly to avoid stale state
         }, 100);
       }
     }
@@ -455,36 +642,13 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   };
 
   const handleBaseBPMChange = (newBaseBPM: number) => {
-    const wasPlaying = isPlayingRef.current;
-    if (wasPlaying) {
-      stopPlaying();
-    }
+    baseBPMRef.current = newBaseBPM;
     setBaseBPM(newBaseBPM);
-    if (wasPlaying) {
-      setTimeout(() => {
-        startPlaying();
-      }, 100);
-    }
   };
 
   const handleNotesPerBeatChange = (newNotesPerBeat: number) => {
-    const wasPlaying = isPlayingRef.current;
-    if (wasPlaying) {
-      stopPlaying();
-    }
+    notesPerBeatRef.current = newNotesPerBeat;
     setNotesPerBeat(newNotesPerBeat);
-    if (wasPlaying) {
-      setTimeout(() => {
-        startPlaying();
-      }, 100);
-    }
-  };
-
-  const handleVolumeChange = (newVolume: number) => {
-    setVolume(newVolume);
-    if (masterGainRef.current) {
-      masterGainRef.current.gain.value = linearToLogGain(newVolume);
-    }
   };
 
   useEffect(() => {
@@ -496,13 +660,12 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     };
   }, []);
 
-  // Update selected varisai when type changes
+  // Update selected varisai when type changes (e.g. sarali -> janta)
+  // Don't reset when isPlaying changes - that would override user's exercise selection when switching mid-playback
   useEffect(() => {
-    if (!isPlaying) {
-      const newData = VARISAI_TYPES[varisaiType].data;
-      setSelectedVarisai(newData[0]);
-    }
-  }, [varisaiType, isPlaying]);
+    const newData = VARISAI_TYPES[varisaiType].data;
+    setSelectedVarisai(newData[0]);
+  }, [varisaiType]);
 
   // Convert notes for display and playback using selected raga
   const notes = selectedVarisai.notes.map(note => convertVarisaiNoteToRaga(note, selectedRaga));
@@ -520,6 +683,14 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   };
 
   const optimalColumns = calculateOptimalColumns(currentVarisaiData.length);
+
+  if (!storageReady) {
+    return (
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-[200px]">
+        <span className="text-slate-500 text-sm">Loading…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto overflow-visible">
@@ -611,41 +782,92 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
           </div>
         </div>
 
-        {/* Practice Mode Toggle */}
-        <div className="mb-6 flex items-center justify-center gap-4">
+        {/* Practice Mode & Sing Along Mode Toggles */}
+        <div className="mb-6 flex flex-wrap items-center justify-center gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={practiceMode}
               onChange={(e) => {
-                if (isPlaying) {
-                  stopPlaying();
+                if (isPlaying) stopPlaying();
+                const checked = e.target.checked;
+                setPracticeMode(checked);
+                if (checked) {
+                  setSingAlongMode(false);
+                  setStartFromCurrentIndex(Math.max(0, currentVarisaiData.findIndex((v) => v.number === selectedVarisai.number)));
+                } else {
+                  setStartFromCurrentExercise(false);
                 }
-                setPracticeMode(e.target.checked);
                 setCurrentPracticeExercise(0);
                 currentPracticeExerciseRef.current = 0;
                 setPracticePlayCount(0);
                 practicePlayCountRef.current = 0;
-                if (e.target.checked) {
-                  setSelectedVarisai(currentVarisaiData[0]);
-                }
+                if (checked) setSelectedVarisai(currentVarisaiData[0]);
               }}
               className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
               disabled={isPlaying}
             />
             <span className="text-sm font-medium text-slate-300">Practice Mode</span>
           </label>
-          {practiceMode && (
-            <div className="text-sm text-slate-400">
-              {isPlaying ? (
-                <span>
-                  Exercise {currentPracticeExercise + 1}/{currentVarisaiData.length} - 
-                  {practicePlayCount === 0 ? ' With Sound' : ' Silent'}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={singAlongMode}
+              onChange={(e) => {
+                if (isPlaying) stopPlaying();
+                const checked = e.target.checked;
+                setSingAlongMode(checked);
+                if (checked) {
+                  setPracticeMode(false);
+                  setStartFromCurrentIndex(Math.max(0, currentVarisaiData.findIndex((v) => v.number === selectedVarisai.number)));
+                } else {
+                  setStartFromCurrentExercise(false);
+                }
+                setCurrentPracticeExercise(0);
+                currentPracticeExerciseRef.current = 0;
+                setPracticePlayCount(0);
+                practicePlayCountRef.current = 0;
+                if (checked) setSelectedVarisai(currentVarisaiData[0]);
+              }}
+              className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
+              disabled={isPlaying}
+            />
+            <span className="text-sm font-medium text-slate-300">Sing Along Mode</span>
+          </label>
+          {(practiceMode || singAlongMode) && (
+            <>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={startFromCurrentExercise}
+                  onChange={(e) => {
+                    if (isPlaying) return;
+                    setStartFromCurrentExercise(e.target.checked);
+                  }}
+                  className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
+                  disabled={isPlaying}
+                />
+                <span className="text-sm font-medium text-slate-300">
+                  Start from current exercise {startFromCurrentExercise && `(exercise ${startFromCurrentIndex + 1})`}
                 </span>
-              ) : (
-                <span>Ready to start - will play all exercises twice</span>
-              )}
-            </div>
+              </label>
+              <div className="text-sm text-slate-400 w-full text-center">
+                {isPlaying ? (
+                  <span>
+                    Exercise {currentPracticeExercise + 1}/{currentVarisaiData.length}
+                    {practiceMode && ` - ${practicePlayCount === 0 ? 'With Sound' : 'Silent'}`}
+                  </span>
+                ) : (
+                  <span>
+                    {startFromCurrentExercise
+                      ? `Play will start from exercise ${startFromCurrentIndex + 1} to end`
+                      : practiceMode
+                        ? 'Ready to start from first exercise — will play all (with sound, then silent each)'
+                        : 'Ready to start from first exercise — will play all with sound'}
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -655,31 +877,45 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             Select Exercise
           </label>
           <div className={`grid gap-2 w-full px-2 justify-items-center`} style={{ gridTemplateColumns: `repeat(${optimalColumns}, minmax(0, 1fr))` }}>
-            {currentVarisaiData.map((varisai) => (
-              <button
-                key={varisai.number}
-                onClick={() => !practiceMode && handleVarisaiChange(varisai.number)}
-                disabled={practiceMode}
-                className={`
-                  py-3 px-4 rounded-lg
-                  transition-all duration-200
-                  text-sm font-medium
-                  w-full max-w-[60px]
-                  ${
-                    practiceMode
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'cursor-pointer'
-                  }
-                  ${
-                    selectedVarisai.number === varisai.number
-                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
-                  }
-                `}
-              >
-                {varisai.number}
-              </button>
-            ))}
+            {currentVarisaiData.map((varisai) => {
+              const inPracticeOrSingAlong = practiceMode || singAlongMode;
+              const canChangeStartFrom = inPracticeOrSingAlong && !isPlaying && startFromCurrentExercise;
+              const isStartFromExercise = (practiceMode || singAlongMode) && !isPlaying && startFromCurrentExercise && currentVarisaiData.findIndex((v) => v.number === varisai.number) === startFromCurrentIndex;
+              const isStartFromFirst = isStartFromExercise && startFromCurrentIndex === 0;
+              return (
+                <button
+                  key={varisai.number}
+                  onClick={() => {
+                    if (canChangeStartFrom) {
+                      const idx = currentVarisaiData.findIndex((v) => v.number === varisai.number);
+                      if (idx >= 0) setStartFromCurrentIndex(idx);
+                    } else if (!inPracticeOrSingAlong) {
+                      handleVarisaiChange(varisai.number);
+                    }
+                  }}
+                  disabled={inPracticeOrSingAlong && !canChangeStartFrom}
+                  style={isStartFromExercise && !isStartFromFirst ? { backgroundColor: '#2563eb', color: '#fff' } : undefined}
+                  className={`
+                    py-3 px-4 rounded-lg
+                    transition-all duration-200
+                    text-sm font-medium
+                    w-full max-w-[60px]
+                    ${inPracticeOrSingAlong && !canChangeStartFrom ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    ${
+                      isStartFromFirst
+                        ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                        : isStartFromExercise
+                          ? 'shadow-lg'
+                          : selectedVarisai.number === varisai.number
+                            ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
+                    }
+                  `}
+                >
+                  {varisai.number}
+                </button>
+              );
+            })}
           </div>
           <div className="mt-4 text-center">
             <p className="text-slate-400 text-sm">
@@ -691,7 +927,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
         {/* Playback Controls */}
         <div className="flex flex-col items-center mb-8">
           <button
-            onClick={isPlaying ? stopPlaying : startPlaying}
+            onClick={isPlaying ? stopPlaying : () => startPlaying()}
             className={`
               relative w-32 h-32 md:w-40 md:h-40 rounded-full
               transition-all duration-300 ease-out
@@ -734,10 +970,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
               id="varisai-loop-toggle"
               checked={loop}
               onChange={(e) => setLoop(e.target.checked)}
-              disabled={practiceMode}
-              className={`w-4 h-4 rounded accent-amber-500 ${practiceMode ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+              disabled={practiceMode || singAlongMode}
+              className={`w-4 h-4 rounded accent-amber-500 ${practiceMode || singAlongMode ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
             />
-            <label htmlFor="varisai-loop-toggle" className={`text-slate-300 text-sm ${practiceMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+            <label htmlFor="varisai-loop-toggle" className={`text-slate-300 text-sm ${practiceMode || singAlongMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
               Loop playback
             </label>
           </div>
@@ -790,30 +1026,6 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
           </div>
         </div>
 
-        {/* Volume Control */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Volume
-          </label>
-          <div className="flex items-center gap-4 px-4">
-            <svg className="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={volume}
-              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-            />
-            <span className="text-slate-400 text-sm w-12 text-right">
-              {Math.round(volume * 100)}%
-            </span>
-          </div>
-        </div>
-
         {/* Notes Display */}
         <div className="mt-8">
           <div className="text-center">
@@ -843,8 +1055,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
                 }
                 
                 const parsed = parseVarisaiNote(note);
-                // Display the full notation (e.g., "R2", "G3", "S", etc.)
-                const displayNote = parsed.swara;
+                // Display base swara in selected script (S R G M P D N → English/Devanagari/Kannada)
+                const baseSwara = parsed.swara.charAt(0);
+                const displayNote = getSwaraInScript(baseSwara, notationLanguage);
                 return (
                   <div
                     key={index}

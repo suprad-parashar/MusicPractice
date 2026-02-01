@@ -4,9 +4,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Set basePath to match your GitHub repository name
-  // If your repo is 'username.github.io', remove or comment out basePath
-  basePath: '/MusicPractice',
+  // Set basePath for GitHub Pages; use '' in dev so localhost:3000 works
+  basePath: process.env.NODE_ENV === 'production' ? '/MusicPractice' : '',
   trailingSlash: true,
 }
 

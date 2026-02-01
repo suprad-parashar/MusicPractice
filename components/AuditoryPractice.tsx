@@ -1,14 +1,29 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { MELAKARTA_RAGAS, MelakartaRaga, getSwarafrequency } from '@/data/melakartaRagas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
+import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { getStored, setStored } from '@/lib/storage';
 
 type SortOrder = 'number' | 'alphabetical';
 type PracticeMode = 'untimed' | 'timed';
 type NoteCount = 1 | 2 | 3;
 
-export default function AuditoryPractice({ baseFreq }: { baseFreq: number }) {
+/**
+ * Interactive auditory note-identification practice component for Carnatic music.
+ *
+ * Renders a UI that lets users practice identifying swaras by ear with configurable
+ * raga selection, practice mode (timed or untimed), note-count per round, instrument,
+ * and volume. Handles audio playback, input normalization, scoring, timing, persistence
+ * of user settings, and feedback for correct/incorrect answers.
+ *
+ * @param baseFreq - Reference tonic frequency in Hz used to compute swara pitches.
+ * @param instrumentId - Optional instrument identifier to use for playback (default: `'piano'`).
+ * @param volume - Optional master volume as a linear value between 0 and 1 (default: `0.5`).
+ * @returns The rendered React component for the auditory practice UI.
+ */
+export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', volume = 0.5 }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number }) {
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
   );
@@ -21,7 +36,6 @@ export default function AuditoryPractice({ baseFreq }: { baseFreq: number }) {
   const [round, setRound] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [currentNotes, setCurrentNotes] = useState<string[]>([]);
-  const [volume, setVolume] = useState(0.5);
   
   // Timer/Stopwatch states
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -31,14 +45,74 @@ export default function AuditoryPractice({ baseFreq }: { baseFreq: number }) {
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'correct' | 'wrong'; message: string } | null>(null);
   const [displayScore, setDisplayScore] = useState(0); // Score to display (accounts for timing)
   const [displayRound, setDisplayRound] = useState(0); // Round to display (accounts for timing)
-  
+  const [storageReady, setStorageReady] = useState(false);
+  const hasLoadedAuditoryRef = useRef(false);
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const masterGainRef = useRef<GainNode | null>(null);
+  const soundfontPlayerRef = useRef<Awaited<ReturnType<typeof getInstrument>> | null>(null);
+  const instrumentIdRef = useRef<InstrumentId>(instrumentId);
+  const loadedInstrumentIdRef = useRef<InstrumentId | null>(null);
+  const baseFreqRef = useRef(baseFreq);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopwatchIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scoreRef = useRef(0);
   const roundRef = useRef(0);
+  baseFreqRef.current = baseFreq;
+  instrumentIdRef.current = instrumentId;
+
+  useEffect(() => {
+    instrumentIdRef.current = instrumentId;
+    if (isSineInstrument(instrumentId)) {
+      soundfontPlayerRef.current = null;
+      loadedInstrumentIdRef.current = null;
+      return;
+    }
+    if (audioContextRef.current && masterGainRef.current) {
+      getInstrument(audioContextRef.current, instrumentId, masterGainRef.current)
+        .then((player) => {
+          soundfontPlayerRef.current = player;
+          loadedInstrumentIdRef.current = instrumentId;
+        })
+        .catch((err) => {
+          console.error('Failed to load instrument on change:', err);
+          soundfontPlayerRef.current = null;
+          loadedInstrumentIdRef.current = null;
+        });
+    } else {
+      soundfontPlayerRef.current = null;
+      loadedInstrumentIdRef.current = null;
+    }
+  }, [instrumentId]);
+
+  // Load persisted auditory practice settings before first paint (avoids flash of defaults)
+  const AUDITORY_STORAGE_KEY = 'auditorySettings';
+  type StoredAuditorySettings = { ragaNumber?: number; sortOrder?: SortOrder; practiceMode?: PracticeMode; noteCount?: NoteCount; timerMinutes?: number };
+  useLayoutEffect(() => {
+    const stored = getStored<StoredAuditorySettings>(AUDITORY_STORAGE_KEY, {});
+    if (typeof stored.ragaNumber === 'number') {
+      const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
+      if (raga) setSelectedRaga(raga);
+    }
+    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
+    if (stored.practiceMode === 'untimed' || stored.practiceMode === 'timed') setPracticeMode(stored.practiceMode);
+    if (stored.noteCount === 1 || stored.noteCount === 2 || stored.noteCount === 3) setNoteCount(stored.noteCount);
+    if (typeof stored.timerMinutes === 'number' && stored.timerMinutes >= 1 && stored.timerMinutes <= 60) setTimerMinutes(stored.timerMinutes);
+    hasLoadedAuditoryRef.current = true;
+    setStorageReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedAuditoryRef.current) return;
+    setStored(AUDITORY_STORAGE_KEY, {
+      ragaNumber: selectedRaga?.number,
+      sortOrder,
+      practiceMode,
+      noteCount,
+      timerMinutes,
+    });
+  }, [selectedRaga, sortOrder, practiceMode, noteCount, timerMinutes]);
 
   // Get sorted ragas
   const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => {
@@ -134,71 +208,86 @@ export default function AuditoryPractice({ baseFreq }: { baseFreq: number }) {
   }, [isGameActive, practiceMode, timerMinutes, gameEnded, endGame]);
 
   const stopAllSounds = () => {
-    // Stop all currently playing oscillators
     oscillatorsRef.current.forEach(osc => {
       try {
         osc.stop();
-      } catch (e) {
-        // Oscillator might have already stopped
-      }
+      } catch (e) {}
     });
     oscillatorsRef.current = [];
+    if (soundfontPlayerRef.current) {
+      try {
+        soundfontPlayerRef.current.stop();
+      } catch (e) {}
+    }
   };
 
-  const playNote = (swara: string, duration: number = 500) => {
+  const ensureInstrumentLoaded = useCallback(async (): Promise<boolean> => {
     try {
-      // Initialize audio context if needed
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContextClass();
       }
-
-      // Resume audio context if suspended (required for browser autoplay policies)
       if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
+        await audioContextRef.current.resume();
       }
-
-      // Create master gain node if it doesn't exist
       if (!masterGainRef.current) {
         masterGainRef.current = audioContextRef.current.createGain();
         masterGainRef.current.connect(audioContextRef.current.destination);
         masterGainRef.current.gain.value = linearToLogGain(volume);
       }
+      if (!isSineInstrument(instrumentId) && (!soundfontPlayerRef.current || loadedInstrumentIdRef.current !== instrumentId)) {
+        soundfontPlayerRef.current = await getInstrument(
+          audioContextRef.current,
+          instrumentId,
+          masterGainRef.current
+        );
+        loadedInstrumentIdRef.current = instrumentId;
+      }
+      return true;
+    } catch (err) {
+      console.error('Failed to load instrument:', err);
+      return false;
+    }
+  }, [instrumentId, volume]);
+
+  const playNote = (swara: string, duration: number = 500) => {
+    try {
+      if (!audioContextRef.current || !masterGainRef.current) return;
 
       const parsed = parseVarisaiNote(swara);
-      let freq = getSwarafrequency(baseFreq, parsed.swara);
-      
-      if (parsed.octave === 'higher') {
-        freq = freq * 2;
-      } else if (parsed.octave === 'lower') {
-        freq = freq * 0.5;
-      }
-      
-      const osc = audioContextRef.current.createOscillator();
-      const gain = audioContextRef.current.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.value = freq;
+      let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
+      if (parsed.octave === 'higher') freq = freq * 2;
+      else if (parsed.octave === 'lower') freq = freq * 0.5;
 
       const now = audioContextRef.current.currentTime;
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.3, now + 0.01);
-      gain.gain.setValueAtTime(0.3, now + duration / 1000 - 0.05);
-      gain.gain.linearRampToValueAtTime(0, now + duration / 1000);
+      const durationSec = duration / 1000;
 
-      osc.connect(gain);
-      gain.connect(masterGainRef.current);
+      if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
+        // Fixed gain 1.5; volume is controlled by masterGainRef (sidebar)
+        soundfontPlayerRef.current.start(freqToNoteNameForInstrument(freq, instrumentIdRef.current), now, { duration: durationSec, gain: 1.5 });
+        return;
+      }
 
+      const osc = audioContextRef.current.createOscillator();
+      const gainNode = audioContextRef.current.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01);
+      gainNode.gain.setValueAtTime(0.3, now + durationSec - 0.05);
+      gainNode.gain.linearRampToValueAtTime(0, now + durationSec);
+      osc.connect(gainNode);
+      gainNode.connect(masterGainRef.current);
       osc.start(now);
-      osc.stop(now + duration / 1000);
-
+      osc.stop(now + durationSec);
       oscillatorsRef.current.push(osc);
     } catch (error) {
       console.error('Error playing note:', error);
     }
   };
 
-  const playRootNote = () => {
+  const playRootNote = async () => {
+    await ensureInstrumentLoaded();
     stopAllSounds();
     playNote('S', 800);
   };
@@ -215,7 +304,9 @@ export default function AuditoryPractice({ baseFreq }: { baseFreq: number }) {
     return notes;
   };
 
-  const playNotes = (notes: string[]) => {
+  const playNotes = async (notes: string[]) => {
+    const ready = await ensureInstrumentLoaded();
+    if (!ready) return;
     stopAllSounds();
     notes.forEach((note, index) => {
       setTimeout(() => {
@@ -459,6 +550,14 @@ export default function AuditoryPractice({ baseFreq }: { baseFreq: number }) {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (!storageReady) {
+    return (
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-center min-h-[200px]">
+        <span className="text-slate-500 text-sm">Loading…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -771,29 +870,6 @@ export default function AuditoryPractice({ baseFreq }: { baseFreq: number }) {
           </div>
         )}
 
-        {/* Volume Control */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Volume
-          </label>
-          <div className="flex items-center gap-4 px-4">
-            <svg className="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-            </svg>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-            />
-            <span className="text-slate-400 text-sm w-12 text-right">
-              {Math.round(volume * 100)}%
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
