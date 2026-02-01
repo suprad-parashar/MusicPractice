@@ -23,6 +23,10 @@ export default function RagaPlayer({ baseFreq }: { baseFreq: number }) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingRef = useRef(false);
   const masterGainRef = useRef<GainNode | null>(null);
+  const baseBPMRef = useRef(baseBPM);
+  const notesPerBeatRef = useRef(notesPerBeat);
+  baseBPMRef.current = baseBPM;
+  notesPerBeatRef.current = notesPerBeat;
 
   // Calculate note duration: (60 seconds / baseBPM) / notesPerBeat
   const beatDuration = (60 / baseBPM) * 1000; // milliseconds per beat
@@ -100,17 +104,21 @@ export default function RagaPlayer({ baseFreq }: { baseFreq: number }) {
         return;
       }
 
+      // Read current tempo from refs so changes apply on next note without restart
+      const beatDurationMs = (60 / baseBPMRef.current) * 1000;
+      const noteDurationMs = beatDurationMs / notesPerBeatRef.current;
+
       // If reached the end, either loop or stop
       if (index >= totalNotes) {
         if (loop) {
           // Loop: restart from beginning
           setCurrentNoteIndex(0);
           const swara = notes[0];
-          playNote(swara, noteDuration);
+          playNote(swara, noteDurationMs);
           
           timeoutRef.current = setTimeout(() => {
             playNextNote(1);
-          }, noteDuration);
+          }, noteDurationMs);
         } else {
           // Stop playback
           setIsPlaying(false);
@@ -122,11 +130,11 @@ export default function RagaPlayer({ baseFreq }: { baseFreq: number }) {
 
       setCurrentNoteIndex(index);
       const swara = notes[index];
-      playNote(swara, noteDuration);
+      playNote(swara, noteDurationMs);
 
       timeoutRef.current = setTimeout(() => {
         playNextNote(index + 1);
-      }, noteDuration);
+      }, noteDurationMs);
     };
 
     playNextNote(0);
@@ -200,29 +208,13 @@ export default function RagaPlayer({ baseFreq }: { baseFreq: number }) {
   };
 
   const handleNotesPerBeatChange = (newNotesPerBeat: number) => {
-    const wasPlaying = isPlayingRef.current;
-    if (wasPlaying) {
-      stopPlaying();
-    }
+    notesPerBeatRef.current = newNotesPerBeat;
     setNotesPerBeat(newNotesPerBeat);
-    if (wasPlaying) {
-      setTimeout(() => {
-        startPlaying();
-      }, 100);
-    }
   };
 
   const handleBaseBPMChange = (newBaseBPM: number) => {
-    const wasPlaying = isPlayingRef.current;
-    if (wasPlaying) {
-      stopPlaying();
-    }
+    baseBPMRef.current = newBaseBPM;
     setBaseBPM(newBaseBPM);
-    if (wasPlaying) {
-      setTimeout(() => {
-        startPlaying();
-      }, 100);
-    }
   };
 
   const handleVolumeChange = (newVolume: number) => {

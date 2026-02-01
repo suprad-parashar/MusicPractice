@@ -43,6 +43,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingRef = useRef(false);
   const masterGainRef = useRef<GainNode | null>(null);
+  const baseBPMRef = useRef(baseBPM);
+  const notesPerBeatRef = useRef(notesPerBeat);
+  baseBPMRef.current = baseBPM;
+  notesPerBeatRef.current = notesPerBeat;
 
   const beatDuration = (60 / baseBPM) * 1000;
   const noteDuration = beatDuration / notesPerBeat;
@@ -161,7 +165,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     }
   };
 
-  const extendNote = (notePlayer: NotePlayer, additionalDuration: number) => {
+  const extendNote = (notePlayer: NotePlayer, additionalDuration: number, silent: boolean = false) => {
     if (!audioContextRef.current) return;
     
     const now = audioContextRef.current.currentTime;
@@ -174,29 +178,23 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     // Cancel all scheduled values to prevent any fade
     notePlayer.gain.gain.cancelScheduledValues(now);
     
-    // Always maintain at sustain level (0.3) when extending
-    // This ensures the note continues at full volume, even if it was fading
-    const sustainGain = 0.3;
-    
-    // Get current gain value
-    const currentGain = notePlayer.gain.gain.value;
-    
-    // Always try to extend - if note is still playing, extend it
-    // If note was fading, bring it back up to sustain level
-    if (currentGain < sustainGain) {
-      // Note was fading, bring it back up quickly
-      notePlayer.gain.gain.setValueAtTime(currentGain, now);
-      notePlayer.gain.gain.linearRampToValueAtTime(sustainGain, now + 0.01);
+    if (silent) {
+      // Silent round: keep gain at 0 for the extended duration (no sound during "—")
+      notePlayer.gain.gain.setValueAtTime(0, now);
+      notePlayer.gain.gain.setValueAtTime(0, newStopTime);
     } else {
-      // Note is at or above sustain level, maintain it
-      notePlayer.gain.gain.setValueAtTime(sustainGain, now);
+      // Always maintain at sustain level (0.3) when extending
+      const sustainGain = 0.3;
+      const currentGain = notePlayer.gain.gain.value;
+      if (currentGain < sustainGain) {
+        notePlayer.gain.gain.setValueAtTime(currentGain, now);
+        notePlayer.gain.gain.linearRampToValueAtTime(sustainGain, now + 0.01);
+      } else {
+        notePlayer.gain.gain.setValueAtTime(sustainGain, now);
+      }
+      notePlayer.gain.gain.setValueAtTime(sustainGain, newStopTime - 0.05);
+      notePlayer.gain.gain.linearRampToValueAtTime(0, newStopTime);
     }
-    
-    // Keep the note at sustain level until just before the new stop time
-    notePlayer.gain.gain.setValueAtTime(sustainGain, newStopTime - 0.05);
-    
-    // Fade out at the new stop time
-    notePlayer.gain.gain.linearRampToValueAtTime(0, newStopTime);
     
     // Extend oscillator stop time (only if it hasn't stopped yet)
     try {
@@ -222,6 +220,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
         isPlayingRef.current = false;
         return;
       }
+
+      // Read current tempo from refs so changes apply on next note without restart
+      const beatDurationMs = (60 / baseBPMRef.current) * 1000;
+      const noteDuration = beatDurationMs / notesPerBeatRef.current;
 
       if (index >= totalNotes) {
         // Exercise finished
@@ -284,7 +286,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             if (notes.length > 1 && notes[1] === ";") {
               setTimeout(() => {
                 if (lastNotePlayer && isPlayingRef.current) {
-                  extendNote(lastNotePlayer, noteDuration);
+                  extendNote(lastNotePlayer, noteDuration, silent);
                 }
               }, noteDuration - 60); // Extend 60ms before note would start fading (50ms release + 10ms buffer)
             }
@@ -308,7 +310,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
         // Extend the previous note instead of playing a new one
         // This handles consecutive ";" characters by extending the same note multiple times
         if (lastNotePlayer) {
-          extendNote(lastNotePlayer, noteDuration);
+          extendNote(lastNotePlayer, noteDuration, silent);
         }
         // Don't update lastNotePlayer - keep the same note for consecutive ";"
       } else {
@@ -339,7 +341,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
         if (index + 1 < totalNotes && notes[index + 1] === ";") {
           setTimeout(() => {
             if (lastNotePlayer && isPlayingRef.current) {
-              extendNote(lastNotePlayer, noteDuration);
+              extendNote(lastNotePlayer, noteDuration, silent);
             }
           }, noteDuration - 60); // Extend 60ms before note would start fading (50ms release + 10ms buffer)
         }
@@ -353,7 +355,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     playNextNote(0);
   };
 
-  const startPlaying = () => {
+  const startPlaying = (varisaiOverride?: Varisai) => {
     if (isPlayingRef.current) return;
 
     try {
@@ -389,7 +391,12 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
           playVarisai(false, firstVarisai); // Play with sound first
         }, 100);
       } else {
-        playVarisai(false);
+        // Use override if provided (e.g. when switching exercises mid-playback)
+        const varisaiToPlay = varisaiOverride ?? selectedVarisai;
+        if (varisaiOverride) {
+          setSelectedVarisai(varisaiOverride);
+        }
+        playVarisai(false, varisaiToPlay);
       }
     } catch (error) {
       console.error('Error starting varisai playback:', error);
@@ -435,7 +442,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       setSelectedVarisai(varisai);
       if (wasPlaying) {
         setTimeout(() => {
-          startPlaying();
+          startPlaying(varisai); // Pass explicitly to avoid stale state
         }, 100);
       }
     }
@@ -455,29 +462,13 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   };
 
   const handleBaseBPMChange = (newBaseBPM: number) => {
-    const wasPlaying = isPlayingRef.current;
-    if (wasPlaying) {
-      stopPlaying();
-    }
+    baseBPMRef.current = newBaseBPM;
     setBaseBPM(newBaseBPM);
-    if (wasPlaying) {
-      setTimeout(() => {
-        startPlaying();
-      }, 100);
-    }
   };
 
   const handleNotesPerBeatChange = (newNotesPerBeat: number) => {
-    const wasPlaying = isPlayingRef.current;
-    if (wasPlaying) {
-      stopPlaying();
-    }
+    notesPerBeatRef.current = newNotesPerBeat;
     setNotesPerBeat(newNotesPerBeat);
-    if (wasPlaying) {
-      setTimeout(() => {
-        startPlaying();
-      }, 100);
-    }
   };
 
   const handleVolumeChange = (newVolume: number) => {
@@ -496,13 +487,12 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     };
   }, []);
 
-  // Update selected varisai when type changes
+  // Update selected varisai when type changes (e.g. sarali -> janta)
+  // Don't reset when isPlaying changes - that would override user's exercise selection when switching mid-playback
   useEffect(() => {
-    if (!isPlaying) {
-      const newData = VARISAI_TYPES[varisaiType].data;
-      setSelectedVarisai(newData[0]);
-    }
-  }, [varisaiType, isPlaying]);
+    const newData = VARISAI_TYPES[varisaiType].data;
+    setSelectedVarisai(newData[0]);
+  }, [varisaiType]);
 
   // Convert notes for display and playback using selected raga
   const notes = selectedVarisai.notes.map(note => convertVarisaiNoteToRaga(note, selectedRaga));
@@ -691,7 +681,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
         {/* Playback Controls */}
         <div className="flex flex-col items-center mb-8">
           <button
-            onClick={isPlaying ? stopPlaying : startPlaying}
+            onClick={isPlaying ? stopPlaying : () => startPlaying()}
             className={`
               relative w-32 h-32 md:w-40 md:h-40 rounded-full
               transition-all duration-300 ease-out
