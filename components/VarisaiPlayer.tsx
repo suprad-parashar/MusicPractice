@@ -240,11 +240,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             setCurrentPracticeExercise(nextExercise);
             setSelectedVarisai(nextVarisai);
 
-            setTimeout(() => {
-              if (isPlayingRef.current) {
-                playVarisai(false, nextVarisai);
-              }
-            }, 500);
+            if (isPlayingRef.current) {
+              playVarisai(false, nextVarisai);
+            }
           } else {
             setIsPlaying(false);
             isPlayingRef.current = false;
@@ -262,11 +260,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             setCurrentNoteIndex(0);
             // Use the current varisai from the closure
             const currentVarisai = varisaiToPlay;
-            setTimeout(() => {
-              if (isPlayingRef.current) {
-                playVarisai(true, currentVarisai); // Play silently
-              }
-            }, 100);
+            if (isPlayingRef.current) {
+              playVarisai(true, currentVarisai); // Play silently
+            }
           } else if (silent && practicePlayCountRef.current === 1) {
             // Second play (silent) finished, move to next exercise
             practicePlayCountRef.current = 0;
@@ -284,12 +280,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
               setCurrentPracticeExercise(nextExercise);
               setSelectedVarisai(nextVarisai);
               
-              setTimeout(() => {
-                if (isPlayingRef.current) {
-                  // Pass the varisai directly to avoid stale state
-                  playVarisai(false, nextVarisai); // Play with sound
-                }
-              }, 500); // Small pause between exercises
+              if (isPlayingRef.current) {
+                playVarisai(false, nextVarisai); // Play with sound
+              }
             } else {
               // All exercises finished
               setIsPlaying(false);
