@@ -18,9 +18,12 @@ type Tab = 'raga' | 'varisai' | 'auditory';
 
 const STORAGE_KEY = 'settings';
 
+type SidebarSection = 'music' | 'ui';
+
 type StoredSettings = {
   selectedKey?: KeyName;
   activeTab?: Tab;
+  sidebarSection?: SidebarSection;
   instrumentId?: InstrumentId;
   voiceVolume?: number;
   notationLanguage?: NotationLanguage;
@@ -35,6 +38,7 @@ type StoredSettings = {
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory'];
+const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music', 'ui'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
 const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
@@ -65,6 +69,7 @@ export default function Home() {
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarSection, setSidebarSection] = useState<SidebarSection>('music');
   const hasLoadedRef = useRef(false);
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
@@ -75,6 +80,7 @@ export default function Home() {
       setBaseFreq(KEYS[stored.selectedKey]);
     }
     if (stored.activeTab && VALID_TABS.includes(stored.activeTab)) setActiveTab(stored.activeTab);
+    if (stored.sidebarSection && VALID_SIDEBAR_SECTIONS.includes(stored.sidebarSection)) setSidebarSection(stored.sidebarSection);
     if (stored.instrumentId && VALID_INSTRUMENTS.includes(stored.instrumentId)) setInstrumentId(stored.instrumentId);
     if (typeof stored.voiceVolume === 'number' && stored.voiceVolume >= 0 && stored.voiceVolume <= 1) setVoiceVolume(stored.voiceVolume);
     if (stored.notationLanguage && VALID_NOTATION.includes(stored.notationLanguage)) setNotationLanguage(stored.notationLanguage);
@@ -173,6 +179,7 @@ export default function Home() {
     setStored(STORAGE_KEY, {
       selectedKey,
       activeTab,
+      sidebarSection,
       instrumentId,
       voiceVolume,
       notationLanguage,
@@ -236,21 +243,47 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
-          <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
-          <TanpuraSidebar
-            baseFreq={baseFreq}
-            volume={tanpuraVolume}
-            onVolumeChange={setTanpuraVolume}
-            pluckDelay={tanpuraPluckDelay}
-            onPluckDelayChange={setTanpuraPluckDelay}
-            noteLength={tanpuraNoteLength}
-            onNoteLengthChange={setTanpuraNoteLength}
-            octave={tanpuraOctave}
-            onOctaveChange={setTanpuraOctave}
-          />
-          <NotationSection notationLanguage={notationLanguage} onNotationChange={setNotationLanguage} />
-          <ThemeSection theme={theme} onThemeChange={setTheme} accentColor={accentColor} onAccentChange={setAccentColor} />
+
+          <div className="mb-3 sm:mb-4">
+            <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
+              Settings
+            </label>
+            <div className="flex border border-slate-600 rounded-lg overflow-hidden bg-slate-800/30">
+              <button
+                onClick={() => setSidebarSection('music')}
+                className={`flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 text-[10px] sm:text-xs font-medium transition-all duration-200 capitalize border-r border-slate-600 last:border-r-0 focus:outline-none focus:ring-0 ${sidebarSection === 'music' ? 'bg-amber-500 text-slate-900' : 'bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}>
+                Music
+              </button>
+              <button
+                onClick={() => setSidebarSection('ui')}
+                className={`flex-1 py-1.5 sm:py-2 px-1.5 sm:px-2 text-[10px] sm:text-xs font-medium transition-all duration-200 capitalize border-r border-slate-600 last:border-r-0 focus:outline-none focus:ring-0 ${sidebarSection === 'ui' ? 'bg-amber-500 text-slate-900' : 'bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}>
+                UI
+              </button>
+            </div>
+          </div>
+
+          {sidebarSection === 'music' ? (
+            <>
+              <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
+              <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
+              <TanpuraSidebar
+                baseFreq={baseFreq}
+                volume={tanpuraVolume}
+                onVolumeChange={setTanpuraVolume}
+                pluckDelay={tanpuraPluckDelay}
+                onPluckDelayChange={setTanpuraPluckDelay}
+                noteLength={tanpuraNoteLength}
+                onNoteLengthChange={setTanpuraNoteLength}
+                octave={tanpuraOctave}
+                onOctaveChange={setTanpuraOctave}
+              />
+            </>
+          ) : (
+            <>
+              <NotationSection notationLanguage={notationLanguage} onNotationChange={setNotationLanguage} />
+              <ThemeSection theme={theme} onThemeChange={setTheme} accentColor={accentColor} onAccentChange={setAccentColor} />
+            </>
+          ) }
         </aside>
 
         {/* Main Content */}
