@@ -238,7 +238,7 @@ export default function Home() {
                 &ldquo;Where there is practice, there is perfection.&rdquo;
               </p>
               <p className="text-slate-500 text-xs mb-4 sm:mb-6">
-                Carnatic Practice · v1.1.0
+                Carnatic Practice · v1.2.0
               </p>
             </footer>
           </div>
