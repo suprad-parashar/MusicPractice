@@ -41,6 +41,15 @@ const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory'];
 const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music', 'ui'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
+
+const NOTATION_BADGES: Record<NotationLanguage, { abbr: string; symbol: string; title: string }> = {
+  english: { abbr: 'EN', symbol: 'S', title: 'English' },
+  devanagari: { abbr: 'DN', symbol: 'स', title: 'Devanagari' },
+  kannada: { abbr: 'KA', symbol: 'ಸ', title: 'Kannada' },
+};
+
+const NOTATION_ORDER: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
+
 const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
 const VALID_THEMES: ThemeMode[] = ['light', 'light-warm', 'dark', 'dark-slate'];
 const DEFAULT_ACCENT = '#f59e0b';
@@ -61,6 +70,28 @@ export default function Home() {
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
+
+  // Notation dropdown state and outside click / ESC handler
+  const [notationOpen, setNotationOpen] = useState(false);
+  const notationRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (notationRef.current && !notationRef.current.contains(e.target as Node)) {
+        setNotationOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setNotationOpen(false);
+    }
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
   const [tanpuraVolume, setTanpuraVolume] = useState(0.5);
   const [tanpuraPluckDelay, setTanpuraPluckDelay] = useState(1.4);
   const [tanpuraNoteLength, setTanpuraNoteLength] = useState(5);
@@ -280,7 +311,6 @@ export default function Home() {
             </>
           ) : (
             <>
-              <NotationSection notationLanguage={notationLanguage} onNotationChange={setNotationLanguage} />
               <ThemeSection theme={theme} onThemeChange={setTheme} accentColor={accentColor} onAccentChange={setAccentColor} />
             </>
           ) }
@@ -343,6 +373,44 @@ export default function Home() {
               >
                 Auditory Practice
               </button>
+            </div>
+
+            <div className="ml-auto flex items-center relative" ref={notationRef}>
+              <button
+                type="button"
+                aria-haspopup="true"
+                aria-expanded={notationOpen}
+                title={`Notation: ${NOTATION_BADGES[notationLanguage].title}`}
+                onClick={() => setNotationOpen(v => !v)}
+                className="shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-md border border-[var(--border)] bg-[var(--card-bg)] text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:opacity-90 transition flex items-center justify-center gap-2"
+              >
+                <span className="font-semibold">{NOTATION_BADGES[notationLanguage].abbr}</span>
+                <span className="text-[var(--text-muted)]">({NOTATION_BADGES[notationLanguage].symbol})</span>
+                <svg className="w-3 h-3 ml-1 text-[var(--text-muted)]" viewBox="0 0 20 20" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M6 8l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              {notationOpen && (
+                <div className="absolute right-0 top-full mt-2 w-40 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
+                  {NOTATION_ORDER.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => { setNotationLanguage(lang); setNotationOpen(false); }}
+                      className={`w-full text-left px-3 py-2 text-sm sm:text-sm hover:bg-[var(--sidebar-bg)] ${notationLanguage === lang ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col">
+                          <span className="font-semibold">{NOTATION_BADGES[lang].abbr}</span>
+                          <span className="text-[var(--text-muted)] text-[12px]">({NOTATION_BADGES[lang].symbol})</span>
+                        </div>
+                        <span className="ml-auto text-[var(--text-muted)] text-xs">{NOTATION_BADGES[lang].title}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
