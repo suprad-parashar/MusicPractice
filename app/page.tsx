@@ -22,6 +22,9 @@ type StoredSettings = {
   instrumentId?: InstrumentId;
   voiceVolume?: number;
   notationLanguage?: NotationLanguage;
+  tanpuraVolume?: number;
+  tanpuraPluckDelay?: number;
+  tanpuraNoteLength?: number;
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -37,6 +40,9 @@ export default function Home() {
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
+  const [tanpuraVolume, setTanpuraVolume] = useState(0.5);
+  const [tanpuraPluckDelay, setTanpuraPluckDelay] = useState(1.4);
+  const [tanpuraNoteLength, setTanpuraNoteLength] = useState(5);
   const hasLoadedRef = useRef(false);
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
@@ -50,6 +56,9 @@ export default function Home() {
     if (stored.instrumentId && VALID_INSTRUMENTS.includes(stored.instrumentId)) setInstrumentId(stored.instrumentId);
     if (typeof stored.voiceVolume === 'number' && stored.voiceVolume >= 0 && stored.voiceVolume <= 1) setVoiceVolume(stored.voiceVolume);
     if (stored.notationLanguage && VALID_NOTATION.includes(stored.notationLanguage)) setNotationLanguage(stored.notationLanguage);
+    if (typeof stored.tanpuraVolume === 'number' && stored.tanpuraVolume >= 0 && stored.tanpuraVolume <= 1) setTanpuraVolume(stored.tanpuraVolume);
+    if (typeof stored.tanpuraPluckDelay === 'number' && stored.tanpuraPluckDelay >= 0.8 && stored.tanpuraPluckDelay <= 2.5) setTanpuraPluckDelay(stored.tanpuraPluckDelay);
+    if (typeof stored.tanpuraNoteLength === 'number' && stored.tanpuraNoteLength >= 2 && stored.tanpuraNoteLength <= 8) setTanpuraNoteLength(stored.tanpuraNoteLength);
     hasLoadedRef.current = true;
     setStorageReady(true);
   }, []);
@@ -63,8 +72,11 @@ export default function Home() {
       instrumentId,
       voiceVolume,
       notationLanguage,
+      tanpuraVolume,
+      tanpuraPluckDelay,
+      tanpuraNoteLength,
     });
-  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage]);
+  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
@@ -87,7 +99,15 @@ export default function Home() {
         <aside className="scroll-area w-80 min-h-0 shrink-0 flex flex-col overflow-y-auto overflow-x-hidden bg-slate-900 border-r border-slate-800 p-6 gap-8">
           <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
           <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} />
-          <TanpuraSidebar baseFreq={baseFreq} />
+          <TanpuraSidebar
+            baseFreq={baseFreq}
+            volume={tanpuraVolume}
+            onVolumeChange={setTanpuraVolume}
+            pluckDelay={tanpuraPluckDelay}
+            onPluckDelayChange={setTanpuraPluckDelay}
+            noteLength={tanpuraNoteLength}
+            onNoteLengthChange={setTanpuraNoteLength}
+          />
           <NotationSection notationLanguage={notationLanguage} onNotationChange={setNotationLanguage} />
         </aside>
 
