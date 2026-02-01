@@ -7,6 +7,7 @@ import { MELASTHAYI_VARISAI } from '@/data/melasthayiVarisai';
 import { MANDARASTHAYI_VARISAI } from '@/data/mandarasthayiVarisai';
 import { getSwarafrequency } from '@/data/melakartaRagas';
 import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/melakartaRagas';
+import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 
 type SortOrder = 'number' | 'alphabetical';
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
@@ -18,7 +19,7 @@ const VARISAI_TYPES: { [key in VarisaiType]: { name: string; data: Varisai[] } }
   mandarasthayi: { name: 'Mandarasthayi Varasai', data: MANDARASTHAYI_VARISAI },
 };
 
-export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
+export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano' }: { baseFreq: number; instrumentId?: InstrumentId }) {
   const [varisaiType, setVarisaiType] = useState<VarisaiType>('sarali');
   const currentVarisaiData = VARISAI_TYPES[varisaiType].data;
   const [selectedVarisai, setSelectedVarisai] = useState<Varisai>(currentVarisaiData[0]);
@@ -44,12 +45,36 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const playheadTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const isPlayingRef = useRef(false);
   const masterGainRef = useRef<GainNode | null>(null);
+  const soundfontPlayerRef = useRef<Awaited<ReturnType<typeof getInstrument>> | null>(null);
+  const instrumentIdRef = useRef<InstrumentId>(instrumentId);
   const baseBPMRef = useRef(baseBPM);
   const notesPerBeatRef = useRef(notesPerBeat);
   baseBPMRef.current = baseBPM;
   notesPerBeatRef.current = notesPerBeat;
+  instrumentIdRef.current = instrumentId;
+
+  useEffect(() => {
+    instrumentIdRef.current = instrumentId;
+    if (isSineInstrument(instrumentId)) {
+      soundfontPlayerRef.current = null;
+      return;
+    }
+    if (isPlayingRef.current && audioContextRef.current && masterGainRef.current) {
+      getInstrument(audioContextRef.current, instrumentId, masterGainRef.current)
+        .then((player) => {
+          soundfontPlayerRef.current = player;
+        })
+        .catch((err) => {
+          console.error('Failed to load instrument on change:', err);
+          soundfontPlayerRef.current = null;
+        });
+    } else {
+      soundfontPlayerRef.current = null;
+    }
+  }, [instrumentId]);
 
   const beatDuration = (60 / baseBPM) * 1000;
   const noteDuration = beatDuration / notesPerBeat;
@@ -91,9 +116,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   };
 
   interface NotePlayer {
-    osc: OscillatorNode;
-    gain: GainNode;
+    osc?: OscillatorNode;
+    gain?: GainNode;
     stopTime: number;
+    extend?: (additionalDuration: number, silent: boolean) => void;
   }
 
   // Convert linear volume (0-1) to logarithmic gain
@@ -106,28 +132,38 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   const playNote = (swara: string, duration: number, silent: boolean = false): NotePlayer | null => {
     if (!audioContextRef.current || !masterGainRef.current) return null;
 
-    // Parse octave indicator
     const parsed = parseVarisaiNote(swara);
     let freq = getSwarafrequency(baseFreq, parsed.swara);
-    
-    // Adjust frequency based on octave
-    if (parsed.octave === 'higher') {
-      freq = freq * 2; // One octave higher
-    } else if (parsed.octave === 'lower') {
-      freq = freq * 0.5; // One octave lower
-    }
-    
-    const osc = audioContextRef.current.createOscillator();
-    const gain = audioContextRef.current.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = freq;
+    if (parsed.octave === 'higher') freq = freq * 2;
+    else if (parsed.octave === 'lower') freq = freq * 0.5;
 
     const now = audioContextRef.current.currentTime;
     const stopTime = now + duration / 1000;
-    
+
+    if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
+      const noteName = freqToNoteNameForInstrument(freq, instrumentIdRef.current);
+      // Use fixed gain 0.6 for soundfont; volume is controlled by masterGainRef (no double-apply)
+      const gain = silent ? 0 : 0.6;
+      soundfontPlayerRef.current.start(noteName, now, { duration: duration / 1000, gain });
+      const state = { stopTime };
+      return {
+        get stopTime() {
+          return state.stopTime;
+        },
+        extend(additionalDuration: number, extSilent: boolean) {
+          if (!soundfontPlayerRef.current) return;
+          const extGain = extSilent ? 0 : 0.6;
+          soundfontPlayerRef.current!.start(noteName, state.stopTime, { duration: additionalDuration / 1000, gain: extGain });
+          state.stopTime += additionalDuration / 1000;
+        },
+      };
+    }
+
+    const osc = audioContextRef.current.createOscillator();
+    const gain = audioContextRef.current.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
     if (silent) {
-      // Silent mode - set gain to 0
       gain.gain.setValueAtTime(0, now);
     } else {
       gain.gain.setValueAtTime(0, now);
@@ -135,23 +171,17 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       gain.gain.setValueAtTime(0.3, stopTime - 0.05);
       gain.gain.linearRampToValueAtTime(0, stopTime);
     }
-
     osc.connect(gain);
     gain.connect(masterGainRef.current);
-
     osc.start(now);
     osc.stop(stopTime);
-
     oscillatorsRef.current.push(osc);
     return { osc, gain, stopTime };
   };
 
   const stopNote = (notePlayer: NotePlayer) => {
-    if (!audioContextRef.current) return;
-    
+    if (!audioContextRef.current || !notePlayer.osc || !notePlayer.gain) return;
     const now = audioContextRef.current.currentTime;
-    
-    // Cancel all scheduled values
     notePlayer.gain.gain.cancelScheduledValues(now);
     
     // Fade out quickly
@@ -169,24 +199,19 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   };
 
   const extendNote = (notePlayer: NotePlayer, additionalDuration: number, silent: boolean = false) => {
-    if (!audioContextRef.current) return;
-    
+    if (notePlayer.extend) {
+      notePlayer.extend(additionalDuration, silent);
+      return;
+    }
+    if (!audioContextRef.current || !notePlayer.osc || !notePlayer.gain) return;
     const now = audioContextRef.current.currentTime;
-    
-    // Calculate new stop time by extending from the current stop time
-    // This ensures consecutive ";" properly extend the note
     const currentStopTime = Math.max(notePlayer.stopTime, now);
     const newStopTime = currentStopTime + additionalDuration / 1000;
-    
-    // Cancel all scheduled values to prevent any fade
     notePlayer.gain.gain.cancelScheduledValues(now);
-    
     if (silent) {
-      // Silent round: keep gain at 0 for the extended duration (no sound during "—")
       notePlayer.gain.gain.setValueAtTime(0, now);
       notePlayer.gain.gain.setValueAtTime(0, newStopTime);
     } else {
-      // Always maintain at sustain level (0.3) when extending
       const sustainGain = 0.3;
       const currentGain = notePlayer.gain.gain.value;
       if (currentGain < sustainGain) {
@@ -198,14 +223,10 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       notePlayer.gain.gain.setValueAtTime(sustainGain, newStopTime - 0.05);
       notePlayer.gain.gain.linearRampToValueAtTime(0, newStopTime);
     }
-    
-    // Extend oscillator stop time (only if it hasn't stopped yet)
     try {
-      notePlayer.osc.stop(newStopTime);
+      notePlayer.osc!.stop(newStopTime);
       notePlayer.stopTime = newStopTime;
-    } catch (e) {
-      // Oscillator might have already stopped, that's okay
-    }
+    } catch (e) {}
   };
 
   const playVarisai = (silent: boolean = false, varisaiOverride?: Varisai) => {
@@ -303,21 +324,35 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
           setCurrentNoteIndex(0);
           const swara = notes[0];
           if (swara !== ";") {
-            lastNotePlayer = playNote(swara, noteDuration, silent);
-            // Check if next note is ";" and extend proactively
-            // Extend before the release phase starts (50ms before stop time)
-            if (notes.length > 1 && notes[1] === ";") {
-              setTimeout(() => {
-                if (lastNotePlayer && isPlayingRef.current) {
-                  extendNote(lastNotePlayer, noteDuration, silent);
-                }
-              }, noteDuration - 60); // Extend 60ms before note would start fading (50ms release + 10ms buffer)
+            if (!isSineInstrument(instrumentIdRef.current)) {
+              const holdCount = (() => { let c = 0; while (1 + c < notes.length && notes[1 + c] === ";") c++; return c; })();
+              const totalDurationMs = noteDuration * (1 + holdCount);
+              lastNotePlayer = playNote(swara, totalDurationMs, silent);
+              playheadTimeoutsRef.current.forEach((t) => clearTimeout(t));
+              playheadTimeoutsRef.current = [];
+              for (let i = 1; i <= holdCount; i++) {
+                const t = setTimeout(() => {
+                  if (isPlayingRef.current) setCurrentNoteIndex(i);
+                }, noteDuration * i);
+                playheadTimeoutsRef.current.push(t);
+              }
+              const nextTimeout = setTimeout(() => playNextNote(1 + holdCount), totalDurationMs);
+              playheadTimeoutsRef.current.push(nextTimeout);
+              timeoutRef.current = nextTimeout;
+            } else {
+              lastNotePlayer = playNote(swara, noteDuration, silent);
+              if (notes.length > 1 && notes[1] === ";") {
+                setTimeout(() => {
+                  if (lastNotePlayer && isPlayingRef.current) {
+                    extendNote(lastNotePlayer, noteDuration, silent);
+                  }
+                }, noteDuration - 60);
+              }
+              timeoutRef.current = setTimeout(() => playNextNote(1), noteDuration);
             }
+          } else {
+            timeoutRef.current = setTimeout(() => playNextNote(1), noteDuration);
           }
-          
-          timeoutRef.current = setTimeout(() => {
-            playNextNote(1);
-          }, noteDuration);
         } else {
           setIsPlaying(false);
           isPlayingRef.current = false;
@@ -328,57 +363,73 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
 
       setCurrentNoteIndex(index);
       const swara = notes[index];
-      
+
+      // Count consecutive ";" after this index (for soundfont: play one long note instead of re-triggering)
+      const countSemicolonsAhead = (from: number): number => {
+        let c = 0;
+        while (from + 1 + c < totalNotes && notes[from + 1 + c] === ";") c++;
+        return c;
+      };
+
       if (swara === ";") {
-        // Extend the previous note instead of playing a new one
-        // This handles consecutive ";" characters by extending the same note multiple times
+        // Sine only: extend the previous note (soundfont skips ";" by playing one long note)
         if (lastNotePlayer) {
           extendNote(lastNotePlayer, noteDuration, silent);
         }
-        // Don't update lastNotePlayer - keep the same note for consecutive ";"
-      } else {
-        // Stop the previous note if it's still playing to avoid overlap
-        // Stop it exactly when the new note starts (now)
-        if (lastNotePlayer && audioContextRef.current) {
-          const now = audioContextRef.current.currentTime;
-          if (now < lastNotePlayer.stopTime) {
-            // Cancel scheduled fade and stop immediately with quick fade
-            lastNotePlayer.gain.gain.cancelScheduledValues(now);
-            const currentGain = lastNotePlayer.gain.gain.value;
-            lastNotePlayer.gain.gain.setValueAtTime(currentGain, now);
-            lastNotePlayer.gain.gain.linearRampToValueAtTime(0, now + 0.02); // Quick fade out
-            
-            try {
-              lastNotePlayer.osc.stop(now + 0.02);
-            } catch (e) {
-              // Oscillator might have already stopped
-            }
-          }
-        }
-        
-        // Play a new note (with or without sound based on silent parameter)
-        lastNotePlayer = playNote(swara, noteDuration, silent);
-        
-        // Check if next note is ";" and extend proactively
-        // Extend before the release phase starts (50ms before stop time)
-        if (index + 1 < totalNotes && notes[index + 1] === ";") {
-          setTimeout(() => {
-            if (lastNotePlayer && isPlayingRef.current) {
-              extendNote(lastNotePlayer, noteDuration, silent);
-            }
-          }, noteDuration - 60); // Extend 60ms before note would start fading (50ms release + 10ms buffer)
+        timeoutRef.current = setTimeout(() => playNextNote(index + 1), noteDuration);
+        return;
+      }
+
+      // Stop the previous note if still playing (oscillator only)
+      if (lastNotePlayer?.osc && lastNotePlayer?.gain && audioContextRef.current) {
+        const now = audioContextRef.current.currentTime;
+        if (now < lastNotePlayer.stopTime) {
+          lastNotePlayer.gain.gain.cancelScheduledValues(now);
+          const currentGain = lastNotePlayer.gain.gain.value;
+          lastNotePlayer.gain.gain.setValueAtTime(currentGain, now);
+          lastNotePlayer.gain.gain.linearRampToValueAtTime(0, now + 0.02);
+          try {
+            lastNotePlayer.osc.stop(now + 0.02);
+          } catch (e) {}
         }
       }
 
-      timeoutRef.current = setTimeout(() => {
-        playNextNote(index + 1);
-      }, noteDuration);
+      if (!isSineInstrument(instrumentIdRef.current)) {
+        // Soundfont: play one note for full hold (note + all following ";") so it sustains, no re-trigger
+        const holdCount = countSemicolonsAhead(index);
+        const totalDurationMs = noteDuration * (1 + holdCount);
+        lastNotePlayer = playNote(swara, totalDurationMs, silent);
+        // Advance playhead through each dash (tie) so the orange highlight moves through note — — —
+        playheadTimeoutsRef.current.forEach((t) => clearTimeout(t));
+        playheadTimeoutsRef.current = [];
+        for (let i = 1; i <= holdCount; i++) {
+          const t = setTimeout(() => {
+            if (isPlayingRef.current) setCurrentNoteIndex(index + i);
+          }, noteDuration * i);
+          playheadTimeoutsRef.current.push(t);
+        }
+        const nextTimeout = setTimeout(() => playNextNote(index + 1 + holdCount), totalDurationMs);
+        playheadTimeoutsRef.current.push(nextTimeout);
+        timeoutRef.current = nextTimeout;
+        return;
+      }
+
+      // Sine: play one segment, extend proactively for ";"
+      lastNotePlayer = playNote(swara, noteDuration, silent);
+      if (index + 1 < totalNotes && notes[index + 1] === ";" && lastNotePlayer?.osc) {
+        setTimeout(() => {
+          if (lastNotePlayer && isPlayingRef.current) {
+            extendNote(lastNotePlayer, noteDuration, silent);
+          }
+        }, noteDuration - 60);
+      }
+      timeoutRef.current = setTimeout(() => playNextNote(index + 1), noteDuration);
     };
 
     playNextNote(0);
   };
 
-  const startPlaying = (varisaiOverride?: Varisai) => {
+  const startPlaying = async (varisaiOverride?: Varisai) => {
     if (isPlayingRef.current) return;
 
     try {
@@ -386,23 +437,34 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContextClass();
       }
-      
       if (audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
+        await audioContextRef.current.resume();
       }
-
-      // Create master gain node if it doesn't exist
       if (!masterGainRef.current) {
         masterGainRef.current = audioContextRef.current.createGain();
         masterGainRef.current.connect(audioContextRef.current.destination);
         masterGainRef.current.gain.value = linearToLogGain(volume);
       }
 
+      if (!isSineInstrument(instrumentIdRef.current)) {
+        try {
+          soundfontPlayerRef.current = await getInstrument(
+            audioContextRef.current,
+            instrumentIdRef.current,
+            masterGainRef.current
+          );
+        } catch (err) {
+          console.error('Failed to load instrument:', err);
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+          return;
+        }
+      }
+
       isPlayingRef.current = true;
       setIsPlaying(true);
-      
+
       if (practiceMode || singAlongMode) {
-        // Practice or sing along: start from first exercise, or from current if option is set
         const startIndex = startFromCurrentExercise ? Math.min(startFromCurrentIndex, currentVarisaiData.length - 1) : 0;
         const startVarisai = currentVarisaiData[startIndex];
         setCurrentPracticeExercise(startIndex);
@@ -411,10 +473,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
         practicePlayCountRef.current = 0;
         setSelectedVarisai(startVarisai);
         setTimeout(() => {
-          playVarisai(false, startVarisai); // Play with sound first
+          playVarisai(false, startVarisai);
         }, 100);
       } else {
-        // Use override if provided (e.g. when switching exercises mid-playback)
         const varisaiToPlay = varisaiOverride ?? selectedVarisai;
         if (varisaiOverride) {
           setSelectedVarisai(varisaiOverride);
@@ -433,6 +494,9 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     setIsPlaying(false);
     setCurrentNoteIndex(0);
 
+    playheadTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    playheadTimeoutsRef.current = [];
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -444,7 +508,14 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       } catch (e) {}
     });
     oscillatorsRef.current = [];
-    
+
+    if (soundfontPlayerRef.current) {
+      try {
+        soundfontPlayerRef.current.stop();
+      } catch (e) {}
+      soundfontPlayerRef.current = null;
+    }
+
     // Reset practice/sing along mode state
     if (practiceMode || singAlongMode) {
       setPracticeMode(false);

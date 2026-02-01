@@ -2,22 +2,26 @@
 
 import { useState } from 'react';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
+import InstrumentSettings from '@/components/InstrumentSettings';
 import RagaPlayer from '@/components/RagaPlayer';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
+import type { InstrumentId } from '@/lib/instrumentLoader';
 
 type Tab = 'raga' | 'varisai' | 'auditory';
 
 export default function Home() {
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
   const [activeTab, setActiveTab] = useState<Tab>('raga');
+  const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
 
   return (
     <main className="min-h-screen bg-slate-950">
       <div className="flex h-screen">
-        {/* Sidebar - Tanpura Controls */}
+        {/* Sidebar - Tanpura & Voice */}
         <aside className="w-80 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto">
           <TanpuraSidebar onKeyChange={setBaseFreq} />
+          <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} />
         </aside>
 
         {/* Main Content */}
@@ -76,11 +80,11 @@ export default function Home() {
           {/* Tab Content */}
           <div className="flex-1 flex items-start justify-center p-6 overflow-y-auto">
             {activeTab === 'raga' ? (
-              <RagaPlayer baseFreq={baseFreq} />
+              <RagaPlayer baseFreq={baseFreq} instrumentId={instrumentId} />
             ) : activeTab === 'varisai' ? (
-              <VarisaiPlayer baseFreq={baseFreq} />
+              <VarisaiPlayer baseFreq={baseFreq} instrumentId={instrumentId} />
             ) : (
-              <AuditoryPractice baseFreq={baseFreq} />
+              <AuditoryPractice baseFreq={baseFreq} instrumentId={instrumentId} />
             )}
           </div>
         </div>
