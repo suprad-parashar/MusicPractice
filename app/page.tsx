@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import KeySection, { KEYS, type KeyName } from '@/components/KeySection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
 import InstrumentSettings from '@/components/InstrumentSettings';
 import RagaPlayer from '@/components/RagaPlayer';
@@ -11,17 +12,24 @@ import type { InstrumentId } from '@/lib/instrumentLoader';
 type Tab = 'raga' | 'varisai' | 'auditory';
 
 export default function Home() {
+  const [selectedKey, setSelectedKey] = useState<KeyName>('C');
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
   const [activeTab, setActiveTab] = useState<Tab>('raga');
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
 
+  const handleKeyChange = (key: KeyName) => {
+    setSelectedKey(key);
+    setBaseFreq(KEYS[key]);
+  };
+
   return (
     <main className="min-h-screen bg-slate-950">
       <div className="flex h-screen">
-        {/* Sidebar - Tanpura & Voice */}
-        <aside className="w-80 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto">
-          <TanpuraSidebar onKeyChange={setBaseFreq} />
+        {/* Sidebar - Key → Voice → Tanpura */}
+        <aside className="w-80 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto flex flex-col gap-8">
+          <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
           <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} />
+          <TanpuraSidebar baseFreq={baseFreq} />
         </aside>
 
         {/* Main Content */}

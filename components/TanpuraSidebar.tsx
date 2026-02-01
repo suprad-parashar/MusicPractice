@@ -2,24 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-// Carnatic music keys (Swaras) - frequencies in Hz
-const KEYS = {
-  'C': 261.63,
-  'C#': 277.18,
-  'D': 293.66,
-  'D#': 311.13,
-  'E': 329.63,
-  'F': 349.23,
-  'F#': 369.99,
-  'G': 392.00,
-  'G#': 415.30,
-  'A': 440.00,
-  'A#': 466.16,
-  'B': 493.88,
-};
-
-type KeyName = keyof typeof KEYS;
-
 interface TanpuraString {
   noiseSource: AudioBufferSourceNode | null;
   oscillators: OscillatorNode[];
@@ -31,11 +13,10 @@ interface TanpuraString {
 }
 
 interface TanpuraSidebarProps {
-  onKeyChange: (freq: number) => void;
+  baseFreq: number;
 }
 
-export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
-  const [selectedKey, setSelectedKey] = useState<KeyName>('C');
+export default function TanpuraSidebar({ baseFreq }: TanpuraSidebarProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -45,17 +26,19 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
 
   // Initialize cleanup
   useEffect(() => {
-    onKeyChange(KEYS[selectedKey]);
     return () => {
       stopTanpura();
     };
   }, []);
 
-  // Notify parent when key changes
+  // Restart tanpura when baseFreq changes (e.g. key changed in sidebar)
   useEffect(() => {
-    onKeyChange(KEYS[selectedKey]);
+    if (!isPlayingRef.current) return;
+    stopTanpura();
+    const t = setTimeout(() => startTanpura(), 100);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKey]);
+  }, [baseFreq]);
 
   // Create a tanpura string with proper jawari timbre
   const createTanpuraString = (
@@ -188,8 +171,6 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
       masterGain.connect(audioContext.destination);
       masterGainRef.current = masterGain;
 
-      const baseFreq = KEYS[selectedKey];
-      
       const stringConfigs = [
         { freq: baseFreq * 0.75, volume: 0.45 },
         { freq: baseFreq * 1.0, volume: 0.55 },
@@ -260,18 +241,6 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
     }
   };
 
-  const handleKeyChange = (key: KeyName) => {
-    const wasPlaying = isPlayingRef.current;
-    setSelectedKey(key);
-    
-    if (wasPlaying) {
-      stopTanpura();
-      setTimeout(() => {
-        startTanpura();
-      }, 100);
-    }
-  };
-
   const handleVolumeChange = (newVolume: number) => {
     setVolume(newVolume);
     if (masterGainRef.current) {
@@ -280,16 +249,13 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
   };
 
   return (
-    <div className="w-full">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-light mb-1 tracking-wide">Tanpura</h2>
+    <div className="w-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
+        <div className="text-center mb-4">
+          <h2 className="text-xl font-light mb-1 tracking-wide">Tanpura</h2>
           <p className="text-slate-400 text-xs">Drone Control</p>
         </div>
 
-        {/* Play/Pause Button */}
-        <div className="flex flex-col items-center mb-6">
+        <div className="flex flex-col items-center mb-4">
           <button
             onClick={toggleTanpura}
             className={`
@@ -319,39 +285,6 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
           </p>
         </div>
 
-        {/* Key Selection */}
-        <div className="mb-6">
-          <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
-            Key
-          </label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {(Object.keys(KEYS) as KeyName[]).map((key) => (
-              <button
-                key={key}
-                onClick={() => handleKeyChange(key)}
-                className={`
-                  py-2 px-1 rounded
-                  transition-all duration-200
-                  text-xs font-medium
-                  ${
-                    selectedKey === key
-                      ? 'bg-amber-500 text-slate-900 shadow-md scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }
-                `}
-              >
-                {key}
-              </button>
-            ))}
-          </div>
-          <div className="mt-2 text-center">
-            <p className="text-slate-400 text-xs">
-              {selectedKey} ({KEYS[selectedKey].toFixed(0)} Hz)
-            </p>
-          </div>
-        </div>
-
-        {/* Volume Control */}
         <div>
           <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
             Volume
@@ -374,7 +307,6 @@ export default function TanpuraSidebar({ onKeyChange }: TanpuraSidebarProps) {
             </span>
           </div>
         </div>
-      </div>
     </div>
   );
 }

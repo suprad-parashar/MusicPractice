@@ -26,8 +26,10 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano' }: { baseF
   const masterGainRef = useRef<GainNode | null>(null);
   const soundfontPlayerRef = useRef<Awaited<ReturnType<typeof getInstrument>> | null>(null);
   const instrumentIdRef = useRef<InstrumentId>(instrumentId);
+  const baseFreqRef = useRef(baseFreq);
   const baseBPMRef = useRef(baseBPM);
   const notesPerBeatRef = useRef(notesPerBeat);
+  baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
   notesPerBeatRef.current = notesPerBeat;
   instrumentIdRef.current = instrumentId;
@@ -76,7 +78,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano' }: { baseF
     if (!audioContextRef.current || !masterGainRef.current) return;
 
     const parsed = parseVarisaiNote(swara);
-    let freq = getSwarafrequency(baseFreq, parsed.swara);
+    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
     if (parsed.octave === 'higher') freq = freq * 2;
     else if (parsed.octave === 'lower') freq = freq * 0.5;
 

@@ -38,10 +38,12 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano' }: {
   const masterGainRef = useRef<GainNode | null>(null);
   const soundfontPlayerRef = useRef<Awaited<ReturnType<typeof getInstrument>> | null>(null);
   const instrumentIdRef = useRef<InstrumentId>(instrumentId);
+  const baseFreqRef = useRef(baseFreq);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopwatchIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scoreRef = useRef(0);
   const roundRef = useRef(0);
+  baseFreqRef.current = baseFreq;
   instrumentIdRef.current = instrumentId;
 
   useEffect(() => {
@@ -204,7 +206,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano' }: {
       if (!audioContextRef.current || !masterGainRef.current) return;
 
       const parsed = parseVarisaiNote(swara);
-      let freq = getSwarafrequency(baseFreq, parsed.swara);
+      let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
       if (parsed.octave === 'higher') freq = freq * 2;
       else if (parsed.octave === 'lower') freq = freq * 0.5;
 

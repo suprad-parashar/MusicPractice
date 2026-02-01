@@ -9,7 +9,7 @@ interface InstrumentSettingsProps {
 
 export default function InstrumentSettings({ instrumentId, onInstrumentChange }: InstrumentSettingsProps) {
   return (
-    <div className="w-full mt-6">
+    <div className="w-full">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl border border-slate-700/50">
         <div className="text-center mb-4">
           <h2 className="text-xl font-light mb-1 tracking-wide">Voice</h2>
