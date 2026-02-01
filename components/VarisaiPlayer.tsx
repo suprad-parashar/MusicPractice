@@ -33,6 +33,8 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [practiceMode, setPracticeMode] = useState(false);
   const [singAlongMode, setSingAlongMode] = useState(false);
+  const [startFromCurrentExercise, setStartFromCurrentExercise] = useState(false);
+  const [startFromCurrentIndex, setStartFromCurrentIndex] = useState(0); // which exercise to start from when "start from current" is on
   const [currentPracticeExercise, setCurrentPracticeExercise] = useState(0);
   const [practicePlayCount, setPracticePlayCount] = useState(0); // 0 = first play (with sound), 1 = second play (silent)
   const [volume, setVolume] = useState(0.5); // Volume control (0-1)
@@ -250,6 +252,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             setCurrentPracticeExercise(0);
             currentPracticeExerciseRef.current = 0;
             setCurrentNoteIndex(0);
+            setSelectedVarisai(currentVarisaiData[0]);
           }
         } else if (practiceMode) {
           // In practice mode, check if we need to play again (silent) or move to next exercise
@@ -293,6 +296,7 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
               setPracticePlayCount(0);
               practicePlayCountRef.current = 0;
               setCurrentNoteIndex(0);
+              setSelectedVarisai(currentVarisaiData[0]);
             }
           }
         } else if (loop) {
@@ -398,16 +402,16 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
       setIsPlaying(true);
       
       if (practiceMode || singAlongMode) {
-        // Practice or sing along mode: start with first exercise
-        const firstVarisai = currentVarisaiData[0];
-        setCurrentPracticeExercise(0);
-        currentPracticeExerciseRef.current = 0;
+        // Practice or sing along: start from first exercise, or from current if option is set
+        const startIndex = startFromCurrentExercise ? Math.min(startFromCurrentIndex, currentVarisaiData.length - 1) : 0;
+        const startVarisai = currentVarisaiData[startIndex];
+        setCurrentPracticeExercise(startIndex);
+        currentPracticeExerciseRef.current = startIndex;
         setPracticePlayCount(0);
         practicePlayCountRef.current = 0;
-        setSelectedVarisai(firstVarisai);
+        setSelectedVarisai(startVarisai);
         setTimeout(() => {
-          // Pass the varisai directly to avoid stale state
-          playVarisai(false, firstVarisai); // Play with sound first
+          playVarisai(false, startVarisai); // Play with sound first
         }, 100);
       } else {
         // Use override if provided (e.g. when switching exercises mid-playback)
@@ -445,10 +449,12 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
     if (practiceMode || singAlongMode) {
       setPracticeMode(false);
       setSingAlongMode(false);
+      setStartFromCurrentExercise(false);
       setCurrentPracticeExercise(0);
       currentPracticeExerciseRef.current = 0;
       setPracticePlayCount(0);
       practicePlayCountRef.current = 0;
+      setSelectedVarisai(currentVarisaiData[0]);
     }
   };
 
@@ -631,7 +637,12 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
                 if (isPlaying) stopPlaying();
                 const checked = e.target.checked;
                 setPracticeMode(checked);
-                if (checked) setSingAlongMode(false);
+                if (checked) {
+                  setSingAlongMode(false);
+                  setStartFromCurrentIndex(Math.max(0, currentVarisaiData.findIndex((v) => v.number === selectedVarisai.number)));
+                } else {
+                  setStartFromCurrentExercise(false);
+                }
                 setCurrentPracticeExercise(0);
                 currentPracticeExerciseRef.current = 0;
                 setPracticePlayCount(0);
@@ -651,7 +662,12 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
                 if (isPlaying) stopPlaying();
                 const checked = e.target.checked;
                 setSingAlongMode(checked);
-                if (checked) setPracticeMode(false);
+                if (checked) {
+                  setPracticeMode(false);
+                  setStartFromCurrentIndex(Math.max(0, currentVarisaiData.findIndex((v) => v.number === selectedVarisai.number)));
+                } else {
+                  setStartFromCurrentExercise(false);
+                }
                 setCurrentPracticeExercise(0);
                 currentPracticeExerciseRef.current = 0;
                 setPracticePlayCount(0);
@@ -664,20 +680,39 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             <span className="text-sm font-medium text-slate-300">Sing Along Mode</span>
           </label>
           {(practiceMode || singAlongMode) && (
-            <div className="text-sm text-slate-400 w-full text-center">
-              {isPlaying ? (
-                <span>
-                  Exercise {currentPracticeExercise + 1}/{currentVarisaiData.length}
-                  {practiceMode && ` - ${practicePlayCount === 0 ? 'With Sound' : 'Silent'}`}
+            <>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={startFromCurrentExercise}
+                  onChange={(e) => {
+                    if (isPlaying) return;
+                    setStartFromCurrentExercise(e.target.checked);
+                  }}
+                  className="w-5 h-5 rounded accent-amber-500 cursor-pointer"
+                  disabled={isPlaying}
+                />
+                <span className="text-sm font-medium text-slate-300">
+                  Start from current exercise {startFromCurrentExercise && `(exercise ${startFromCurrentIndex + 1})`}
                 </span>
-              ) : (
-                <span>
-                  {practiceMode
-                    ? 'Ready to start - will play all exercises twice (with sound, then silent)'
-                    : 'Ready to start - will play all exercises once with sound'}
-                </span>
-              )}
-            </div>
+              </label>
+              <div className="text-sm text-slate-400 w-full text-center">
+                {isPlaying ? (
+                  <span>
+                    Exercise {currentPracticeExercise + 1}/{currentVarisaiData.length}
+                    {practiceMode && ` - ${practicePlayCount === 0 ? 'With Sound' : 'Silent'}`}
+                  </span>
+                ) : (
+                  <span>
+                    {startFromCurrentExercise
+                      ? `Play will start from exercise ${startFromCurrentIndex + 1} to end`
+                      : practiceMode
+                        ? 'Ready to start from first exercise — will play all (with sound, then silent each)'
+                        : 'Ready to start from first exercise — will play all with sound'}
+                  </span>
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -687,31 +722,45 @@ export default function VarisaiPlayer({ baseFreq }: { baseFreq: number }) {
             Select Exercise
           </label>
           <div className={`grid gap-2 w-full px-2 justify-items-center`} style={{ gridTemplateColumns: `repeat(${optimalColumns}, minmax(0, 1fr))` }}>
-            {currentVarisaiData.map((varisai) => (
-              <button
-                key={varisai.number}
-                onClick={() => !practiceMode && !singAlongMode && handleVarisaiChange(varisai.number)}
-                disabled={practiceMode || singAlongMode}
-                className={`
-                  py-3 px-4 rounded-lg
-                  transition-all duration-200
-                  text-sm font-medium
-                  w-full max-w-[60px]
-                  ${
-                    practiceMode || singAlongMode
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'cursor-pointer'
-                  }
-                  ${
-                    selectedVarisai.number === varisai.number
-                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
-                  }
-                `}
-              >
-                {varisai.number}
-              </button>
-            ))}
+            {currentVarisaiData.map((varisai) => {
+              const inPracticeOrSingAlong = practiceMode || singAlongMode;
+              const canChangeStartFrom = inPracticeOrSingAlong && !isPlaying && startFromCurrentExercise;
+              const isStartFromExercise = (practiceMode || singAlongMode) && !isPlaying && startFromCurrentExercise && currentVarisaiData.findIndex((v) => v.number === varisai.number) === startFromCurrentIndex;
+              const isStartFromFirst = isStartFromExercise && startFromCurrentIndex === 0;
+              return (
+                <button
+                  key={varisai.number}
+                  onClick={() => {
+                    if (canChangeStartFrom) {
+                      const idx = currentVarisaiData.findIndex((v) => v.number === varisai.number);
+                      if (idx >= 0) setStartFromCurrentIndex(idx);
+                    } else if (!inPracticeOrSingAlong) {
+                      handleVarisaiChange(varisai.number);
+                    }
+                  }}
+                  disabled={inPracticeOrSingAlong && !canChangeStartFrom}
+                  style={isStartFromExercise && !isStartFromFirst ? { backgroundColor: '#2563eb', color: '#fff' } : undefined}
+                  className={`
+                    py-3 px-4 rounded-lg
+                    transition-all duration-200
+                    text-sm font-medium
+                    w-full max-w-[60px]
+                    ${inPracticeOrSingAlong && !canChangeStartFrom ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    ${
+                      isStartFromFirst
+                        ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                        : isStartFromExercise
+                          ? 'shadow-lg'
+                          : selectedVarisai.number === varisai.number
+                            ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
+                    }
+                  `}
+                >
+                  {varisai.number}
+                </button>
+              );
+            })}
           </div>
           <div className="mt-4 text-center">
             <p className="text-slate-400 text-sm">
