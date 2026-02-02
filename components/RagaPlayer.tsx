@@ -29,6 +29,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [baseBPM, setBaseBPM] = useState(90); // Base BPM (30-120)
+  const [tempoInputValue, setTempoInputValue] = useState('90'); // Local state for typing
   const [loop, setLoop] = useState(false); // Loop playback
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
@@ -90,7 +91,10 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
       if (raga) setSelectedRaga(raga);
     }
-    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) setBaseBPM(stored.baseBPM);
+    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) {
+      setBaseBPM(stored.baseBPM);
+      setTempoInputValue(String(stored.baseBPM));
+    }
     if (typeof stored.loop === 'boolean') setLoop(stored.loop);
     hasLoadedRagaRef.current = true;
     setStorageReady(true);
@@ -524,23 +528,53 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
           </div>
         </div>
 
-        {/* Base BPM Control */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Base Speed: {baseBPM} BPM
-          </label>
-          <div className="flex items-center gap-4 px-4">
-            <span className="text-slate-400 text-sm w-12">30</span>
-            <input
-              type="range"
-              min="30"
-              max="120"
-              step="5"
-              value={baseBPM}
-              onChange={(e) => handleBaseBPMChange(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-            />
-            <span className="text-slate-400 text-sm w-12 text-right">120</span>
+        {/* Tempo Control */}
+        <div className="mb-6 flex flex-row flex-wrap items-center justify-center gap-6">
+          <div className="flex flex-row items-center gap-2">
+            <label className="text-sm font-medium text-slate-300 shrink-0">Tempo</label>
+            <div className="flex flex-row items-stretch rounded-lg border border-slate-600 bg-slate-800/50 overflow-hidden shrink-0">
+              <button
+                type="button"
+                onClick={() => { const v = Math.max(30, baseBPM - 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM <= 30}
+                aria-label="Decrease tempo"
+                className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors border-r border-slate-600"
+              >
+                −
+              </button>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={tempoInputValue}
+                onFocus={() => setTempoInputValue(String(baseBPM))}
+                onChange={(e) => {
+                  // Allow only digits, let user type freely
+                  const val = e.target.value.replace(/\D/g, '');
+                  setTempoInputValue(val);
+                }}
+                onBlur={() => {
+                  let num = parseInt(tempoInputValue, 10);
+                  if (isNaN(num) || num < 30) num = 30;
+                  if (num > 300) num = 300;
+                  // Round to nearest multiple of 5
+                  num = Math.round(num / 5) * 5;
+                  handleBaseBPMChange(num);
+                  setTempoInputValue(String(num));
+                }}
+                className="w-10 flex items-center justify-center text-center text-sm font-semibold text-slate-900 bg-amber-500 border-r border-slate-600 outline-none"
+                aria-label="Tempo BPM"
+              />
+              <button
+                type="button"
+                onClick={() => { const v = Math.min(300, baseBPM + 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM >= 300}
+                aria-label="Increase tempo"
+                className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors"
+              >
+                +
+              </button>
+            </div>
+            <span className="text-sm text-slate-400">BPM</span>
           </div>
         </div>
 

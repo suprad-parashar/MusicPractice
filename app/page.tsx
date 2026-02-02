@@ -466,7 +466,7 @@ export default function Home() {
 
                     {/* Notation Section */}
                     <div className="border-b border-[var(--border)] p-2">
-                      <div className="text-xs font-semibold text-[var(--text-muted)] px-2 py-1 mb-1">Notation</div>
+                      <div className="text-xs font-semibold text-[var(--text-muted)] px-2 py-1 mb-1">Notation Language</div>
                       {NOTATION_ORDER.map((lang) => (
                         <button
                           key={lang}
