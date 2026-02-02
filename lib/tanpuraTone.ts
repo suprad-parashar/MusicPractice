@@ -9,7 +9,9 @@
 import * as Tone from 'tone';
 
 // Sample paths (browser-lehra tanpura-d.wav first; add tanpura-pluck.wav for alternatives)
-const PLUCK_SAMPLE_PATHS = ['/sounds/tanpura-d.wav', '/sounds/tanpura-pluck.wav'];
+// Use basePath for GitHub Pages deployment where the app is served at /MusicPractice/
+const basePath = process.env.NODE_ENV === 'production' ? '/MusicPractice' : '';
+const PLUCK_SAMPLE_PATHS = [`${basePath}/sounds/tanpura-d.wav`, `${basePath}/sounds/tanpura-pluck.wav`];
 const PLUCK_SAMPLE_BASE_FREQ = 293.66; // D4 - matches tanpura-d.wav from browser-lehra
 
 // 4 strings: P (Pancham), High S, High S, S (Shadja - kharj)
