@@ -81,7 +81,7 @@ export default function Tanpura() {
       // Use triangle wave for softer, more natural sound
       osc.type = 'triangle';
       osc.frequency.value = baseFreq * harmonic;
-      
+
       // Very slight detuning for natural variation
       const detune = (Math.random() - 0.5) * 2;
       osc.detune.value = detune;
@@ -124,24 +124,24 @@ export default function Tanpura() {
       for (let i = 0; i < bufferSize; i++) {
         data[i] = Math.random() * 2 - 1;
       }
-      
+
       noiseSource = audioContext.createBufferSource();
       noiseSource.buffer = buffer;
       noiseSource.loop = true;
-      
+
       const noiseGain = audioContext.createGain();
       const noiseFilter = audioContext.createBiquadFilter();
-      
+
       // Filter noise to match string frequency range
       noiseFilter.type = 'bandpass';
       noiseFilter.frequency.value = baseFreq * 2;
       noiseFilter.Q.value = 2;
       noiseGain.gain.value = 0.08; // Very subtle noise for texture
-      
+
       noiseSource.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
       noiseGain.connect(stringGain);
-      
+
       noiseSource.start();
     } catch (error) {
       // If noise creation fails, continue without it
@@ -158,13 +158,13 @@ export default function Tanpura() {
     lfoGain.connect(stringGain.gain);
     lfo.start();
 
-    return { 
-      noiseSource, 
-      oscillators, 
-      gainNodes, 
-      filters, 
-      formantFilters, 
-      lfo, 
+    return {
+      noiseSource,
+      oscillators,
+      gainNodes,
+      filters,
+      formantFilters,
+      lfo,
       lfoGain
     };
   };
@@ -188,7 +188,7 @@ export default function Tanpura() {
       masterGainRef.current = masterGain;
 
       const baseFreq = KEYS[selectedKey];
-      
+
       // Traditional tanpura tuning: Pa - SA - SA - Sa (all one octave lower)
       // String 1: Pa (fifth) - 0.75x (1.5x / 2)
       // String 2: SA (middle octave) - 1x (2x / 2)
@@ -233,7 +233,7 @@ export default function Tanpura() {
           // Already stopped
         }
       }
-      
+
       // Stop all oscillators
       string.oscillators.forEach(osc => {
         try {
@@ -242,7 +242,7 @@ export default function Tanpura() {
           // Already stopped
         }
       });
-      
+
       // Stop LFOs
       if (string.lfo) {
         try {
@@ -257,7 +257,7 @@ export default function Tanpura() {
 
     if (audioContextRef.current) {
       // Close the audio context and wait for it to close
-      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current.close().catch(() => { });
       audioContextRef.current = null;
     }
 
@@ -277,7 +277,7 @@ export default function Tanpura() {
   const handleKeyChange = (key: KeyName) => {
     const wasPlaying = isPlayingRef.current;
     setSelectedKey(key);
-    
+
     if (wasPlaying) {
       // Stop and restart with new key
       stopTanpura();
@@ -315,8 +315,8 @@ export default function Tanpura() {
             className={`
               relative w-32 h-32 md:w-40 md:h-40 rounded-full
               transition-all duration-300 ease-out
-              ${isPlaying 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105' 
+              ${isPlaying
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105'
                 : 'bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
               }
               flex items-center justify-center
@@ -324,14 +324,13 @@ export default function Tanpura() {
             `}
           >
             <div className={`
-              absolute inset-0 rounded-full
+              absolute inset-0 rounded-full pointer-events-none
               ${isPlaying ? 'animate-ping opacity-20' : ''}
               ${isPlaying ? 'bg-amber-400' : ''}
             `} />
             <svg
-              className={`w-12 h-12 md:w-16 md:h-16 transition-transform duration-300 ${
-                isPlaying ? 'scale-110' : 'scale-100 group-hover:scale-105'
-              }`}
+              className={`w-12 h-12 md:w-16 md:h-16 transition-transform duration-300 ${isPlaying ? 'scale-110' : 'scale-100 group-hover:scale-105'
+                }`}
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -342,7 +341,7 @@ export default function Tanpura() {
               )}
             </svg>
           </button>
-          
+
           <p className="mt-4 text-slate-400 text-sm">
             {isPlaying ? 'Playing' : 'Stopped'}
           </p>
@@ -362,10 +361,9 @@ export default function Tanpura() {
                   py-3 px-2 rounded-lg
                   transition-all duration-200
                   text-sm font-medium
-                  ${
-                    selectedKey === key
-                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
+                  ${selectedKey === key
+                    ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
                   }
                 `}
               >
@@ -388,7 +386,7 @@ export default function Tanpura() {
           </label>
           <div className="flex items-center gap-4">
             <svg className="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
             </svg>
             <input
               type="range"
