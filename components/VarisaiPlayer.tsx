@@ -15,10 +15,10 @@ type SortOrder = 'number' | 'alphabetical';
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
 
 const VARISAI_TYPES: { [key in VarisaiType]: { name: string; data: Varisai[] } } = {
-  sarali: { name: 'Sarali Varasai', data: SARALI_VARISAI },
-  janta: { name: 'Janta Varasai', data: JANTA_VARISAI },
-  melasthayi: { name: 'Melasthayi Varasai', data: MELASTHAYI_VARISAI },
-  mandarasthayi: { name: 'Mandarasthayi Varasai', data: MANDARASTHAYI_VARISAI },
+  sarali: { name: 'Sarali Varisai', data: SARALI_VARISAI },
+  janta: { name: 'Janta Varisai', data: JANTA_VARISAI },
+  melasthayi: { name: 'Melasthayi Varisai', data: MELASTHAYI_VARISAI },
+  mandarasthayi: { name: 'Mandarasthayi Varisai', data: MANDARASTHAYI_VARISAI },
 };
 
 /**
@@ -728,10 +728,10 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
           </p>
         </div>
 
-        {/* Varasai Type Selection */}
+        {/* Varisai Type Selection */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Select Varasai Type
+            Select Varisai Type
           </label>
           <div className="flex flex-wrap gap-2 justify-center">
             {(Object.keys(VARISAI_TYPES) as VarisaiType[]).map((type) => (

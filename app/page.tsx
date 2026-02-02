@@ -361,7 +361,7 @@ export default function Home() {
                     }
                   `}
                 >
-                  Varasai Practise
+                  Varisai Practice
                 </button>
                 <button
                   onClick={() => setActiveTab('auditory')}
