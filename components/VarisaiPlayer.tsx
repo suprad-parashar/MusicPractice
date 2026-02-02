@@ -735,12 +735,11 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
               <button
                 key={type}
                 onClick={() => handleVarisaiTypeChange(type)}
-                disabled={isPlaying}
                 className={`
                   px-4 py-2 rounded-lg
                   transition-all duration-200
                   text-sm font-medium
-                  ${isPlaying ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  cursor-pointer
                   ${varisaiType === type
                     ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
                     : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
