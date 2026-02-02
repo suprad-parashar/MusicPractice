@@ -12,6 +12,7 @@ import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
 import { getOctaveMultiplier, type Octave } from '@/lib/tanpuraTone';
 import { getStored, setStored } from '@/lib/storage';
+import { version } from '@/package.json';
 
 type Tab = 'raga' | 'varisai' | 'auditory';
 type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
@@ -341,10 +342,9 @@ export default function Home() {
                   className={`
                     shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
                     transition-all duration-200 text-xs sm:text-sm font-medium
-                    ${
-                      activeTab === 'raga'
-                        ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
-                        : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    ${activeTab === 'raga'
+                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
                     }
                   `}
                 >
@@ -355,10 +355,9 @@ export default function Home() {
                   className={`
                     shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
                     transition-all duration-200 text-xs sm:text-sm font-medium
-                    ${
-                      activeTab === 'varisai'
-                        ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
-                        : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    ${activeTab === 'varisai'
+                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
                     }
                   `}
                 >
@@ -369,10 +368,9 @@ export default function Home() {
                   className={`
                     shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
                     transition-all duration-200 text-xs sm:text-sm font-medium
-                    ${
-                      activeTab === 'auditory'
-                        ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
-                        : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    ${activeTab === 'auditory'
+                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
                     }
                   `}
                 >
@@ -483,27 +481,27 @@ export default function Home() {
                   </svg>
                 </button>
 
-              {notationOpen && (
-                <div className="absolute right-0 top-full mt-2 w-40 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
-                  {NOTATION_ORDER.map((lang) => (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => { setNotationLanguage(lang); setNotationOpen(false); }}
-                      className={`w-full text-left px-3 py-2 text-sm sm:text-sm hover:bg-[var(--sidebar-bg)] ${notationLanguage === lang ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{NOTATION_BADGES[lang].abbr}</span>
-                          <span className="text-[var(--text-muted)] text-[12px]">({NOTATION_BADGES[lang].symbol})</span>
+                {notationOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-40 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
+                    {NOTATION_ORDER.map((lang) => (
+                      <button
+                        key={lang}
+                        type="button"
+                        onClick={() => { setNotationLanguage(lang); setNotationOpen(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm sm:text-sm hover:bg-[var(--sidebar-bg)] ${notationLanguage === lang ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{NOTATION_BADGES[lang].abbr}</span>
+                            <span className="text-[var(--text-muted)] text-[12px]">({NOTATION_BADGES[lang].symbol})</span>
+                          </div>
+                          <span className="ml-auto text-[var(--text-muted)] text-xs">{NOTATION_BADGES[lang].title}</span>
                         </div>
-                        <span className="ml-auto text-[var(--text-muted)] text-xs">{NOTATION_BADGES[lang].title}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -523,7 +521,7 @@ export default function Home() {
                 &ldquo;Where there is practice, there is perfection.&rdquo;
               </p>
               <p className="text-[var(--text-muted)] text-xs mb-4 sm:mb-6 opacity-80">
-                Carnatic Practice · v1.2.0
+                Carnatic Practice · v{version}
               </p>
             </footer>
           </div>
