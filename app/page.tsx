@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import KeySection, { KEYS, type KeyName } from '@/components/KeySection';
+import { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
 import InstrumentSettings from '@/components/InstrumentSettings';
@@ -85,7 +85,7 @@ export default function Home() {
   const [selectedKey, setSelectedKey] = useState<KeyName>('C');
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
   const [activeTab, setActiveTab] = useState<Tab>('raga');
-  const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
+  const [instrumentId, setInstrumentId] = useState<InstrumentId>('violin');
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
 
@@ -95,6 +95,10 @@ export default function Home() {
   const [themeAccentOpen, setThemeAccentOpen] = useState(false);
   const themeAccentRef = useRef<HTMLDivElement | null>(null);
 
+  // Key picker dropdown state
+  const [keyPickerOpen, setKeyPickerOpen] = useState(false);
+  const keyPickerRef = useRef<HTMLDivElement | null>(null);
+
   // Accent color picker input
   const accentColorInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -103,10 +107,14 @@ export default function Home() {
       if (themeAccentRef.current && !themeAccentRef.current.contains(e.target as Node)) {
         setThemeAccentOpen(false);
       }
+      if (keyPickerRef.current && !keyPickerRef.current.contains(e.target as Node)) {
+        setKeyPickerOpen(false);
+      }
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setThemeAccentOpen(false);
+        setKeyPickerOpen(false);
       }
     }
     document.addEventListener('click', onDocClick);
@@ -252,6 +260,7 @@ export default function Home() {
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
     setBaseFreq(KEYS[key]);
+    setKeyPickerOpen(false);
   };
 
   // Don't render persisted UI until we've read from storage (prevents jump)
@@ -300,7 +309,7 @@ export default function Home() {
             </svg>
           </button>
 
-          <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
+
           <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
           <TanpuraSidebar
             baseFreq={baseFreq}
@@ -342,7 +351,7 @@ export default function Home() {
                     }
                   `}
                 >
-                  Raga Practice
+                  Ragas
                 </button>
                 <button
                   onClick={() => setActiveTab('varisai')}
@@ -355,7 +364,7 @@ export default function Home() {
                     }
                   `}
                 >
-                  Varisai Practice
+                  Practice
                 </button>
                 <button
                   onClick={() => setActiveTab('auditory')}
@@ -368,13 +377,58 @@ export default function Home() {
                     }
                   `}
                 >
-                  Auditory Practice
+                  Ear Training
                 </button>
               </div>
             </div>
 
-            {/* Settings Button */}
+            {/* Key Display + Settings Button */}
             <div className="flex items-center gap-2 px-3 sm:px-6">
+              {/* Key Display */}
+              <div className="relative" ref={keyPickerRef}>
+                <button
+                  type="button"
+                  aria-haspopup="true"
+                  aria-expanded={keyPickerOpen}
+                  title={`Key: ${selectedKey} (${KEYS[selectedKey].toFixed(0)} Hz)`}
+                  onClick={() => setKeyPickerOpen(v => !v)}
+                  className="shrink-0 px-3 py-1.5 rounded-md text-[var(--text-primary)] bg-[var(--card-bg)] hover:bg-[var(--sidebar-bg)] border border-[var(--border)] transition flex items-center gap-1.5"
+                >
+                  <span className="text-sm font-semibold text-accent">{selectedKey}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{KEYS[selectedKey].toFixed(0)} Hz</span>
+                  <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {keyPickerOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden p-3">
+                    <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">Select Key</div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {(Object.keys(KEYS) as KeyName[]).map((key) => (
+                        <button
+                          key={key}
+                          onClick={() => handleKeyChange(key)}
+                          className={`
+                            py-1.5 px-1 rounded
+                            transition-all duration-200
+                            text-xs font-medium
+                            ${selectedKey === key
+                              ? 'bg-accent text-[var(--page-bg)] shadow-md scale-105'
+                              : 'bg-[var(--sidebar-bg)] text-[var(--text-primary)] hover:bg-[var(--border)]'
+                            }
+                          `}
+                        >
+                          {key}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                      Reference pitch for practice
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="relative" ref={themeAccentRef}>
                 <button
                   type="button"

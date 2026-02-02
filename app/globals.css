@@ -199,6 +199,29 @@ body {
   background-clip: padding-box;
 }
 
+/* Transparent track scrollbar for dropdowns and overlays */
+.scroll-area-transparent {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.scroll-area-transparent::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scroll-area-transparent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-area-transparent::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+.scroll-area-transparent::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
