@@ -43,9 +43,11 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   const instrumentIdRef = useRef<InstrumentId>(instrumentId);
   const baseFreqRef = useRef(baseFreq);
   const baseBPMRef = useRef(baseBPM);
+  const selectedRagaRef = useRef<MelakartaRaga>(selectedRaga);
   baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
   instrumentIdRef.current = instrumentId;
+  selectedRagaRef.current = selectedRaga;
 
   // Sync sidebar voice volume to master gain when it changes
   useEffect(() => {
@@ -154,8 +156,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     // arohana: S, R, G, M, P, D, N, S
     // avarohana: S, N, D, P, M, G, R, S
     // Combined: S, R, G, M, P, D, N, S, S, N, D, P, M, G, R, S
-    const arohana = selectedRaga.arohana;
-    const avarohana = selectedRaga.avarohana;
+    const arohana = selectedRagaRef.current.arohana;
+    const avarohana = selectedRagaRef.current.avarohana;
     // Include higher Sa twice (at end of arohana and start of avarohana)
     const notes = [...arohana, ...avarohana];
     const totalNotes = notes.length;
@@ -177,7 +179,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
           setCurrentNoteIndex(0);
           const swara = notes[0];
           playNote(swara, noteDurationMs);
-          
+
           timeoutRef.current = setTimeout(() => {
             playNextNote(1);
           }, noteDurationMs);
@@ -257,14 +259,14 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     oscillatorsRef.current.forEach(osc => {
       try {
         osc.stop();
-      } catch (e) {}
+      } catch (e) { }
     });
     oscillatorsRef.current = [];
 
     if (soundfontPlayerRef.current) {
       try {
         soundfontPlayerRef.current.stop();
-      } catch (e) {}
+      } catch (e) { }
       soundfontPlayerRef.current = null;
     }
   };
@@ -294,7 +296,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     return () => {
       stopPlaying();
       if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current.close().catch(() => { });
       }
     };
   }, []);
@@ -344,21 +346,19 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             <div className="flex gap-2">
               <button
                 onClick={() => setSortOrder('number')}
-                className={`px-3 py-1 rounded text-sm ${
-                  sortOrder === 'number'
-                    ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                }`}
+                className={`px-3 py-1 rounded text-sm ${sortOrder === 'number'
+                  ? 'bg-amber-500 text-slate-900'
+                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                  }`}
               >
                 By Number
               </button>
               <button
                 onClick={() => setSortOrder('alphabetical')}
-                className={`px-3 py-1 rounded text-sm ${
-                  sortOrder === 'alphabetical'
-                    ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                }`}
+                className={`px-3 py-1 rounded text-sm ${sortOrder === 'alphabetical'
+                  ? 'bg-amber-500 text-slate-900'
+                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                  }`}
               >
                 A-Z
               </button>
@@ -374,8 +374,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
               relative w-32 h-32 md:w-40 md:h-40 rounded-full
               border-2 border-[var(--border)]
               transition-all duration-300 ease-out
-              ${isPlaying 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105 border-[var(--accent)]' 
+              ${isPlaying
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105 border-[var(--accent)]'
                 : 'bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
               }
               flex items-center justify-center
@@ -383,14 +383,13 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             `}
           >
             <div className={`
-              absolute inset-0 rounded-full
+              absolute inset-0 rounded-full pointer-events-none
               ${isPlaying ? 'animate-ping opacity-20' : ''}
               ${isPlaying ? 'bg-amber-400' : ''}
             `} />
             <svg
-              className={`w-12 h-12 md:w-16 md:h-16 transition-transform duration-300 ${
-                isPlaying ? 'scale-110' : 'scale-100 group-hover:scale-105'
-              }`}
+              className={`w-12 h-12 md:w-16 md:h-16 transition-transform duration-300 ${isPlaying ? 'scale-110' : 'scale-100 group-hover:scale-105'
+                }`}
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -401,11 +400,11 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
               )}
             </svg>
           </button>
-          
+
           <p className="mt-4 text-slate-400 text-sm">
             {isPlaying ? `Playing at ${baseBPM} BPM` : 'Stopped'}
           </p>
-          
+
           {/* Loop Toggle */}
           <div className="mt-4 flex items-center justify-center gap-2">
             <input
@@ -445,7 +444,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
         <div className="mt-8">
           <div className="text-center">
             <p className="text-slate-400 text-sm mb-4">Raga Notes</p>
-            
+
             {/* Arohana (Ascending) */}
             <div className="mb-4">
               <p className="text-slate-500 text-xs mb-2">Arohana (Ascending)</p>
@@ -462,10 +461,9 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative
                         transition-all duration-200
-                        ${
-                          isPlaying && globalIndex === currentNoteIndex
-                            ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
-                            : isPlaying && globalIndex < currentNoteIndex
+                        ${isPlaying && globalIndex === currentNoteIndex
+                          ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
+                          : isPlaying && globalIndex < currentNoteIndex
                             ? 'bg-slate-700/30 text-slate-500'
                             : 'bg-slate-700/50 text-slate-300'
                         }
@@ -500,10 +498,9 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative
                         transition-all duration-200
-                        ${
-                          isPlaying && globalIndex === currentNoteIndex
-                            ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
-                            : isPlaying && globalIndex < currentNoteIndex
+                        ${isPlaying && globalIndex === currentNoteIndex
+                          ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
+                          : isPlaying && globalIndex < currentNoteIndex
                             ? 'bg-slate-700/30 text-slate-500'
                             : 'bg-slate-700/50 text-slate-300'
                         }

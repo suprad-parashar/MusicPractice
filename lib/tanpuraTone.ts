@@ -36,6 +36,7 @@ export function getOctaveMultiplier(octave: Octave): number {
 
 const DEFAULT_PLUCK_DELAY_SEC = 1.4; // Delay between each pluck (P, High S, High S, S)
 const DEFAULT_NOTE_LENGTH_SEC = 5;   // How long each pluck resonates (synth) / reverb tail (sample)
+const TRANSITION_DURATION_SEC = 0.5; // Duration for smooth pitch/octave transitions
 
 let volumeNode: Tone.Volume | null = null;
 let pluckPlayers: Tone.Player[] = [];
@@ -43,13 +44,18 @@ let pluckReverb: Tone.Reverb | null = null;
 let pluckLoop: Tone.Loop | null = null;
 let polySynth: Tone.PolySynth | null = null;
 let baseFreqRef = 261.63;
+let targetBaseFreq = 261.63; // Target frequency for smooth transitions
 let octaveRef: Octave = 'medium';
+let targetOctave: Octave = 'medium'; // Target octave for smooth transitions
+let currentOctaveMultiplier = 1; // Current interpolated octave multiplier
+let targetOctaveMultiplier = 1; // Target octave multiplier
 let volumeRef = 0.5;
 let pluckDelaySecRef = DEFAULT_PLUCK_DELAY_SEC;
 let noteLengthSecRef = DEFAULT_NOTE_LENGTH_SEC;
 let useSample = false;
 let sampleBaseFreq = PLUCK_SAMPLE_BASE_FREQ;
 let isStarted = false;
+let transitionAnimationId: number | null = null;
 
 /**
  * Convert a linear amplitude value to decibels.
@@ -138,13 +144,13 @@ async function createPluckSampleChain(
  * Schedules a single cycle of four sample-based plucks (one per string) to play in sequence.
  *
  * Each pluck is scheduled with a small lookahead; pitches are derived from the current base
- * frequency, octave setting, and the string-specific pitch ratios by adjusting each player's
- * playback rate before starting it.
+ * frequency, octave setting (using the interpolated multiplier for smooth transitions),
+ * and the string-specific pitch ratios by adjusting each player's playback rate before starting it.
  */
 function schedulePluckCycle(_time?: number): void {
   if (pluckPlayers.length < 4) return;
   const baseTime = Tone.now() + 0.02; // AudioContext time, small lookahead
-  const base = baseFreqRef * PITCH_OCTAVE_DOWN * getOctaveMultiplier(octaveRef);
+  const base = baseFreqRef * PITCH_OCTAVE_DOWN * currentOctaveMultiplier;
   const delayPerPluck = pluckDelaySecRef;
 
   PLUCK_RATIOS.forEach((ratio, i) => {
@@ -183,13 +189,14 @@ function createSynthPluckChain(_baseFreqHz: number) {
 /**
  * Schedule four plucked notes on the synth, one per tanpura string, starting at the given transport time.
  *
- * Each pluck uses the current base frequency, selected octave, and string-specific ratio; successive plucks are spaced by the configured pluck delay and use the configured note length for release.
+ * Each pluck uses the current base frequency, the interpolated octave multiplier for smooth transitions,
+ * and string-specific ratio; successive plucks are spaced by the configured pluck delay and use the configured note length for release.
  *
  * @param time - Transport time (in seconds) at which the first string's pluck should occur
  */
 function scheduleSynthPluckCycle(time: number): void {
   if (!polySynth) return;
-  const base = baseFreqRef * PITCH_OCTAVE_DOWN * getOctaveMultiplier(octaveRef);
+  const base = baseFreqRef * PITCH_OCTAVE_DOWN * currentOctaveMultiplier;
   const delayPerPluck = pluckDelaySecRef;
 
   PLUCK_RATIOS.forEach((ratio, i) => {
@@ -222,8 +229,13 @@ export async function startTanpura(
   if (typeof window === 'undefined') return;
   await Tone.start();
 
+  // Initialize both current and target values for smooth transitions
   baseFreqRef = baseFreqHz;
+  targetBaseFreq = baseFreqHz;
   octaveRef = octave;
+  targetOctave = octave;
+  currentOctaveMultiplier = getOctaveMultiplier(octave);
+  targetOctaveMultiplier = getOctaveMultiplier(octave);
   volumeRef = volumeLinear;
   pluckDelaySecRef = Math.max(0.8, Math.min(2.5, pluckDelaySec));
   noteLengthSecRef = Math.max(2, Math.min(8, noteLengthSec));
@@ -273,9 +285,9 @@ export function stopTanpura(): void {
   }
 
   if (useSample && pluckPlayers.length > 0) {
-    pluckPlayers.forEach(p => { try { p.stop(); } catch (_) {} });
+    pluckPlayers.forEach(p => { try { p.stop(); } catch (_) { } });
   } else if (polySynth) {
-    try { polySynth.releaseAll(); } catch (_) {}
+    try { polySynth.releaseAll(); } catch (_) { }
   }
 
   Tone.getTransport().stop();
@@ -294,27 +306,95 @@ export function setTanpuraVolume(volumeLinear: number): void {
 }
 
 /**
+ * Starts a smooth transition animation for frequency and/or octave changes.
+ * Uses requestAnimationFrame to interpolate values over TRANSITION_DURATION_SEC.
+ */
+function startTransitionAnimation(): void {
+  if (transitionAnimationId !== null) return; // Already animating
+
+  const startTime = performance.now();
+  const startFreq = baseFreqRef;
+  const startOctaveMult = currentOctaveMultiplier;
+  const endFreq = targetBaseFreq;
+  const endOctaveMult = targetOctaveMultiplier;
+  const durationMs = TRANSITION_DURATION_SEC * 1000;
+
+  function animate(currentTime: number) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / durationMs, 1);
+
+    // Use ease-out cubic for smooth deceleration
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    // Interpolate frequency (logarithmic interpolation for pitch)
+    const logStart = Math.log(startFreq);
+    const logEnd = Math.log(endFreq);
+    baseFreqRef = Math.exp(logStart + (logEnd - logStart) * eased);
+
+    // Interpolate octave multiplier (also logarithmic for pitch)
+    const logOctStart = Math.log(startOctaveMult);
+    const logOctEnd = Math.log(endOctaveMult);
+    currentOctaveMultiplier = Math.exp(logOctStart + (logOctEnd - logOctStart) * eased);
+
+    if (progress < 1) {
+      transitionAnimationId = requestAnimationFrame(animate);
+    } else {
+      // Ensure we land exactly on target values
+      baseFreqRef = targetBaseFreq;
+      currentOctaveMultiplier = targetOctaveMultiplier;
+      octaveRef = targetOctave;
+      transitionAnimationId = null;
+    }
+  }
+
+  transitionAnimationId = requestAnimationFrame(animate);
+}
+
+/**
+ * Get the current effective octave multiplier (may be mid-transition).
+ */
+function getEffectiveOctaveMultiplier(): number {
+  return currentOctaveMultiplier;
+}
+
+/**
  * Update the Tanpura's base pitch used to compute per-string frequencies.
+ * Smoothly transitions to the new frequency over TRANSITION_DURATION_SEC.
  *
  * @param baseFreqHz - Base frequency in hertz for the tanpura cycle
  */
 export function setTanpuraFrequency(baseFreqHz: number): void {
-  baseFreqRef = baseFreqHz;
+  targetBaseFreq = baseFreqHz;
+
+  if (!isStarted) {
+    // If not playing, just set immediately
+    baseFreqRef = baseFreqHz;
+    return;
+  }
+
+  // Start smooth transition
+  startTransitionAnimation();
 }
 
 /**
  * Set the tanpura's octave for subsequent pluck cycles.
- *
- * If the tanpura is currently running, immediately schedules a pluck cycle using the new octave so the change is audible without waiting for the next loop period.
+ * Smoothly transitions to the new octave over TRANSITION_DURATION_SEC.
  *
  * @param octave - The target octave: `'low'`, `'medium'`, or `'high'`
  */
 export function setTanpuraOctave(octave: Octave): void {
-  octaveRef = octave;
-  if (!isStarted) return;
-  const now = Tone.getTransport().seconds;
-  if (useSample) schedulePluckCycle(now);
-  else scheduleSynthPluckCycle(now);
+  targetOctave = octave;
+  targetOctaveMultiplier = getOctaveMultiplier(octave);
+
+  if (!isStarted) {
+    // If not playing, just set immediately
+    octaveRef = octave;
+    currentOctaveMultiplier = targetOctaveMultiplier;
+    return;
+  }
+
+  // Start smooth transition
+  startTransitionAnimation();
 }
 
 /**
@@ -369,22 +449,28 @@ export function setTanpuraNoteLength(seconds: number): void {
  * the Tanpura as not started so it can be safely reinitialized.
  */
 export function disposeTanpura(): void {
+  // Cancel any ongoing transition animation
+  if (transitionAnimationId !== null) {
+    cancelAnimationFrame(transitionAnimationId);
+    transitionAnimationId = null;
+  }
+
   try {
     if (pluckLoop) {
       pluckLoop.stop();
       pluckLoop.dispose();
     }
-    pluckPlayers.forEach(p => { try { p.stop(); } catch (_) {} });
+    pluckPlayers.forEach(p => { try { p.stop(); } catch (_) { } });
     if (polySynth) polySynth.releaseAll();
     Tone.getTransport().stop();
-  } catch (_) {}
+  } catch (_) { }
 
   try {
     volumeNode?.dispose();
     pluckReverb?.dispose();
     pluckPlayers.forEach(p => p.dispose());
     polySynth?.dispose();
-  } catch (_) {}
+  } catch (_) { }
 
   volumeNode = null;
   pluckReverb = null;

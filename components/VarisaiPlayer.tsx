@@ -68,10 +68,14 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   const baseFreqRef = useRef(baseFreq);
   const baseBPMRef = useRef(baseBPM);
   const notesPerBeatRef = useRef(notesPerBeat);
+  const selectedVarisaiRef = useRef<Varisai>(selectedVarisai);
+  const selectedRagaRef = useRef<MelakartaRaga>(selectedRaga);
   baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
   notesPerBeatRef.current = notesPerBeat;
   instrumentIdRef.current = instrumentId;
+  selectedVarisaiRef.current = selectedVarisai;
+  selectedRagaRef.current = selectedRaga;
 
   useEffect(() => {
     instrumentIdRef.current = instrumentId;
@@ -168,15 +172,15 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     if (note === ";") {
       return ";";
     }
-    
+
     const parsed = parseVarisaiNote(note);
-    
+
     // Extract the swara variants from the raga's arohana (remove octave indicators)
     const arohana = raga.arohana.map(n => {
       const p = parseVarisaiNote(n);
       return p.swara; // Get base swara without octave
     });
-    
+
     const swaraMap: { [key: string]: string } = {
       "S": arohana[0] || "S",           // First note is always S
       "R": arohana[1] || "R1",          // Second note is R variant
@@ -186,9 +190,9 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       "D": arohana[5] || "D1",          // Sixth note is D variant
       "N": arohana[6] || "N1",          // Seventh note is N variant
     };
-    
+
     const baseSwara = swaraMap[parsed.swara] || parsed.swara;
-    
+
     // Preserve octave indicator from the original note
     if (parsed.octave === 'higher') {
       return `>${baseSwara}`;
@@ -266,12 +270,12 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     if (!audioContextRef.current || !notePlayer.osc || !notePlayer.gain) return;
     const now = audioContextRef.current.currentTime;
     notePlayer.gain.gain.cancelScheduledValues(now);
-    
+
     // Fade out quickly
     const currentGain = notePlayer.gain.gain.value;
     notePlayer.gain.gain.setValueAtTime(currentGain, now);
     notePlayer.gain.gain.linearRampToValueAtTime(0, now + 0.05); // Quick fade out
-    
+
     // Stop the oscillator
     try {
       notePlayer.osc.stop(now + 0.05);
@@ -309,15 +313,15 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     try {
       notePlayer.osc!.stop(newStopTime);
       notePlayer.stopTime = newStopTime;
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const playVarisai = (silent: boolean = false, varisaiOverride?: Varisai) => {
     if (!isPlayingRef.current) return;
 
-    // Use override if provided, otherwise use selectedVarisai
-    const varisaiToPlay = varisaiOverride || selectedVarisai;
-    const notes = varisaiToPlay.notes.map(note => convertVarisaiNoteToRaga(note, selectedRaga));
+    // Use override if provided, otherwise use ref for latest value
+    const varisaiToPlay = varisaiOverride || selectedVarisaiRef.current;
+    const notes = varisaiToPlay.notes.map(note => convertVarisaiNoteToRaga(note, selectedRagaRef.current));
     const totalNotes = notes.length;
     let lastNotePlayer: NotePlayer | null = null;
 
@@ -375,10 +379,10 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
             practicePlayCountRef.current = 0;
             setPracticePlayCount(0);
             setCurrentNoteIndex(0);
-            
+
             // Get current exercise index from ref to avoid stale closure
             const currentExercise = currentPracticeExerciseRef.current;
-            
+
             if (currentExercise < currentVarisaiData.length - 1) {
               // Move to next exercise
               const nextExercise = currentExercise + 1;
@@ -386,7 +390,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
               currentPracticeExerciseRef.current = nextExercise;
               setCurrentPracticeExercise(nextExercise);
               setSelectedVarisai(nextVarisai);
-              
+
               if (isPlayingRef.current) {
                 playVarisai(false, nextVarisai); // Play with sound
               }
@@ -473,7 +477,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
           lastNotePlayer.gain.gain.linearRampToValueAtTime(0, now + 0.02);
           try {
             lastNotePlayer.osc.stop(now + 0.02);
-          } catch (e) {}
+          } catch (e) { }
         }
       }
 
@@ -588,14 +592,14 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     oscillatorsRef.current.forEach(osc => {
       try {
         osc.stop();
-      } catch (e) {}
+      } catch (e) { }
     });
     oscillatorsRef.current = [];
 
     if (soundfontPlayerRef.current) {
       try {
         soundfontPlayerRef.current.stop();
-      } catch (e) {}
+      } catch (e) { }
       soundfontPlayerRef.current = null;
     }
 
@@ -641,6 +645,22 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     practicePlayCountRef.current = 0;
   };
 
+  const handleRagaChange = (ragaName: string) => {
+    const raga = MELAKARTA_RAGAS.find(r => r.name === ragaName);
+    if (raga) {
+      const wasPlaying = isPlayingRef.current;
+      if (wasPlaying) {
+        stopPlaying();
+      }
+      setSelectedRaga(raga);
+      if (wasPlaying) {
+        setTimeout(() => {
+          startPlaying();
+        }, 100);
+      }
+    }
+  };
+
   const handleBaseBPMChange = (newBaseBPM: number) => {
     baseBPMRef.current = newBaseBPM;
     setBaseBPM(newBaseBPM);
@@ -655,7 +675,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     return () => {
       stopPlaying();
       if (audioContextRef.current) {
-        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current.close().catch(() => { });
       }
     };
   }, []);
@@ -721,10 +741,9 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                   transition-all duration-200
                   text-sm font-medium
                   ${isPlaying ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  ${
-                    varisaiType === type
-                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                      : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
+                  ${varisaiType === type
+                    ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
                   }
                 `}
               >
@@ -742,10 +761,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
           <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full">
             <select
               value={selectedRaga.name}
-              onChange={(e) => {
-                const raga = MELAKARTA_RAGAS.find(r => r.name === e.target.value);
-                if (raga) setSelectedRaga(raga);
-              }}
+              onChange={(e) => handleRagaChange(e.target.value)}
               className="flex-1 min-w-0 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
             >
               {[...MELAKARTA_RAGAS].sort((a, b) => {
@@ -760,21 +776,19 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
             <div className="flex gap-2 flex-shrink-0 justify-center sm:justify-start">
               <button
                 onClick={() => setSortOrder('number')}
-                className={`px-3 py-2 rounded text-sm whitespace-nowrap transition-all ${
-                  sortOrder === 'number'
-                    ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                }`}
+                className={`px-3 py-2 rounded text-sm whitespace-nowrap transition-all ${sortOrder === 'number'
+                  ? 'bg-amber-500 text-slate-900'
+                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                  }`}
               >
                 By Number
               </button>
               <button
                 onClick={() => setSortOrder('alphabetical')}
-                className={`px-3 py-2 rounded text-sm whitespace-nowrap transition-all ${
-                  sortOrder === 'alphabetical'
-                    ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                }`}
+                className={`px-3 py-2 rounded text-sm whitespace-nowrap transition-all ${sortOrder === 'alphabetical'
+                  ? 'bg-amber-500 text-slate-900'
+                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                  }`}
               >
                 A-Z
               </button>
@@ -902,14 +916,13 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                     text-sm font-medium
                     w-full max-w-[60px]
                     ${inPracticeOrSingAlong && !canChangeStartFrom ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                    ${
-                      isStartFromFirst
-                        ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                        : isStartFromExercise
-                          ? 'shadow-lg'
-                          : selectedVarisai.number === varisai.number
-                            ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
-                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
+                    ${isStartFromFirst
+                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                      : isStartFromExercise
+                        ? 'shadow-lg'
+                        : selectedVarisai.number === varisai.number
+                          ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+                          : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
                     }
                   `}
                 >
@@ -933,8 +946,8 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
               relative w-32 h-32 md:w-40 md:h-40 rounded-full
               border-2 border-[var(--border)]
               transition-all duration-300 ease-out
-              ${isPlaying 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105 border-[var(--accent)]' 
+              ${isPlaying
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/50 scale-105 border-[var(--accent)]'
                 : 'bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
               }
               flex items-center justify-center
@@ -942,14 +955,13 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
             `}
           >
             <div className={`
-              absolute inset-0 rounded-full
+              absolute inset-0 rounded-full pointer-events-none
               ${isPlaying ? 'animate-ping opacity-20' : ''}
               ${isPlaying ? 'bg-amber-400' : ''}
             `} />
             <svg
-              className={`w-12 h-12 md:w-16 md:h-16 transition-transform duration-300 ${
-                isPlaying ? 'scale-110' : 'scale-100 group-hover:scale-105'
-              }`}
+              className={`w-12 h-12 md:w-16 md:h-16 transition-transform duration-300 ${isPlaying ? 'scale-110' : 'scale-100 group-hover:scale-105'
+                }`}
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -960,11 +972,11 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
               )}
             </svg>
           </button>
-          
+
           <p className="mt-4 text-slate-400 text-sm">
             {isPlaying ? `Playing at ${baseBPM} BPM (${notesPerBeat} note${notesPerBeat > 1 ? 's' : ''} per beat)` : 'Stopped'}
           </p>
-          
+
           {/* Loop Toggle */}
           <div className="mt-4 flex items-center justify-center gap-2">
             <input
@@ -1043,10 +1055,9 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                       className={`
                         w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
                         transition-all duration-200
-                        ${
-                          isPlaying && index === currentNoteIndex
-                            ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
-                            : isPlaying && index < currentNoteIndex
+                        ${isPlaying && index === currentNoteIndex
+                          ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
+                          : isPlaying && index < currentNoteIndex
                             ? 'bg-slate-700/30 text-slate-500'
                             : 'bg-slate-700/50 text-slate-300'
                         }
@@ -1056,7 +1067,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                     </div>
                   );
                 }
-                
+
                 const parsed = parseVarisaiNote(note);
                 // Display base swara in selected script (S R G M P D N → English/Devanagari/Kannada)
                 const baseSwara = parsed.swara.charAt(0);
@@ -1067,10 +1078,9 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                     className={`
                       w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
                       transition-all duration-200
-                      ${
-                        isPlaying && index === currentNoteIndex
-                          ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
-                          : isPlaying && index < currentNoteIndex
+                      ${isPlaying && index === currentNoteIndex
+                        ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
+                        : isPlaying && index < currentNoteIndex
                           ? 'bg-slate-700/30 text-slate-500'
                           : 'bg-slate-700/50 text-slate-300'
                       }
