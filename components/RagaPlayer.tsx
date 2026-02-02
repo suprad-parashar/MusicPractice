@@ -149,7 +149,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     oscillatorsRef.current.push(osc);
   };
 
-  const playRaga = () => {
+  const playRaga = (startIndex: number = 0) => {
     if (!isPlayingRef.current) return;
 
     // Play arohana (ascending), then avarohana (descending) with higher Sa played twice
@@ -201,7 +201,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       }, noteDurationMs);
     };
 
-    playNextNote(0);
+    playNextNote(startIndex);
   };
 
   const startPlaying = async () => {
@@ -238,7 +238,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
 
       isPlayingRef.current = true;
       setIsPlaying(true);
-      playRaga();
+      playRaga(0);
     } catch (error) {
       console.error('Error starting raga playback:', error);
       setIsPlaying(false);
@@ -269,6 +269,69 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       } catch (e) { }
       soundfontPlayerRef.current = null;
     }
+  };
+
+  // Seek to a specific note index and continue playback from there
+  const seekToNote = async (noteIndex: number) => {
+    // Clear existing playback timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    // Stop any currently playing notes
+    oscillatorsRef.current.forEach(osc => {
+      try {
+        osc.stop();
+      } catch (e) { }
+    });
+    oscillatorsRef.current = [];
+
+    if (soundfontPlayerRef.current) {
+      try {
+        soundfontPlayerRef.current.stop();
+      } catch (e) { }
+    }
+
+    // If not playing, start playback from this note
+    if (!isPlayingRef.current) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContextClass();
+        }
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+        if (!masterGainRef.current) {
+          masterGainRef.current = audioContextRef.current.createGain();
+          masterGainRef.current.connect(audioContextRef.current.destination);
+          masterGainRef.current.gain.value = linearToLogGain(volume);
+        }
+
+        if (!isSineInstrument(instrumentIdRef.current)) {
+          try {
+            soundfontPlayerRef.current = await getInstrument(
+              audioContextRef.current,
+              instrumentIdRef.current,
+              masterGainRef.current
+            );
+          } catch (err) {
+            console.error('Failed to load instrument:', err);
+            return;
+          }
+        }
+
+        isPlayingRef.current = true;
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('Error starting raga playback:', error);
+        return;
+      }
+    }
+
+    // Start playback from the clicked note
+    playRaga(noteIndex);
   };
 
   const handleRagaChange = (ragaName: string) => {
@@ -458,14 +521,15 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                   return (
                     <div
                       key={`arohana-${index}`}
+                      onClick={() => seekToNote(globalIndex)}
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative
-                        transition-all duration-200
+                        transition-all duration-200 cursor-pointer hover:scale-105
                         ${isPlaying && globalIndex === currentNoteIndex
                           ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
                           : isPlaying && globalIndex < currentNoteIndex
-                            ? 'bg-slate-700/30 text-slate-500'
-                            : 'bg-slate-700/50 text-slate-300'
+                            ? 'bg-slate-700/30 text-slate-500 hover:bg-slate-600/50'
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/70'
                         }
                       `}
                     >
@@ -495,14 +559,15 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                   return (
                     <div
                       key={`avarohana-${index}`}
+                      onClick={() => seekToNote(globalIndex)}
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative
-                        transition-all duration-200
+                        transition-all duration-200 cursor-pointer hover:scale-105
                         ${isPlaying && globalIndex === currentNoteIndex
                           ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
                           : isPlaying && globalIndex < currentNoteIndex
-                            ? 'bg-slate-700/30 text-slate-500'
-                            : 'bg-slate-700/50 text-slate-300'
+                            ? 'bg-slate-700/30 text-slate-500 hover:bg-slate-600/50'
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/70'
                         }
                       `}
                     >

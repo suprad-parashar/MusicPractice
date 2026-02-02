@@ -319,7 +319,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     } catch (e) { }
   };
 
-  const playVarisai = (silent: boolean = false, varisaiOverride?: Varisai) => {
+  const playVarisai = (silent: boolean = false, varisaiOverride?: Varisai, startIndex: number = 0) => {
     if (!isPlayingRef.current) return;
 
     // Use override if provided, otherwise use ref for latest value
@@ -516,7 +516,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       timeoutRef.current = setTimeout(() => playNextNote(index + 1), noteDuration);
     };
 
-    playNextNote(0);
+    playNextNote(startIndex);
   };
 
   const startPlaying = async (varisaiOverride?: Varisai) => {
@@ -617,6 +617,75 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       practicePlayCountRef.current = 0;
       setSelectedVarisai(currentVarisaiData[0]);
     }
+  };
+
+  // Seek to a specific note index and continue playback from there
+  // Only works in regular playback mode (not practice/sing-along)
+  const seekToNote = async (noteIndex: number) => {
+    // Disable seeking during practice/sing-along modes
+    if (practiceMode || singAlongMode) return;
+
+    // Clear existing playback timeout and playhead timeouts
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    playheadTimeoutsRef.current.forEach((t) => clearTimeout(t));
+    playheadTimeoutsRef.current = [];
+
+    // Stop any currently playing notes
+    oscillatorsRef.current.forEach(osc => {
+      try {
+        osc.stop();
+      } catch (e) { }
+    });
+    oscillatorsRef.current = [];
+
+    if (soundfontPlayerRef.current) {
+      try {
+        soundfontPlayerRef.current.stop();
+      } catch (e) { }
+    }
+
+    // If not playing, start playback from this note
+    if (!isPlayingRef.current) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!audioContextRef.current) {
+          audioContextRef.current = new AudioContextClass();
+        }
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+        if (!masterGainRef.current) {
+          masterGainRef.current = audioContextRef.current.createGain();
+          masterGainRef.current.connect(audioContextRef.current.destination);
+          masterGainRef.current.gain.value = linearToLogGain(volume);
+        }
+
+        if (!isSineInstrument(instrumentIdRef.current)) {
+          try {
+            soundfontPlayerRef.current = await getInstrument(
+              audioContextRef.current,
+              instrumentIdRef.current,
+              masterGainRef.current
+            );
+          } catch (err) {
+            console.error('Failed to load instrument:', err);
+            return;
+          }
+        }
+
+        isPlayingRef.current = true;
+        setIsPlaying(true);
+      } catch (error) {
+        console.error('Error starting varisai playback:', error);
+        return;
+      }
+    }
+
+    // Start playback from the clicked note
+    playVarisai(false, selectedVarisai, noteIndex);
   };
 
   const handleVarisaiChange = (varisaiNumber: number) => {
@@ -1085,14 +1154,15 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                   return (
                     <div
                       key={index}
+                      onClick={() => seekToNote(index)}
                       className={`
                         w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
-                        transition-all duration-200
+                        transition-all duration-200 ${!practiceMode && !singAlongMode ? 'cursor-pointer hover:scale-105' : ''}
                         ${isPlaying && index === currentNoteIndex
                           ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
                           : isPlaying && index < currentNoteIndex
-                            ? 'bg-slate-700/30 text-slate-500'
-                            : 'bg-slate-700/50 text-slate-300'
+                            ? `bg-slate-700/30 text-slate-500 ${!practiceMode && !singAlongMode ? 'hover:bg-slate-600/50' : ''}`
+                            : `bg-slate-700/50 text-slate-300 ${!practiceMode && !singAlongMode ? 'hover:bg-slate-600/70' : ''}`
                         }
                       `}
                     >
@@ -1108,14 +1178,15 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                 return (
                   <div
                     key={index}
+                    onClick={() => seekToNote(index)}
                     className={`
                       w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
-                      transition-all duration-200
+                      transition-all duration-200 ${!practiceMode && !singAlongMode ? 'cursor-pointer hover:scale-105' : ''}
                       ${isPlaying && index === currentNoteIndex
                         ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
                         : isPlaying && index < currentNoteIndex
-                          ? 'bg-slate-700/30 text-slate-500'
-                          : 'bg-slate-700/50 text-slate-300'
+                          ? `bg-slate-700/30 text-slate-500 ${!practiceMode && !singAlongMode ? 'hover:bg-slate-600/50' : ''}`
+                          : `bg-slate-700/50 text-slate-300 ${!practiceMode && !singAlongMode ? 'hover:bg-slate-600/70' : ''}`
                       }
                     `}
                   >
