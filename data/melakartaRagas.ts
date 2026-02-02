@@ -38,7 +38,7 @@ export const MELAKARTA_RAGAS: MelakartaRaga[] = [
   { number: 26, name: "Charukesi", arohana: ["S", "R2", "G3", "M1", "P", "D1", "N2", ">S"], avarohana: [">S", "N2", "D1", "P", "M1", "G3", "R2", "S"] },
   { number: 27, name: "Sarasangi", arohana: ["S", "R2", "G3", "M1", "P", "D1", "N3", ">S"], avarohana: [">S", "N3", "D1", "P", "M1", "G3", "R2", "S"] },
   { number: 28, name: "Harikambhoji", arohana: ["S", "R2", "G3", "M1", "P", "D2", "N2", ">S"], avarohana: [">S", "N2", "D2", "P", "M1", "G3", "R2", "S"] },
-  { number: 29, name: "Dheerasankarabharanam", arohana: ["S", "R2", "G3", "M1", "P", "D2", "N3", ">S"], avarohana: [">S", "N3", "D2", "P", "M1", "G3", "R2", "S"] },
+  { number: 29, name: "Dheera Shankarabharanam", arohana: ["S", "R2", "G3", "M1", "P", "D2", "N3", ">S"], avarohana: [">S", "N3", "D2", "P", "M1", "G3", "R2", "S"] },
   { number: 30, name: "Naganandini", arohana: ["S", "R2", "G3", "M1", "P", "D3", "N3", ">S"], avarohana: [">S", "N3", "D3", "P", "M1", "G3", "R2", "S"] },
   { number: 31, name: "Yagapriya", arohana: ["S", "R3", "G3", "M1", "P", "D1", "N1", ">S"], avarohana: [">S", "N1", "D1", "P", "M1", "G3", "R3", "S"] },
   { number: 32, name: "Ragavardhini", arohana: ["S", "R3", "G3", "M1", "P", "D1", "N2", ">S"], avarohana: [">S", "N2", "D1", "P", "M1", "G3", "R3", "S"] },
@@ -91,7 +91,7 @@ export const MELAKARTA_RAGAS: MelakartaRaga[] = [
 export function getSwarafrequency(baseFreq: number, swara: string): number {
   // Remove octave indicators if present (shouldn't be, but just in case)
   const cleanSwara = swara.replace(/^[><]/, '');
-  
+
   // Map swaras to semitones from Sa (0 semitones)
   const swaraSemitones: { [key: string]: number } = {
     "S": 0,    // Sa - 0 semitones
@@ -111,7 +111,7 @@ export function getSwarafrequency(baseFreq: number, swara: string): number {
     "N2": 10,  // Kaisiki Nishada - 10 semitones (A#) - same as D3
     "N3": 11,  // Kakali Nishada - 11 semitones (B)
   };
-  
+
   const semitones = swaraSemitones[cleanSwara] || 0;
   // Equal temperament: frequency = baseFreq * 2^(semitones/12)
   const ratio = Math.pow(2, semitones / 12);
