@@ -4,6 +4,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
+import MetronomeSidebar, { type MetronomeMode } from '@/components/MetronomeSidebar';
+import { TALA_ORDER, JATI_ORDER, type TalaName, type JatiName } from '@/data/talas';
 import InstrumentSettings from '@/components/InstrumentSettings';
 import RagaPlayer from '@/components/RagaPlayer';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
@@ -35,6 +37,13 @@ type StoredSettings = {
   voiceOctave?: Octave;
   theme?: ThemeMode;
   accentColor?: string;
+  // Metronome settings
+  metronomeMode?: MetronomeMode;
+  metronomeSimpleBeats?: number;
+  metronomeTala?: TalaName;
+  metronomeJati?: JatiName;
+  metronomeTempo?: number;
+  metronomeVolume?: number;
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -71,6 +80,7 @@ const ACCENT_COLOR_PRESETS: { name: string; value: string }[] = [
 const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
 const VALID_THEMES: ThemeMode[] = ['light', 'light-warm', 'dark', 'dark-slate'];
 const DEFAULT_ACCENT = '#f59e0b';
+const VALID_METRONOME_MODES: MetronomeMode[] = ['simple', 'tala'];
 
 /**
  * Renders the main practice UI with a left settings sidebar and a tabbed practice area.
@@ -136,6 +146,14 @@ export default function Home() {
   const [sidebarSection, setSidebarSection] = useState<SidebarSection>('music');
   const hasLoadedRef = useRef(false);
 
+  // Metronome state
+  const [metronomeMode, setMetronomeMode] = useState<MetronomeMode>('simple');
+  const [metronomeSimpleBeats, setMetronomeSimpleBeats] = useState(4);
+  const [metronomeTala, setMetronomeTala] = useState<TalaName>('triputa');
+  const [metronomeJati, setMetronomeJati] = useState<JatiName>('chatusra');
+  const [metronomeTempo, setMetronomeTempo] = useState(60);
+  const [metronomeVolume, setMetronomeVolume] = useState(0.7);
+
   // Load persisted settings before showing UI (avoids any flash of defaults)
   useLayoutEffect(() => {
     const stored = getStored<StoredSettings>(STORAGE_KEY, {});
@@ -156,6 +174,13 @@ export default function Home() {
     if (stored.theme && VALID_THEMES.includes(stored.theme)) setTheme(stored.theme);
     else if (String(stored.theme) === 'high-contrast') setTheme('dark');
     if (typeof stored.accentColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(stored.accentColor)) setAccentColor(stored.accentColor);
+    // Load metronome settings
+    if (stored.metronomeMode && VALID_METRONOME_MODES.includes(stored.metronomeMode)) setMetronomeMode(stored.metronomeMode);
+    if (typeof stored.metronomeSimpleBeats === 'number' && stored.metronomeSimpleBeats >= 1 && stored.metronomeSimpleBeats <= 9) setMetronomeSimpleBeats(stored.metronomeSimpleBeats);
+    if (stored.metronomeTala && TALA_ORDER.includes(stored.metronomeTala)) setMetronomeTala(stored.metronomeTala);
+    if (stored.metronomeJati && JATI_ORDER.includes(stored.metronomeJati)) setMetronomeJati(stored.metronomeJati);
+    if (typeof stored.metronomeTempo === 'number' && stored.metronomeTempo >= 30 && stored.metronomeTempo <= 300) setMetronomeTempo(stored.metronomeTempo);
+    if (typeof stored.metronomeVolume === 'number' && stored.metronomeVolume >= 0 && stored.metronomeVolume <= 1) setMetronomeVolume(stored.metronomeVolume);
     hasLoadedRef.current = true;
     setStorageReady(true);
   }, []);
@@ -254,8 +279,15 @@ export default function Home() {
       voiceOctave,
       theme,
       accentColor,
+      // Metronome settings
+      metronomeMode,
+      metronomeSimpleBeats,
+      metronomeTala,
+      metronomeJati,
+      metronomeTempo,
+      metronomeVolume,
     });
-  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, voiceOctave, theme, accentColor]);
+  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeTempo, metronomeVolume]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
@@ -321,6 +353,20 @@ export default function Home() {
             onNoteLengthChange={setTanpuraNoteLength}
             octave={tanpuraOctave}
             onOctaveChange={setTanpuraOctave}
+          />
+          <MetronomeSidebar
+            mode={metronomeMode}
+            onModeChange={setMetronomeMode}
+            simpleBeats={metronomeSimpleBeats}
+            onSimpleBeatsChange={setMetronomeSimpleBeats}
+            tala={metronomeTala}
+            onTalaChange={setMetronomeTala}
+            jati={metronomeJati}
+            onJatiChange={setMetronomeJati}
+            tempo={metronomeTempo}
+            onTempoChange={setMetronomeTempo}
+            volume={metronomeVolume}
+            onVolumeChange={setMetronomeVolume}
           />
         </aside>
 

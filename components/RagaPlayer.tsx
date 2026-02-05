@@ -28,8 +28,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [baseBPM, setBaseBPM] = useState(90); // Base BPM (30-120)
-  const [tempoInputValue, setTempoInputValue] = useState('90'); // Local state for typing
+  const [baseBPM, setBaseBPM] = useState(60);
+  const [tempoInputValue, setTempoInputValue] = useState(String(60));
   const [loop, setLoop] = useState(false); // Loop playback
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
@@ -54,6 +54,11 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   baseBPMRef.current = baseBPM;
   instrumentIdRef.current = instrumentId;
   selectedRagaRef.current = selectedRaga;
+
+  // Sync tempo input when baseBPM changes
+  useEffect(() => {
+    setTempoInputValue(String(baseBPM));
+  }, [baseBPM]);
 
   // Sync sidebar voice volume to master gain when it changes
   useEffect(() => {
@@ -84,16 +89,12 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
 
   // Load persisted raga practice settings before first paint (avoids flash of defaults)
   const RAGA_STORAGE_KEY = 'ragaSettings';
-  type StoredRagaSettings = { ragaNumber?: number; baseBPM?: number; loop?: boolean };
+  type StoredRagaSettings = { ragaNumber?: number; loop?: boolean };
   useLayoutEffect(() => {
     const stored = getStored<StoredRagaSettings>(RAGA_STORAGE_KEY, {});
     if (typeof stored.ragaNumber === 'number') {
       const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
       if (raga) setSelectedRaga(raga);
-    }
-    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) {
-      setBaseBPM(stored.baseBPM);
-      setTempoInputValue(String(stored.baseBPM));
     }
     if (typeof stored.loop === 'boolean') setLoop(stored.loop);
     hasLoadedRagaRef.current = true;
@@ -104,10 +105,9 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     if (!hasLoadedRagaRef.current) return;
     setStored(RAGA_STORAGE_KEY, {
       ragaNumber: selectedRaga?.number,
-      baseBPM,
       loop,
     });
-  }, [selectedRaga, baseBPM, loop]);
+  }, [selectedRaga, loop]);
 
   // Get sorted ragas (always alphabetical)
   const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => a.name.localeCompare(b.name));

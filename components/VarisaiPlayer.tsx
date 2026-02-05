@@ -42,8 +42,8 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   );
   const [sortOrder, setSortOrder] = useState<SortOrder>('number');
   const [isPlaying, setIsPlaying] = useState(false);
-  const [baseBPM, setBaseBPM] = useState(90);
-  const [tempoInputValue, setTempoInputValue] = useState('90'); // Local state for typing
+  const [baseBPM, setBaseBPM] = useState(60);
+  const [tempoInputValue, setTempoInputValue] = useState(String(60));
   const [notesPerBeat, setNotesPerBeat] = useState(1);
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
@@ -80,6 +80,11 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   selectedRagaRef.current = selectedRaga;
   loopRef.current = loop;
 
+  // Sync tempo input when baseBPM changes
+  useEffect(() => {
+    setTempoInputValue(String(baseBPM));
+  }, [baseBPM]);
+
   useEffect(() => {
     instrumentIdRef.current = instrumentId;
     if (isSineInstrument(instrumentId)) {
@@ -107,7 +112,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     selectedVarisaiNumber?: number;
     ragaNumber?: number;
     sortOrder?: SortOrder;
-    baseBPM?: number;
     notesPerBeat?: number;
     loop?: boolean;
     practiceMode?: boolean;
@@ -130,7 +134,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       if (raga) setSelectedRaga(raga);
     }
     if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
-    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) setBaseBPM(stored.baseBPM);
     if (typeof stored.notesPerBeat === 'number' && [1, 2, 3, 4, 5].includes(stored.notesPerBeat)) setNotesPerBeat(stored.notesPerBeat);
     if (typeof stored.loop === 'boolean') setLoop(stored.loop);
     if (typeof stored.practiceMode === 'boolean') setPracticeMode(stored.practiceMode);
@@ -149,7 +152,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       selectedVarisaiNumber: selectedVarisai?.number,
       ragaNumber: selectedRaga?.number,
       sortOrder,
-      baseBPM,
       notesPerBeat,
       loop,
       practiceMode,
@@ -157,7 +159,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       startFromCurrentExercise,
       startFromCurrentIndex,
     });
-  }, [varisaiType, selectedVarisai, selectedRaga, sortOrder, baseBPM, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
+  }, [varisaiType, selectedVarisai, selectedRaga, sortOrder, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
 
   // Sync sidebar voice volume to master gain when it changes
   useEffect(() => {
