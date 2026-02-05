@@ -317,18 +317,27 @@ export default function MetronomeSidebar({
 
             {/* Tempo Control */}
             <div className="mb-3 sm:mb-4">
-                <div className="flex flex-row items-center justify-center gap-2">
-                    <label className="text-xs font-medium text-slate-300 shrink-0">Tempo</label>
-                    <div className="flex flex-row items-stretch rounded-lg border border-slate-600 bg-slate-800/50 overflow-hidden shrink-0">
-                        <button
-                            type="button"
-                            onClick={decrementTempo}
-                            disabled={tempo <= TEMPO_MIN}
-                            aria-label="Decrease tempo"
-                            className="h-8 w-8 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors border-r border-slate-600"
-                        >
-                            −
-                        </button>
+                <label className="block text-xs font-medium text-slate-300 mb-2 text-center">Tempo</label>
+                <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden max-w-xs mx-auto divide-x divide-slate-600">
+                    <button
+                        type="button"
+                        onClick={() => handleTempoChange(Math.max(TEMPO_MIN, Math.floor(tempo / 2)))}
+                        disabled={tempo <= TEMPO_MIN}
+                        aria-label="Halve tempo"
+                        className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+                    >
+                        ÷2
+                    </button>
+                    <button
+                        type="button"
+                        onClick={decrementTempo}
+                        disabled={tempo <= TEMPO_MIN}
+                        aria-label="Decrease tempo"
+                        className="flex-1 w-0 h-10 flex items-center justify-center text-lg text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+                    >
+                        −
+                    </button>
+                    <div className="flex-1 w-0 h-10 px-1 flex items-center justify-center text-sm font-semibold text-slate-900 bg-amber-500">
                         <input
                             type="text"
                             inputMode="numeric"
@@ -347,20 +356,28 @@ export default function MetronomeSidebar({
                                 onTempoChange(num);
                                 setTempoInputValue(String(num));
                             }}
-                            className="w-10 flex items-center justify-center text-center text-sm font-semibold text-slate-900 bg-amber-500 border-r border-slate-600 outline-none"
+                            className="w-full text-center text-sm font-semibold text-slate-900 bg-transparent outline-none"
                             aria-label="Tempo BPM"
                         />
-                        <button
-                            type="button"
-                            onClick={incrementTempo}
-                            disabled={tempo >= TEMPO_MAX}
-                            aria-label="Increase tempo"
-                            className="h-8 w-8 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors"
-                        >
-                            +
-                        </button>
                     </div>
-                    <span className="text-xs text-slate-400">BPM</span>
+                    <button
+                        type="button"
+                        onClick={incrementTempo}
+                        disabled={tempo >= TEMPO_MAX}
+                        aria-label="Increase tempo"
+                        className="flex-1 w-0 h-10 flex items-center justify-center text-lg text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+                    >
+                        +
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleTempoChange(Math.min(TEMPO_MAX, tempo * 2))}
+                        disabled={tempo >= TEMPO_MAX}
+                        aria-label="Double tempo"
+                        className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+                    >
+                        x2
+                    </button>
                 </div>
             </div>
 
