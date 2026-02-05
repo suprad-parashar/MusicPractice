@@ -12,7 +12,7 @@ import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
 import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
-import { getOctaveMultiplier, type Octave } from '@/lib/tanpuraTone';
+import { getOctaveMultiplier, TANPURA_PATTERN_ORDER, type Octave, type TanpuraPatternId } from '@/lib/tanpuraTone';
 import { getStored, setStored } from '@/lib/storage';
 import { version } from '@/package.json';
 
@@ -34,6 +34,7 @@ type StoredSettings = {
   tanpuraPluckDelay?: number;
   tanpuraNoteLength?: number;
   tanpuraOctave?: Octave;
+  tanpuraPattern?: TanpuraPatternId;
   voiceOctave?: Octave;
   theme?: ThemeMode;
   accentColor?: string;
@@ -139,6 +140,7 @@ export default function Home() {
   const [tanpuraPluckDelay, setTanpuraPluckDelay] = useState(1.4);
   const [tanpuraNoteLength, setTanpuraNoteLength] = useState(5);
   const [tanpuraOctave, setTanpuraOctave] = useState<Octave>('medium');
+  const [tanpuraPattern, setTanpuraPattern] = useState<TanpuraPatternId>('p-hs-hs-s');
   const [voiceOctave, setVoiceOctave] = useState<Octave>('medium');
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
@@ -170,6 +172,7 @@ export default function Home() {
     if (typeof stored.tanpuraPluckDelay === 'number' && stored.tanpuraPluckDelay >= 0.8 && stored.tanpuraPluckDelay <= 2.5) setTanpuraPluckDelay(stored.tanpuraPluckDelay);
     if (typeof stored.tanpuraNoteLength === 'number' && stored.tanpuraNoteLength >= 2 && stored.tanpuraNoteLength <= 8) setTanpuraNoteLength(stored.tanpuraNoteLength);
     if (stored.tanpuraOctave && VALID_OCTAVES.includes(stored.tanpuraOctave)) setTanpuraOctave(stored.tanpuraOctave);
+    if (stored.tanpuraPattern && TANPURA_PATTERN_ORDER.includes(stored.tanpuraPattern)) setTanpuraPattern(stored.tanpuraPattern);
     if (stored.voiceOctave && VALID_OCTAVES.includes(stored.voiceOctave)) setVoiceOctave(stored.voiceOctave);
     if (stored.theme && VALID_THEMES.includes(stored.theme)) setTheme(stored.theme);
     else if (String(stored.theme) === 'high-contrast') setTheme('dark');
@@ -276,6 +279,7 @@ export default function Home() {
       tanpuraPluckDelay,
       tanpuraNoteLength,
       tanpuraOctave,
+      tanpuraPattern,
       voiceOctave,
       theme,
       accentColor,
@@ -286,7 +290,7 @@ export default function Home() {
       metronomeJati,
       metronomeVolume,
     });
-  }, [selectedKey, activeTab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume]);
+  }, [selectedKey, activeTab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, tanpuraPattern, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
@@ -352,6 +356,8 @@ export default function Home() {
             onNoteLengthChange={setTanpuraNoteLength}
             octave={tanpuraOctave}
             onOctaveChange={setTanpuraOctave}
+            pattern={tanpuraPattern}
+            onPatternChange={setTanpuraPattern}
           />
           <MetronomeSidebar
             mode={metronomeMode}
