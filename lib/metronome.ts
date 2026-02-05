@@ -16,7 +16,7 @@ const EMPHASIS_SETTINGS: Record<BeatEmphasis, { freq: number; duration: string; 
 };
 
 const VOLUME_ATTENUATION_DB = -6;
-const DEFAULT_TEMPO = 60; // BPM
+const DEFAULT_TEMPO = 90; // BPM
 
 let volumeNode: Tone.Volume | null = null;
 let synth: Tone.Synth | null = null;

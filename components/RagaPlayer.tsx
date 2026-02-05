@@ -28,8 +28,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [baseBPM, setBaseBPM] = useState(60);
-  const [tempoInputValue, setTempoInputValue] = useState(String(60));
+  const [baseBPM, setBaseBPM] = useState(90);
+  const [tempoInputValue, setTempoInputValue] = useState(String(90));
   const [loop, setLoop] = useState(false); // Loop playback
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
@@ -537,7 +537,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
               <button
                 type="button"
                 onClick={() => { const v = Math.max(30, Math.round(Math.floor(baseBPM / 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
-                disabled={Math.floor(baseBPM / 2) < 30}
+                disabled={baseBPM <= 30}
                 aria-label="Halve tempo"
                 className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
               >
@@ -586,7 +586,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
               <button
                 type="button"
                 onClick={() => { const v = Math.min(300, Math.round((baseBPM * 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
-                disabled={baseBPM * 2 > 300}
+                disabled={baseBPM >= 300}
                 aria-label="Double tempo"
                 className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
               >

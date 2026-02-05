@@ -198,7 +198,6 @@ export default function MetronomeSidebar({
                 </div>
             )}
 
-            {/* Tala Mode: Tala and Jati Selection */}
             {mode === 'tala' && (
                 <>
                     <div className="mb-3 sm:mb-4">
@@ -255,6 +254,57 @@ export default function MetronomeSidebar({
                         <p className="text-xs text-slate-400">
                             {totalBeats} beats • {getTalaPatternNotation(tala)}
                         </p>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="mb-3 sm:mb-4">
+                        <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
+                            Quick Presets
+                        </label>
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                            <button
+                                onClick={() => { onTalaChange('triputa'); onJatiChange('chatusra'); }}
+                                className={`
+                                    px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-full transition-all duration-200
+                                    focus:outline-none focus:ring-0
+                                    ${tala === 'triputa' && jati === 'chatusra'
+                                        ? 'bg-amber-500 text-slate-900'
+                                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                                    }
+                                `}
+                                title="Chatusra Triputa (8 beats)"
+                            >
+                                Adi
+                            </button>
+                            <button
+                                onClick={() => { onTalaChange('triputa'); onJatiChange('tisra'); }}
+                                className={`
+                                    px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-full transition-all duration-200
+                                    focus:outline-none focus:ring-0
+                                    ${tala === 'triputa' && jati === 'tisra'
+                                        ? 'bg-amber-500 text-slate-900'
+                                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                                    }
+                                `}
+                                title="Tisra Triputa / Misra Chapu (7 beats)"
+                            >
+                                Misra Chapu
+                            </button>
+                            <button
+                                onClick={() => { onTalaChange('rupaka'); onJatiChange('tisra'); }}
+                                className={`
+                                    px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-full transition-all duration-200
+                                    focus:outline-none focus:ring-0
+                                    ${tala === 'rupaka' && jati === 'tisra'
+                                        ? 'bg-amber-500 text-slate-900'
+                                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                                    }
+                                `}
+                                title="Tisra Rupaka / Khanda Chapu (5 beats)"
+                            >
+                                Khanda Chapu
+                            </button>
+                        </div>
                     </div>
                 </>
             )}

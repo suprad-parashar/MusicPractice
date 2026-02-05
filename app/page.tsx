@@ -151,7 +151,7 @@ export default function Home() {
   const [metronomeSimpleBeats, setMetronomeSimpleBeats] = useState(4);
   const [metronomeTala, setMetronomeTala] = useState<TalaName>('triputa');
   const [metronomeJati, setMetronomeJati] = useState<JatiName>('chatusra');
-  const [metronomeTempo, setMetronomeTempo] = useState(60);
+  const [metronomeTempo, setMetronomeTempo] = useState(90);
   const [metronomeVolume, setMetronomeVolume] = useState(0.7);
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
@@ -179,7 +179,7 @@ export default function Home() {
     if (typeof stored.metronomeSimpleBeats === 'number' && stored.metronomeSimpleBeats >= 1 && stored.metronomeSimpleBeats <= 9) setMetronomeSimpleBeats(stored.metronomeSimpleBeats);
     if (stored.metronomeTala && TALA_ORDER.includes(stored.metronomeTala)) setMetronomeTala(stored.metronomeTala);
     if (stored.metronomeJati && JATI_ORDER.includes(stored.metronomeJati)) setMetronomeJati(stored.metronomeJati);
-    if (typeof stored.metronomeTempo === 'number' && stored.metronomeTempo >= 30 && stored.metronomeTempo <= 300) setMetronomeTempo(stored.metronomeTempo);
+    // metronomeTempo is not persisted - always uses default 90
     if (typeof stored.metronomeVolume === 'number' && stored.metronomeVolume >= 0 && stored.metronomeVolume <= 1) setMetronomeVolume(stored.metronomeVolume);
     hasLoadedRef.current = true;
     setStorageReady(true);
@@ -279,15 +279,14 @@ export default function Home() {
       voiceOctave,
       theme,
       accentColor,
-      // Metronome settings
+      // Metronome settings (tempo is not persisted - always defaults to 90)
       metronomeMode,
       metronomeSimpleBeats,
       metronomeTala,
       metronomeJati,
-      metronomeTempo,
       metronomeVolume,
     });
-  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeTempo, metronomeVolume]);
+  }, [selectedKey, activeTab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);

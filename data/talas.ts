@@ -118,7 +118,7 @@ export const TALAS: Record<TalaName, Tala> = {
 };
 
 // Order for UI display (Sapta Talas, then Chapu Talas)
-export const TALA_ORDER: TalaName[] = ['eka', 'rupaka', 'jhampa', 'triputa', 'matya', 'dhruva', 'ata', 'misra_chapu', 'khanda_chapu'];
+export const TALA_ORDER: TalaName[] = ['eka', 'rupaka', 'jhampa', 'triputa', 'matya', 'dhruva', 'ata'];
 
 /**
  * Calculate total beats for a tala with a given jati.
