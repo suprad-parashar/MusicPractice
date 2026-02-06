@@ -43,7 +43,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   const [sortOrder, setSortOrder] = useState<SortOrder>('number');
   const [isPlaying, setIsPlaying] = useState(false);
   const [baseBPM, setBaseBPM] = useState(90);
-  const [tempoInputValue, setTempoInputValue] = useState('90'); // Local state for typing
+  const [tempoInputValue, setTempoInputValue] = useState(String(90));
   const [notesPerBeat, setNotesPerBeat] = useState(1);
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
@@ -80,6 +80,11 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   selectedRagaRef.current = selectedRaga;
   loopRef.current = loop;
 
+  // Sync tempo input when baseBPM changes
+  useEffect(() => {
+    setTempoInputValue(String(baseBPM));
+  }, [baseBPM]);
+
   useEffect(() => {
     instrumentIdRef.current = instrumentId;
     if (isSineInstrument(instrumentId)) {
@@ -107,7 +112,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     selectedVarisaiNumber?: number;
     ragaNumber?: number;
     sortOrder?: SortOrder;
-    baseBPM?: number;
     notesPerBeat?: number;
     loop?: boolean;
     practiceMode?: boolean;
@@ -130,7 +134,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       if (raga) setSelectedRaga(raga);
     }
     if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
-    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) setBaseBPM(stored.baseBPM);
     if (typeof stored.notesPerBeat === 'number' && [1, 2, 3, 4, 5].includes(stored.notesPerBeat)) setNotesPerBeat(stored.notesPerBeat);
     if (typeof stored.loop === 'boolean') setLoop(stored.loop);
     if (typeof stored.practiceMode === 'boolean') setPracticeMode(stored.practiceMode);
@@ -149,7 +152,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       selectedVarisaiNumber: selectedVarisai?.number,
       ragaNumber: selectedRaga?.number,
       sortOrder,
-      baseBPM,
       notesPerBeat,
       loop,
       practiceMode,
@@ -157,7 +159,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       startFromCurrentExercise,
       startFromCurrentIndex,
     });
-  }, [varisaiType, selectedVarisai, selectedRaga, sortOrder, baseBPM, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
+  }, [varisaiType, selectedVarisai, selectedRaga, sortOrder, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
 
   // Sync sidebar voice volume to master gain when it changes
   useEffect(() => {
@@ -1067,80 +1069,73 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
         {/* Tempo and Multiplier Controls */}
         <div className="mb-6 flex flex-row flex-wrap items-center justify-center gap-6">
           {/* Tempo Control */}
-          <div className="flex flex-row items-center gap-2">
-            <label className="text-sm font-medium text-slate-300 shrink-0">Tempo</label>
-            <div className="flex flex-row items-stretch rounded-lg border border-slate-600 bg-slate-800/50 overflow-hidden shrink-0">
+          {/* Tempo Control */}
+          <div className="flex flex-col items-center gap-2">
+            <label className="text-sm font-medium text-slate-300">Tempo</label>
+            <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-[280px] divide-x divide-slate-600">
+              <button
+                type="button"
+                onClick={() => { const v = Math.max(30, Math.round(Math.floor(baseBPM / 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM <= 30}
+                aria-label="Halve tempo"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+              >
+                ÷2
+              </button>
               <button
                 type="button"
                 onClick={() => { const v = Math.max(30, baseBPM - 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
                 disabled={baseBPM <= 30}
                 aria-label="Decrease tempo"
-                className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors border-r border-slate-600"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-lg text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
               >
                 −
               </button>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={tempoInputValue}
-                onFocus={() => setTempoInputValue(String(baseBPM))}
-                onChange={(e) => {
-                  // Allow only digits, let user type freely
-                  const val = e.target.value.replace(/\D/g, '');
-                  setTempoInputValue(val);
-                }}
-                onBlur={() => {
-                  let num = parseInt(tempoInputValue, 10);
-                  if (isNaN(num) || num < 30) num = 30;
-                  if (num > 300) num = 300;
-                  // Round to nearest multiple of 5
-                  num = Math.round(num / 5) * 5;
-                  handleBaseBPMChange(num);
-                  setTempoInputValue(String(num));
-                }}
-                className="w-10 flex items-center justify-center text-center text-sm font-semibold text-slate-900 bg-amber-500 border-r border-slate-600 outline-none"
-                aria-label="Tempo BPM"
-              />
+              <div className="flex-1 w-0 h-10 px-1 flex items-center justify-center text-sm font-semibold text-slate-900 bg-amber-500">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={tempoInputValue}
+                  onFocus={() => setTempoInputValue(String(baseBPM))}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setTempoInputValue(val);
+                  }}
+                  onBlur={() => {
+                    let num = parseInt(tempoInputValue, 10);
+                    if (isNaN(num) || num < 30) num = 30;
+                    if (num > 300) num = 300;
+                    num = Math.round(num / 5) * 5;
+                    handleBaseBPMChange(num);
+                    setTempoInputValue(String(num));
+                  }}
+                  className="w-full text-center text-sm font-semibold text-slate-900 bg-transparent outline-none"
+                  aria-label="Tempo BPM"
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => { const v = Math.min(300, baseBPM + 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
                 disabled={baseBPM >= 300}
                 aria-label="Increase tempo"
-                className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-lg text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
               >
                 +
               </button>
+              <button
+                type="button"
+                onClick={() => { const v = Math.min(300, Math.round((baseBPM * 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM >= 300}
+                aria-label="Double tempo"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+              >
+                x2
+              </button>
             </div>
-            <span className="text-sm text-slate-400">BPM</span>
           </div>
 
           {/* Multiplier Control */}
-          <div className="flex flex-row items-center gap-2">
-            <label className="text-sm font-medium text-slate-300 shrink-0">Multiplier</label>
-            <div className="flex flex-row items-stretch rounded-lg border border-slate-600 bg-slate-800/50 overflow-hidden shrink-0">
-              <button
-                type="button"
-                onClick={() => handleNotesPerBeatChange(Math.max(1, notesPerBeat - 1))}
-                disabled={notesPerBeat <= 1}
-                aria-label="Decrease multiplier"
-                className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors border-r border-slate-600"
-              >
-                −
-              </button>
-              <span className="w-10 flex items-center justify-center text-sm font-semibold text-slate-900 bg-amber-500 border-r border-slate-600">
-                x{notesPerBeat}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleNotesPerBeatChange(Math.min(5, notesPerBeat + 1))}
-                disabled={notesPerBeat >= 5}
-                aria-label="Increase multiplier"
-                className="h-9 w-9 shrink-0 flex items-center justify-center text-slate-300 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-800/80 disabled:text-slate-500 transition-colors"
-              >
-                +
-              </button>
-            </div>
-          </div>
+
         </div>
 
         {/* Notes Display */}

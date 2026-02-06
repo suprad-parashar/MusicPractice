@@ -14,8 +14,25 @@ const basePath = process.env.NODE_ENV === 'production' ? '/MusicPractice' : '';
 const PLUCK_SAMPLE_PATHS = [`${basePath}/sounds/tanpura-d.wav`, `${basePath}/sounds/tanpura-pluck.wav`];
 const PLUCK_SAMPLE_BASE_FREQ = 293.66; // D4 - matches tanpura-d.wav from browser-lehra
 
-// 4 strings: P (Pancham), High S, High S, S (Shadja - kharj)
-const PLUCK_RATIOS = [1.5, 2.0, 2.0, 1.0];
+// Tanpura pattern types
+export type TanpuraPatternId = 'p-hs-hs-s' | 's-p-hs' | 's-s-hs-hs' | 'p-hs-s' | 's-hs-p';
+
+export interface TanpuraPattern {
+  id: TanpuraPatternId;
+  label: string;  // Display label like "P >S >S S"
+  ratios: number[];  // Pitch ratios for each string pluck
+}
+
+// Predefined tanpura patterns
+// P = 1.5 (Pancham), S = 1.0 (Shadja/kharj), Ṡ = 2.0 (High Shadja - dot above)
+export const TANPURA_PATTERNS: TanpuraPattern[] = [
+  { id: 'p-hs-hs-s', label: 'P Ṡ Ṡ S', ratios: [1.5, 2.0, 2.0, 1.0] },
+  { id: 's-p-hs', label: 'S P Ṡ', ratios: [1.0, 1.5, 2.0] },
+  { id: 's-s-hs-hs', label: 'S S Ṡ Ṡ', ratios: [1.0, 1.0, 2.0, 2.0] },
+];
+
+export const TANPURA_PATTERN_ORDER: TanpuraPatternId[] = TANPURA_PATTERNS.map(p => p.id);
+
 const PITCH_OCTAVE_DOWN = 0.5; // One octave lower (medium)
 const VOLUME_ATTENUATION_DB = -12; // Tanpura sits quieter in the mix
 
@@ -52,6 +69,7 @@ let targetOctaveMultiplier = 1; // Target octave multiplier
 let volumeRef = 0.5;
 let pluckDelaySecRef = DEFAULT_PLUCK_DELAY_SEC;
 let noteLengthSecRef = DEFAULT_NOTE_LENGTH_SEC;
+let currentPatternRef: TanpuraPattern = TANPURA_PATTERNS[0];
 let useSample = false;
 let sampleBaseFreq = PLUCK_SAMPLE_BASE_FREQ;
 let isStarted = false;
@@ -127,8 +145,10 @@ async function createPluckSampleChain(
   await reverb.generate();
   pluckReverb = reverb;
 
+  // Always create 4 players (max pattern length) to support pattern switching
+  const MAX_STRINGS = 4;
   const players: Tone.Player[] = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < MAX_STRINGS; i++) {
     const p = new Tone.Player({ url: sampleUrl, loop: false }).connect(reverb);
     await p.load(sampleUrl);
     players.push(p);
@@ -148,12 +168,13 @@ async function createPluckSampleChain(
  * and the string-specific pitch ratios by adjusting each player's playback rate before starting it.
  */
 function schedulePluckCycle(_time?: number): void {
-  if (pluckPlayers.length < 4) return;
+  const ratios = currentPatternRef.ratios;
+  if (pluckPlayers.length < ratios.length) return;
   const baseTime = Tone.now() + 0.02; // AudioContext time, small lookahead
   const base = baseFreqRef * PITCH_OCTAVE_DOWN * currentOctaveMultiplier;
   const delayPerPluck = pluckDelaySecRef;
 
-  PLUCK_RATIOS.forEach((ratio, i) => {
+  ratios.forEach((ratio: number, i: number) => {
     const freq = base * ratio;
     const playbackRate = freq / sampleBaseFreq;
     const pluckTime = baseTime + i * delayPerPluck;
@@ -198,8 +219,9 @@ function scheduleSynthPluckCycle(time: number): void {
   if (!polySynth) return;
   const base = baseFreqRef * PITCH_OCTAVE_DOWN * currentOctaveMultiplier;
   const delayPerPluck = pluckDelaySecRef;
+  const ratios = currentPatternRef.ratios;
 
-  PLUCK_RATIOS.forEach((ratio, i) => {
+  ratios.forEach((ratio: number, i: number) => {
     const freq = base * ratio;
     const pluckTime = time + i * delayPerPluck;
     polySynth!.triggerAttackRelease(freq, noteLengthSecRef, pluckTime);
@@ -249,7 +271,7 @@ export async function startTanpura(
     );
     volume.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
 
-    const periodSec = pluckDelaySecRef * 4;
+    const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
     pluckLoop = new Tone.Loop((time) => schedulePluckCycle(time), periodSec).start(0);
     pluckLoop.humanize = 0.02;
 
@@ -259,7 +281,7 @@ export async function startTanpura(
     const { volume, poly } = createSynthPluckChain(baseFreqHz);
     volume.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
 
-    const periodSec = pluckDelaySecRef * 4;
+    const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
     pluckLoop = new Tone.Loop((time) => scheduleSynthPluckCycle(time), periodSec).start(0);
     pluckLoop.humanize = 0.02;
 
@@ -416,7 +438,7 @@ export function setTanpuraPluckDelay(seconds: number): void {
     pluckLoop.dispose();
     pluckLoop = null;
   }
-  const periodSec = pluckDelaySecRef * 4;
+  const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
   const now = Tone.getTransport().seconds;
   pluckLoop = useSample
     ? new Tone.Loop((time) => schedulePluckCycle(time), periodSec).start(now)
@@ -439,6 +461,48 @@ export function setTanpuraNoteLength(seconds: number): void {
   if (!isStarted) return;
   if (pluckReverb) pluckReverb.decay = noteLengthSecRef;
   if (polySynth) polySynth.set({ release: noteLengthSecRef } as any);
+}
+
+/**
+ * Set the tanpura plucking pattern.
+ *
+ * When running, recreates the pluck loop with the new pattern's timing and
+ * fires an immediate cycle so the change is audible right away.
+ *
+ * @param patternId - The pattern ID to switch to (e.g., 'p-hs-hs-s', 's-p-hs')
+ */
+export function setTanpuraPattern(patternId: TanpuraPatternId): void {
+  const newPattern = TANPURA_PATTERNS.find(p => p.id === patternId);
+  if (!newPattern) return;
+
+  currentPatternRef = newPattern;
+
+  if (!isStarted) return;
+
+  // Stop currently playing sounds so they don't bleed into the new pattern
+  if (useSample && pluckPlayers.length > 0) {
+    pluckPlayers.forEach(p => { try { p.stop(); } catch (_) { } });
+  } else if (polySynth) {
+    try { polySynth.releaseAll(); } catch (_) { }
+  }
+
+  // Recreate loop with new period and fire immediately
+  if (pluckLoop) {
+    pluckLoop.stop();
+    pluckLoop.dispose();
+    pluckLoop = null;
+  }
+
+  const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
+  const now = Tone.getTransport().seconds;
+  pluckLoop = useSample
+    ? new Tone.Loop((time) => schedulePluckCycle(time), periodSec).start(now)
+    : new Tone.Loop((time) => scheduleSynthPluckCycle(time), periodSec).start(now);
+  pluckLoop.humanize = 0.02;
+
+  // Fire immediately so new pattern is heard right away
+  if (useSample) schedulePluckCycle(now);
+  else scheduleSynthPluckCycle(now);
 }
 
 /**

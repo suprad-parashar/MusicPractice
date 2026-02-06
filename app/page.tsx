@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import KeySection, { KEYS, type KeyName } from '@/components/KeySection';
+import { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
+import MetronomeSidebar, { type MetronomeMode } from '@/components/MetronomeSidebar';
+import { TALA_ORDER, JATI_ORDER, type TalaName, type JatiName } from '@/data/talas';
 import InstrumentSettings from '@/components/InstrumentSettings';
 import RagaPlayer from '@/components/RagaPlayer';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
 import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
-import { getOctaveMultiplier, type Octave } from '@/lib/tanpuraTone';
+import { getOctaveMultiplier, TANPURA_PATTERN_ORDER, type Octave, type TanpuraPatternId } from '@/lib/tanpuraTone';
 import { getStored, setStored } from '@/lib/storage';
 import { version } from '@/package.json';
 
@@ -32,9 +34,17 @@ type StoredSettings = {
   tanpuraPluckDelay?: number;
   tanpuraNoteLength?: number;
   tanpuraOctave?: Octave;
+  tanpuraPattern?: TanpuraPatternId;
   voiceOctave?: Octave;
   theme?: ThemeMode;
   accentColor?: string;
+  // Metronome settings
+  metronomeMode?: MetronomeMode;
+  metronomeSimpleBeats?: number;
+  metronomeTala?: TalaName;
+  metronomeJati?: JatiName;
+  metronomeTempo?: number;
+  metronomeVolume?: number;
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -71,6 +81,7 @@ const ACCENT_COLOR_PRESETS: { name: string; value: string }[] = [
 const VALID_OCTAVES: Octave[] = ['low', 'medium', 'high'];
 const VALID_THEMES: ThemeMode[] = ['light', 'light-warm', 'dark', 'dark-slate'];
 const DEFAULT_ACCENT = '#f59e0b';
+const VALID_METRONOME_MODES: MetronomeMode[] = ['simple', 'tala'];
 
 /**
  * Renders the main practice UI with a left settings sidebar and a tabbed practice area.
@@ -85,34 +96,36 @@ export default function Home() {
   const [selectedKey, setSelectedKey] = useState<KeyName>('C');
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
   const [activeTab, setActiveTab] = useState<Tab>('raga');
-  const [instrumentId, setInstrumentId] = useState<InstrumentId>('piano');
+  const [instrumentId, setInstrumentId] = useState<InstrumentId>('violin');
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
 
-  // Notation dropdown state and outside click / ESC handler
-  const [notationOpen, setNotationOpen] = useState(false);
-  const notationRef = useRef<HTMLDivElement | null>(null);
+
 
   // Theme & Accent color dropdown state
   const [themeAccentOpen, setThemeAccentOpen] = useState(false);
   const themeAccentRef = useRef<HTMLDivElement | null>(null);
+
+  // Key picker dropdown state
+  const [keyPickerOpen, setKeyPickerOpen] = useState(false);
+  const keyPickerRef = useRef<HTMLDivElement | null>(null);
 
   // Accent color picker input
   const accentColorInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (notationRef.current && !notationRef.current.contains(e.target as Node)) {
-        setNotationOpen(false);
-      }
       if (themeAccentRef.current && !themeAccentRef.current.contains(e.target as Node)) {
         setThemeAccentOpen(false);
+      }
+      if (keyPickerRef.current && !keyPickerRef.current.contains(e.target as Node)) {
+        setKeyPickerOpen(false);
       }
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        setNotationOpen(false);
         setThemeAccentOpen(false);
+        setKeyPickerOpen(false);
       }
     }
     document.addEventListener('click', onDocClick);
@@ -127,12 +140,21 @@ export default function Home() {
   const [tanpuraPluckDelay, setTanpuraPluckDelay] = useState(1.4);
   const [tanpuraNoteLength, setTanpuraNoteLength] = useState(5);
   const [tanpuraOctave, setTanpuraOctave] = useState<Octave>('medium');
+  const [tanpuraPattern, setTanpuraPattern] = useState<TanpuraPatternId>('p-hs-hs-s');
   const [voiceOctave, setVoiceOctave] = useState<Octave>('medium');
   const [theme, setTheme] = useState<ThemeMode>('dark');
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSection, setSidebarSection] = useState<SidebarSection>('music');
   const hasLoadedRef = useRef(false);
+
+  // Metronome state
+  const [metronomeMode, setMetronomeMode] = useState<MetronomeMode>('simple');
+  const [metronomeSimpleBeats, setMetronomeSimpleBeats] = useState(4);
+  const [metronomeTala, setMetronomeTala] = useState<TalaName>('triputa');
+  const [metronomeJati, setMetronomeJati] = useState<JatiName>('chatusra');
+  const [metronomeTempo, setMetronomeTempo] = useState(90);
+  const [metronomeVolume, setMetronomeVolume] = useState(0.7);
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
   useLayoutEffect(() => {
@@ -150,10 +172,18 @@ export default function Home() {
     if (typeof stored.tanpuraPluckDelay === 'number' && stored.tanpuraPluckDelay >= 0.8 && stored.tanpuraPluckDelay <= 2.5) setTanpuraPluckDelay(stored.tanpuraPluckDelay);
     if (typeof stored.tanpuraNoteLength === 'number' && stored.tanpuraNoteLength >= 2 && stored.tanpuraNoteLength <= 8) setTanpuraNoteLength(stored.tanpuraNoteLength);
     if (stored.tanpuraOctave && VALID_OCTAVES.includes(stored.tanpuraOctave)) setTanpuraOctave(stored.tanpuraOctave);
+    if (stored.tanpuraPattern && TANPURA_PATTERN_ORDER.includes(stored.tanpuraPattern)) setTanpuraPattern(stored.tanpuraPattern);
     if (stored.voiceOctave && VALID_OCTAVES.includes(stored.voiceOctave)) setVoiceOctave(stored.voiceOctave);
     if (stored.theme && VALID_THEMES.includes(stored.theme)) setTheme(stored.theme);
     else if (String(stored.theme) === 'high-contrast') setTheme('dark');
     if (typeof stored.accentColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(stored.accentColor)) setAccentColor(stored.accentColor);
+    // Load metronome settings
+    if (stored.metronomeMode && VALID_METRONOME_MODES.includes(stored.metronomeMode)) setMetronomeMode(stored.metronomeMode);
+    if (typeof stored.metronomeSimpleBeats === 'number' && stored.metronomeSimpleBeats >= 1 && stored.metronomeSimpleBeats <= 9) setMetronomeSimpleBeats(stored.metronomeSimpleBeats);
+    if (stored.metronomeTala && TALA_ORDER.includes(stored.metronomeTala)) setMetronomeTala(stored.metronomeTala);
+    if (stored.metronomeJati && JATI_ORDER.includes(stored.metronomeJati)) setMetronomeJati(stored.metronomeJati);
+    // metronomeTempo is not persisted - always uses default 90
+    if (typeof stored.metronomeVolume === 'number' && stored.metronomeVolume >= 0 && stored.metronomeVolume <= 1) setMetronomeVolume(stored.metronomeVolume);
     hasLoadedRef.current = true;
     setStorageReady(true);
   }, []);
@@ -249,15 +279,23 @@ export default function Home() {
       tanpuraPluckDelay,
       tanpuraNoteLength,
       tanpuraOctave,
+      tanpuraPattern,
       voiceOctave,
       theme,
       accentColor,
+      // Metronome settings (tempo is not persisted - always defaults to 90)
+      metronomeMode,
+      metronomeSimpleBeats,
+      metronomeTala,
+      metronomeJati,
+      metronomeVolume,
     });
-  }, [selectedKey, activeTab, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, voiceOctave, theme, accentColor]);
+  }, [selectedKey, activeTab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, tanpuraPattern, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
     setBaseFreq(KEYS[key]);
+    setKeyPickerOpen(false);
   };
 
   // Don't render persisted UI until we've read from storage (prevents jump)
@@ -306,7 +344,7 @@ export default function Home() {
             </svg>
           </button>
 
-          <KeySection selectedKey={selectedKey} onKeyChange={handleKeyChange} />
+
           <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
           <TanpuraSidebar
             baseFreq={baseFreq}
@@ -318,6 +356,22 @@ export default function Home() {
             onNoteLengthChange={setTanpuraNoteLength}
             octave={tanpuraOctave}
             onOctaveChange={setTanpuraOctave}
+            pattern={tanpuraPattern}
+            onPatternChange={setTanpuraPattern}
+          />
+          <MetronomeSidebar
+            mode={metronomeMode}
+            onModeChange={setMetronomeMode}
+            simpleBeats={metronomeSimpleBeats}
+            onSimpleBeatsChange={setMetronomeSimpleBeats}
+            tala={metronomeTala}
+            onTalaChange={setMetronomeTala}
+            jati={metronomeJati}
+            onJatiChange={setMetronomeJati}
+            tempo={metronomeTempo}
+            onTempoChange={setMetronomeTempo}
+            volume={metronomeVolume}
+            onVolumeChange={setMetronomeVolume}
           />
         </aside>
 
@@ -348,7 +402,7 @@ export default function Home() {
                     }
                   `}
                 >
-                  Raga Practice
+                  Ragas
                 </button>
                 <button
                   onClick={() => setActiveTab('varisai')}
@@ -361,7 +415,7 @@ export default function Home() {
                     }
                   `}
                 >
-                  Varisai Practice
+                  Practice
                 </button>
                 <button
                   onClick={() => setActiveTab('auditory')}
@@ -374,35 +428,75 @@ export default function Home() {
                     }
                   `}
                 >
-                  Auditory Practice
+                  Ear Training
                 </button>
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="w-0.5 h-16 bg-[var(--border)]" />
-
-            {/* Dropdowns Section */}
+            {/* Key Display + Settings Button */}
             <div className="flex items-center gap-2 px-3 sm:px-6">
-              {/* Combined Theme & Accent Dropdown */}
+              {/* Key Display */}
+              <div className="relative" ref={keyPickerRef}>
+                <button
+                  type="button"
+                  aria-haspopup="true"
+                  aria-expanded={keyPickerOpen}
+                  title={`Key: ${selectedKey} (${KEYS[selectedKey].toFixed(0)} Hz)`}
+                  onClick={() => setKeyPickerOpen(v => !v)}
+                  className="shrink-0 px-3 py-1.5 rounded-md text-[var(--text-primary)] bg-[var(--card-bg)] hover:bg-[var(--sidebar-bg)] border border-[var(--border)] transition flex items-center gap-1.5"
+                >
+                  <span className="text-sm font-semibold text-accent">{selectedKey}</span>
+                  <span className="text-xs text-[var(--text-muted)]">{KEYS[selectedKey].toFixed(0)} Hz</span>
+                  <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {keyPickerOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden p-3">
+                    <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">Select Key</div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {(Object.keys(KEYS) as KeyName[]).map((key) => (
+                        <button
+                          key={key}
+                          onClick={() => handleKeyChange(key)}
+                          className={`
+                            py-1.5 px-1 rounded
+                            transition-all duration-200
+                            text-xs font-medium
+                            ${selectedKey === key
+                              ? 'bg-accent text-[var(--page-bg)] shadow-md scale-105'
+                              : 'bg-[var(--sidebar-bg)] text-[var(--text-primary)] hover:bg-[var(--border)]'
+                            }
+                          `}
+                        >
+                          {key}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-center text-xs text-[var(--text-muted)]">
+                      Reference pitch for practice
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="relative" ref={themeAccentRef}>
                 <button
                   type="button"
                   aria-haspopup="true"
                   aria-expanded={themeAccentOpen}
-                  title="Theme & Accent Colour"
+                  title="Settings"
                   onClick={() => setThemeAccentOpen(v => !v)}
-                  className="shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-md border border-[var(--border)] bg-[var(--card-bg)] text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:opacity-90 transition flex items-center justify-center gap-2 min-w-[120px] h-10"
+                  className="shrink-0 p-2.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)] transition flex items-center justify-center"
                 >
-                  <span className="w-4 h-4 rounded-full border border-[var(--border)]" style={{ backgroundColor: accentColor }} />
-                  <span className="text-base">{THEME_BADGES[theme].icon}</span>
-                  <svg className="w-3 h-3 text-[var(--text-muted)]" viewBox="0 0 20 20" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M6 8l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
 
                 {themeAccentOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-64 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
                     {/* Theme Section */}
                     <div className="border-b border-[var(--border)] p-2">
                       <div className="text-xs font-semibold text-[var(--text-muted)] px-2 py-1 mb-1">Theme</div>
@@ -410,12 +504,31 @@ export default function Home() {
                         <button
                           key={t}
                           type="button"
-                          onClick={() => { setTheme(t); setThemeAccentOpen(false); }}
+                          onClick={() => { setTheme(t); }}
                           className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] rounded ${theme === t ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-base">{THEME_BADGES[t].icon}</span>
                             <span>{THEME_BADGES[t].title}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Notation Section */}
+                    <div className="border-b border-[var(--border)] p-2">
+                      <div className="text-xs font-semibold text-[var(--text-muted)] px-2 py-1 mb-1">Notation Language</div>
+                      {NOTATION_ORDER.map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => { setNotationLanguage(lang); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] rounded ${notationLanguage === lang ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold w-8">{NOTATION_BADGES[lang].abbr}</span>
+                            <span className="text-[var(--text-muted)]">({NOTATION_BADGES[lang].symbol})</span>
+                            <span className="ml-auto text-[var(--text-muted)] text-xs">{NOTATION_BADGES[lang].title}</span>
                           </div>
                         </button>
                       ))}
@@ -429,7 +542,7 @@ export default function Home() {
                           <button
                             key={preset.value}
                             type="button"
-                            onClick={() => { setAccentColor(preset.value); setThemeAccentOpen(false); }}
+                            onClick={() => { setAccentColor(preset.value); }}
                             title={preset.name}
                             className="w-6 h-6 rounded-full border-2 transition hover:scale-110 flex-shrink-0"
                             style={{
@@ -443,7 +556,7 @@ export default function Home() {
                           ref={accentColorInputRef}
                           type="color"
                           value={accentColor}
-                          onChange={(e) => { setAccentColor(e.target.value); setThemeAccentOpen(false); }}
+                          onChange={(e) => { setAccentColor(e.target.value); }}
                           className="sr-only"
                           aria-label="Custom accent colour"
                         />
@@ -460,45 +573,6 @@ export default function Home() {
                         />
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Notation Dropdown */}
-              <div className="relative" ref={notationRef}>
-                <button
-                  type="button"
-                  aria-haspopup="true"
-                  aria-expanded={notationOpen}
-                  title={`Notation: ${NOTATION_BADGES[notationLanguage].title}`}
-                  onClick={() => setNotationOpen(v => !v)}
-                  className="shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-md border border-[var(--border)] bg-[var(--card-bg)] text-xs sm:text-sm font-medium text-[var(--text-primary)] hover:opacity-90 transition flex items-center justify-center gap-2 min-w-[120px] h-10"
-                >
-                  <span className="font-semibold">{NOTATION_BADGES[notationLanguage].abbr}</span>
-                  <span className="text-[var(--text-muted)]">({NOTATION_BADGES[notationLanguage].symbol})</span>
-                  <svg className="w-3 h-3 ml-1 text-[var(--text-muted)]" viewBox="0 0 20 20" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M6 8l4 4 4-4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-
-                {notationOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-40 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
-                    {NOTATION_ORDER.map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => { setNotationLanguage(lang); setNotationOpen(false); }}
-                        className={`w-full text-left px-3 py-2 text-sm sm:text-sm hover:bg-[var(--sidebar-bg)] ${notationLanguage === lang ? 'bg-[var(--sidebar-bg)] text-accent font-semibold' : 'text-[var(--text-primary)]'}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col">
-                            <span className="font-semibold">{NOTATION_BADGES[lang].abbr}</span>
-                            <span className="text-[var(--text-muted)] text-[12px]">({NOTATION_BADGES[lang].symbol})</span>
-                          </div>
-                          <span className="ml-auto text-[var(--text-muted)] text-xs">{NOTATION_BADGES[lang].title}</span>
-                        </div>
-                      </button>
-                    ))}
                   </div>
                 )}
               </div>

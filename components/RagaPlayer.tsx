@@ -7,7 +7,7 @@ import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type Inst
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
 import { getStored, setStored } from '@/lib/storage';
 
-type SortOrder = 'number' | 'alphabetical';
+
 
 /**
  * Interactive Raga practice component with selectable melakarta ragas, playback controls, and notation display.
@@ -26,13 +26,19 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
   );
-  const [sortOrder, setSortOrder] = useState<SortOrder>('number');
+
   const [isPlaying, setIsPlaying] = useState(false);
-  const [baseBPM, setBaseBPM] = useState(90); // Base BPM (30-120)
+  const [baseBPM, setBaseBPM] = useState(90);
+  const [tempoInputValue, setTempoInputValue] = useState(String(90));
   const [loop, setLoop] = useState(false); // Loop playback
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
   const hasLoadedRagaRef = useRef(false);
+
+  // Search/dropdown state for raga selection
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
@@ -48,6 +54,11 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   baseBPMRef.current = baseBPM;
   instrumentIdRef.current = instrumentId;
   selectedRagaRef.current = selectedRaga;
+
+  // Sync tempo input when baseBPM changes
+  useEffect(() => {
+    setTempoInputValue(String(baseBPM));
+  }, [baseBPM]);
 
   // Sync sidebar voice volume to master gain when it changes
   useEffect(() => {
@@ -78,15 +89,13 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
 
   // Load persisted raga practice settings before first paint (avoids flash of defaults)
   const RAGA_STORAGE_KEY = 'ragaSettings';
-  type StoredRagaSettings = { ragaNumber?: number; sortOrder?: SortOrder; baseBPM?: number; loop?: boolean };
+  type StoredRagaSettings = { ragaNumber?: number; loop?: boolean };
   useLayoutEffect(() => {
     const stored = getStored<StoredRagaSettings>(RAGA_STORAGE_KEY, {});
     if (typeof stored.ragaNumber === 'number') {
       const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
       if (raga) setSelectedRaga(raga);
     }
-    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
-    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 180) setBaseBPM(stored.baseBPM);
     if (typeof stored.loop === 'boolean') setLoop(stored.loop);
     hasLoadedRagaRef.current = true;
     setStorageReady(true);
@@ -96,20 +105,37 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
     if (!hasLoadedRagaRef.current) return;
     setStored(RAGA_STORAGE_KEY, {
       ragaNumber: selectedRaga?.number,
-      sortOrder,
-      baseBPM,
       loop,
     });
-  }, [selectedRaga, sortOrder, baseBPM, loop]);
+  }, [selectedRaga, loop]);
 
-  // Get sorted ragas
-  const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => {
-    if (sortOrder === 'number') {
-      return a.number - b.number;
-    } else {
-      return a.name.localeCompare(b.name);
+  // Get sorted ragas (always alphabetical)
+  const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => a.name.localeCompare(b.name));
+
+  // Filter ragas based on search query
+  const filteredRagas = sortedRagas.filter(raga =>
+    raga.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
     }
-  });
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   // Convert linear volume (0-1) to logarithmic gain
   const linearToLogGain = (linearValue: number): number => {
@@ -382,10 +408,10 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-light mb-2 tracking-wide">
-            Raga Practice
+            Discover Ragas
           </h1>
           <p className="text-slate-400 text-sm md:text-base">
-            Play and practice melakarta ragas
+            Explore and learn Carnatic ragas
           </p>
         </div>
 
@@ -395,36 +421,55 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             <label className="text-sm font-medium text-slate-300 whitespace-nowrap">
               Select Raga:
             </label>
-            <select
-              value={selectedRaga.name}
-              onChange={(e) => handleRagaChange(e.target.value)}
-              className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-            >
-              {sortedRagas.map((raga) => (
-                <option key={raga.number} value={raga.name}>
-                  {sortOrder === 'number' ? `${raga.number}. ` : ''}{raga.name}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSortOrder('number')}
-                className={`px-3 py-1 rounded text-sm ${sortOrder === 'number'
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }`}
-              >
-                By Number
-              </button>
-              <button
-                onClick={() => setSortOrder('alphabetical')}
-                className={`px-3 py-1 rounded text-sm ${sortOrder === 'alphabetical'
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }`}
-              >
-                A-Z
-              </button>
+            <div className="relative flex-1 w-full" ref={dropdownRef}>
+              <input
+                type="text"
+                value={dropdownOpen ? searchQuery : selectedRaga.name}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  setSearchQuery('');
+                  setDropdownOpen(true);
+                }}
+                placeholder={selectedRaga.name}
+                className="w-full pl-4 pr-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent cursor-pointer"
+              />
+              {dropdownOpen && (
+                <div
+                  className="scroll-area-transparent absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl py-2"
+                  style={{ maxHeight: '280px', overflowY: 'auto' }}
+                >
+                  {filteredRagas.length > 0 ? (
+                    filteredRagas.map((raga) => (
+                      <button
+                        key={raga.number}
+                        type="button"
+                        onClick={() => {
+                          handleRagaChange(raga.name);
+                          setSearchQuery('');
+                          setDropdownOpen(false);
+                        }}
+                        className="w-full text-left pl-4 pr-4 py-3 text-sm cursor-pointer text-slate-200"
+                        style={{ transition: 'background-color 0.15s ease' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--accent, #f59e0b)';
+                          e.currentTarget.style.color = '#0f172a';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#e2e8f0';
+                        }}
+                      >
+                        {raga.name}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="pl-4 pr-4 py-3 text-sm text-slate-400 text-center">No ragas found</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -483,23 +528,71 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
           </div>
         </div>
 
-        {/* Base BPM Control */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
-            Base Speed: {baseBPM} BPM
-          </label>
-          <div className="flex items-center gap-4 px-4">
-            <span className="text-slate-400 text-sm w-12">30</span>
-            <input
-              type="range"
-              min="30"
-              max="120"
-              step="5"
-              value={baseBPM}
-              onChange={(e) => handleBaseBPMChange(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
-            />
-            <span className="text-slate-400 text-sm w-12 text-right">120</span>
+        {/* Tempo Control */}
+        {/* Tempo Control */}
+        <div className="mb-6 flex flex-row flex-wrap items-center justify-center gap-6">
+          <div className="flex flex-col items-center gap-2">
+            <label className="text-sm font-medium text-slate-300">Tempo</label>
+            <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-[280px] divide-x divide-slate-600">
+              <button
+                type="button"
+                onClick={() => { const v = Math.max(30, Math.round(Math.floor(baseBPM / 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM <= 30}
+                aria-label="Halve tempo"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+              >
+                ÷2
+              </button>
+              <button
+                type="button"
+                onClick={() => { const v = Math.max(30, baseBPM - 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM <= 30}
+                aria-label="Decrease tempo"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-lg text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+              >
+                −
+              </button>
+              <div className="flex-1 w-0 h-10 px-1 flex items-center justify-center text-sm font-semibold text-slate-900 bg-amber-500">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={tempoInputValue}
+                  onFocus={() => setTempoInputValue(String(baseBPM))}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setTempoInputValue(val);
+                  }}
+                  onBlur={() => {
+                    let num = parseInt(tempoInputValue, 10);
+                    if (isNaN(num) || num < 30) num = 30;
+                    if (num > 300) num = 300;
+                    num = Math.round(num / 5) * 5;
+                    handleBaseBPMChange(num);
+                    setTempoInputValue(String(num));
+                  }}
+                  className="w-full text-center text-sm font-semibold text-slate-900 bg-transparent outline-none"
+                  aria-label="Tempo BPM"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { const v = Math.min(300, baseBPM + 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM >= 300}
+                aria-label="Increase tempo"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-lg text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => { const v = Math.min(300, Math.round((baseBPM * 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM >= 300}
+                aria-label="Double tempo"
+                className="flex-1 w-0 h-10 flex items-center justify-center text-xs font-medium text-slate-300 hover:bg-slate-700/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-slate-500 transition-colors"
+              >
+                x2
+              </button>
+            </div>
           </div>
         </div>
 
