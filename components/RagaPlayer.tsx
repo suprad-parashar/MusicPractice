@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { MELAKARTA_RAGAS, MelakartaRaga, getSwarafrequency } from '@/data/melakartaRagas';
+import { MELAKARTA_RAGAS, Raga, getSwarafrequency } from '@/data/melakartaRagas';
+import { JANYA_RAGAS } from '@/data/janyaRagas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
@@ -23,8 +24,9 @@ import { getStored, setStored } from '@/lib/storage';
  * @returns The React element rendering the raga practice interface
  */
 export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
-  const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
-    MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
+  const ALL_RAGAS: Raga[] = [...MELAKARTA_RAGAS, ...JANYA_RAGAS];
+  const [selectedRaga, setSelectedRaga] = useState<Raga>(
+    ALL_RAGAS.find(r => r.name === 'Mayamalavagowla') || ALL_RAGAS[14]
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -49,7 +51,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   const instrumentIdRef = useRef<InstrumentId>(instrumentId);
   const baseFreqRef = useRef(baseFreq);
   const baseBPMRef = useRef(baseBPM);
-  const selectedRagaRef = useRef<MelakartaRaga>(selectedRaga);
+  const selectedRagaRef = useRef<Raga>(selectedRaga);
   baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
   instrumentIdRef.current = instrumentId;
@@ -93,7 +95,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   useLayoutEffect(() => {
     const stored = getStored<StoredRagaSettings>(RAGA_STORAGE_KEY, {});
     if (typeof stored.ragaNumber === 'number') {
-      const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
+      const raga = ALL_RAGAS.find(r => r.number === stored.ragaNumber);
       if (raga) setSelectedRaga(raga);
     }
     if (typeof stored.loop === 'boolean') setLoop(stored.loop);
@@ -110,7 +112,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   }, [selectedRaga, loop]);
 
   // Get sorted ragas (always alphabetical)
-  const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedRagas = [...ALL_RAGAS].sort((a, b) => a.name.localeCompare(b.name));
 
   // Filter ragas based on search query
   const filteredRagas = sortedRagas.filter(raga =>
@@ -361,7 +363,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   };
 
   const handleRagaChange = (ragaName: string) => {
-    const raga = MELAKARTA_RAGAS.find(r => r.name === ragaName);
+    const raga = ALL_RAGAS.find(r => r.name === ragaName);
     if (raga) {
       const wasPlaying = isPlayingRef.current;
       if (wasPlaying) {

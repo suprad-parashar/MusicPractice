@@ -2,12 +2,16 @@
 // Format: { number, name, arohana (ascending), avarohana (descending) }
 // Swaras: S, R1, R2, R3, G1, G2, G3, M1, M2, P, D1, D2, D3, N1, N2, N3
 
-export interface MelakartaRaga {
+export interface Raga {
   number: number;
   name: string;
   arohana: string[];
   avarohana: string[];
+  isMelakarta?: boolean; // Optional flag to distinguish if needed
+  parentMelakarta?: number; // Optional reference to parent
 }
+
+export type MelakartaRaga = Raga;
 
 export const MELAKARTA_RAGAS: MelakartaRaga[] = [
   { number: 1, name: "Kanakangi", arohana: ["S", "R1", "G1", "M1", "P", "D1", "N1", ">S"], avarohana: [">S", "N1", "D1", "P", "M1", "G1", "R1", "S"] },

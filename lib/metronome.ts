@@ -140,7 +140,6 @@ export function stopMetronome(): void {
         loop = null;
     }
 
-    Tone.getTransport().stop();
     currentBeatIndex = 0;
 
     // Notify UI that we've stopped (reset to beat -1)

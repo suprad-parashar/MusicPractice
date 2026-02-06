@@ -277,6 +277,20 @@ export default function MetronomeSidebar({
                                 Adi
                             </button>
                             <button
+                                onClick={() => { onTalaChange('rupaka'); onJatiChange('chatusra'); }}
+                                className={`
+                                    px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-full transition-all duration-200
+                                    focus:outline-none focus:ring-0
+                                    ${tala === 'rupaka' && jati === 'chatusra'
+                                        ? 'bg-amber-500 text-slate-900'
+                                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                                    }
+                                `}
+                                title="Chatusra Rupaka (6 beats)"
+                            >
+                                Rupaka
+                            </button>
+                            <button
                                 onClick={() => { onTalaChange('triputa'); onJatiChange('tisra'); }}
                                 className={`
                                     px-3 py-1.5 text-[10px] sm:text-xs font-medium rounded-full transition-all duration-200
