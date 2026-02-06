@@ -312,7 +312,6 @@ export function stopTanpura(): void {
     try { polySynth.releaseAll(); } catch (_) { }
   }
 
-  Tone.getTransport().stop();
   isStarted = false;
 }
 
@@ -526,7 +525,6 @@ export function disposeTanpura(): void {
     }
     pluckPlayers.forEach(p => { try { p.stop(); } catch (_) { } });
     if (polySynth) polySynth.releaseAll();
-    Tone.getTransport().stop();
   } catch (_) { }
 
   try {
