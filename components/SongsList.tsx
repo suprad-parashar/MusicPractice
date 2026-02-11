@@ -75,7 +75,7 @@ export default function SongsList({ onSelectSong }: { onSelectSong: (slug: strin
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 md:p-10 shadow-2xl border border-slate-700/50 overflow-hidden">
-        <div className="border-b border-slate-600/60 pb-8 mb-6">
+        <div className="border-b border-slate-600/60 pb-2 mb-4">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-light mb-3 tracking-wide text-[var(--text-primary)]">
               Songs
@@ -88,16 +88,13 @@ export default function SongsList({ onSelectSong }: { onSelectSong: (slug: strin
 
         <div className="mb-4">
           <div className="flex flex-col sm:flex-row gap-3 items-center">
-            <label className="text-sm font-medium text-slate-300 whitespace-nowrap">
-              Search songs:
-            </label>
             <div className="relative flex-1 w-full min-w-0" ref={dropdownRef}>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => setDropdownOpen(true)}
-                placeholder="By name, composer, or language..."
+                placeholder="Search songs by name, composer, or language..."
                 className="w-full pl-2 pr-6 py-4 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent/50 placeholder:opacity-80"
               />
               {dropdownOpen && (
@@ -129,7 +126,7 @@ export default function SongsList({ onSelectSong }: { onSelectSong: (slug: strin
           </div>
         </div>
 
-        <div className="pt-6 pb-4"><hr className="border-slate-600/60" /></div>
+        <div className="pb-2"><hr className="border-slate-600/60" /></div>
 
         {SONGS.length === 0 ? (
           <p className="text-slate-400 text-sm text-center py-10">No songs in the library yet.</p>
@@ -152,12 +149,12 @@ export default function SongsList({ onSelectSong }: { onSelectSong: (slug: strin
               ))}
             </div>
 
-            <div className="pt-4 pb-8"><hr className="border-slate-600/60" /></div>
+            <div className="pt-4 pb-4"><hr className="border-slate-600/60" /></div>
 
             {filteredSongs.length === 0 ? (
               <p className="text-slate-400 text-sm text-center py-10">No songs found</p>
             ) : (
-              <div className="flex flex-wrap items-center justify-between gap-6 border-t border-slate-600/60 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-6 border-slate-600/60">
                 <div className="flex flex-wrap items-center gap-4">
                   <p className="text-slate-400 text-sm">
                     Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredSongs.length)} of {filteredSongs.length}
