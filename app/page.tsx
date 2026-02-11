@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
 import TanpuraSidebar from '@/components/TanpuraSidebar';
@@ -10,13 +11,16 @@ import InstrumentSettings from '@/components/InstrumentSettings';
 import RagaPlayer from '@/components/RagaPlayer';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
 import AuditoryPractice from '@/components/AuditoryPractice';
+import SongsList from '@/components/SongsList';
+import SongPlayer from '@/components/SongPlayer';
+import { getSong } from '@/data/songs';
 import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
 import { getOctaveMultiplier, TANPURA_PATTERN_ORDER, type Octave, type TanpuraPatternId } from '@/lib/tanpuraTone';
 import { getStored, setStored } from '@/lib/storage';
 import { version } from '@/package.json';
 
-type Tab = 'raga' | 'varisai' | 'auditory';
+type Tab = 'raga' | 'varisai' | 'auditory' | 'songs';
 type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
 
 const STORAGE_KEY = 'settings';
@@ -48,7 +52,7 @@ type StoredSettings = {
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory'];
+const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory', 'songs'];
 const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
@@ -146,7 +150,9 @@ export default function Home() {
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSection, setSidebarSection] = useState<SidebarSection>('music');
+  const [selectedSongSlug, setSelectedSongSlug] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
+  const searchParams = useSearchParams();
 
   // Metronome state
   const [metronomeMode, setMetronomeMode] = useState<MetronomeMode>('simple');
@@ -155,6 +161,15 @@ export default function Home() {
   const [metronomeJati, setMetronomeJati] = useState<JatiName>('chatusra');
   const [metronomeTempo, setMetronomeTempo] = useState(90);
   const [metronomeVolume, setMetronomeVolume] = useState(0.7);
+
+  // Handle ?song=slug deep link
+  useEffect(() => {
+    const song = searchParams.get('song');
+    if (song) {
+      setActiveTab('songs');
+      setSelectedSongSlug(song);
+    }
+  }, [searchParams]);
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
   useLayoutEffect(() => {
@@ -430,6 +445,19 @@ export default function Home() {
                 >
                   Ear Training
                 </button>
+                <button
+                  onClick={() => setActiveTab('songs')}
+                  className={`
+                    shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                    transition-all duration-200 text-xs sm:text-sm font-medium
+                    ${activeTab === 'songs'
+                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    }
+                  `}
+                >
+                  Songs
+                </button>
               </div>
             </div>
 
@@ -586,6 +614,19 @@ export default function Home() {
                 <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'varisai' ? (
                 <VarisaiPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+              ) : activeTab === 'songs' ? (
+                selectedSongSlug && getSong(selectedSongSlug) ? (
+                  <SongPlayer
+                    song={getSong(selectedSongSlug)!}
+                    baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
+                    instrumentId={instrumentId}
+                    volume={voiceVolume}
+                    notationLanguage={notationLanguage}
+                    onBack={() => setSelectedSongSlug(null)}
+                  />
+                ) : (
+                  <SongsList onSelectSong={setSelectedSongSlug} />
+                )
               ) : (
                 <AuditoryPractice baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} />
               )}

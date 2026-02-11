@@ -259,6 +259,103 @@ export function getTalaDisplayName(talaName: TalaName, jatiName: JatiName): stri
 }
 
 /**
+ * Parse tala string like "4-Rupaka", "6-Adi", "Adi" into tala + jati.
+ * Format: "jatiValue-TalaName" or "TalaName" (defaults to chatusra).
+ * jatiValue: 3=tisra, 4=chatusra, 5=khanda, 7=misra, 9=sankeerna
+ */
+export function parseTalaString(talaStr: string): { talaName: TalaName; jatiName: JatiName } | null {
+    const normalized = talaStr.trim();
+    if (!normalized) return null;
+
+    const jatiByLaghu: Record<number, JatiName> = {
+        3: 'tisra',
+        4: 'chatusra',
+        5: 'khanda',
+        7: 'misra',
+        9: 'sankeerna',
+    };
+
+    const talaByDisplay: Record<string, TalaName> = {
+        eka: 'eka',
+        rupaka: 'rupaka',
+        jhampa: 'jhampa',
+        triputa: 'triputa',
+        adi: 'triputa',
+        matya: 'matya',
+        dhruva: 'dhruva',
+        ata: 'ata',
+        'misra chapu': 'misra_chapu',
+        'khanda chapu': 'khanda_chapu',
+    };
+
+    const parts = normalized.split(/[\-\s]+/);
+    if (parts.length >= 2) {
+        const num = parseInt(parts[0], 10);
+        const jatiName = jatiByLaghu[num];
+        const talaPart = parts.slice(1).join(' ').toLowerCase();
+        const talaName = talaByDisplay[talaPart] ?? (Object.entries(talaByDisplay).find(([k]) => talaPart.includes(k))?.[1]);
+        if (jatiName && talaName) {
+            return { talaName, jatiName };
+        }
+    }
+
+    const single = normalized.toLowerCase();
+    if (single === 'adi') return { talaName: 'triputa', jatiName: 'chatusra' };
+    const talaName = talaByDisplay[single] ?? Object.entries(talaByDisplay).find(([k]) => single.includes(k))?.[1];
+    if (talaName) return { talaName, jatiName: 'chatusra' };
+    return null;
+}
+
+/**
+ * Full formal display name, e.g. "Chatusra Jati Rupaka Tala"
+ */
+export function getTalaFullDisplayName(talaName: TalaName, jatiName: JatiName): string {
+    const tala = TALAS[talaName];
+    if (tala.chapuGrouping) return `${tala.displayName} Tala`;
+    const jati = JATIS[jatiName];
+    return `${jati.displayName} Jati ${tala.displayName} Tala`;
+}
+
+/**
+ * Display name: common name if it exists, with full name in brackets.
+ * e.g. "Rupaka Tala (Chatusra Jati Rupaka Tala)" or "Adi Tala (Chatusra Jati Triputa Tala)"
+ */
+export function getTalaDisplayWithFullName(talaName: TalaName, jatiName: JatiName): string {
+    const common = getTalaDisplayName(talaName, jatiName);
+    const full = getTalaFullDisplayName(talaName, jatiName);
+    if (common === full) return common;
+    return `${common} (${full})`;
+}
+
+/**
+ * Cumulative beat positions where bar lines should appear (at anga boundaries).
+ * For Rupaka chatusra (dhrutam 2 + laghu 4): [2, 6] — bar after 2 beats, bar after 6.
+ * These repeat each cycle.
+ */
+export function getTalaAngaBarPositions(talaName: TalaName, jatiName: JatiName): { barAt: number[]; cycleLength: number } {
+    const tala = TALAS[talaName];
+    if (tala.chapuGrouping) {
+        const cycleLength = tala.chapuGrouping.reduce((a, b) => a + b, 0);
+        const barAt: number[] = [];
+        let cum = 0;
+        for (let i = 0; i < tala.chapuGrouping.length; i++) {
+            cum += tala.chapuGrouping[i];
+            barAt.push(cum);
+        }
+        return { barAt, cycleLength };
+    }
+    const jati = JATIS[jatiName];
+    const barAt: number[] = [];
+    let cum = 0;
+    for (const anga of tala.pattern) {
+        const beats = anga === 'laghu' ? jati.laghuBeats : (ANGA_FIXED_BEATS[anga] ?? 0);
+        cum += beats;
+        barAt.push(cum);
+    }
+    return { barAt, cycleLength: cum };
+}
+
+/**
  * Generate simple beat pattern (no tala, just equal beats)
  */
 export function generateSimplePattern(beats: number): TalaBeat[] {
