@@ -104,8 +104,10 @@ html[data-theme] [class*="from-slate-"],
 html[data-theme] [class*="via-slate-"],
 html[data-theme] [class*="to-slate-"] { background: var(--card-bg) !important; }
 html[data-theme] [class*="hover:bg-slate-"]:hover { background-color: var(--border) !important; }
-/* Amber → accent (user-chosen) in all themes */
+/* Amber + accent class → accent (user-chosen) in all themes */
+html[data-theme] [class*="focus:ring-accent"]:focus,
 html[data-theme] [class*="focus:ring-amber-"]:focus { --tw-ring-color: var(--accent) !important; }
+html[data-theme] [class*="hover:bg-accent"]:hover,
 html[data-theme] [class*="hover:bg-amber-"]:hover { background-color: var(--accent) !important; }
 html[data-theme] [class*="bg-amber-"],
 html[data-theme] .bg-amber-500,

@@ -1,0 +1,89 @@
+{
+    "name": "Sri Gananatha",
+    "composer": "Purandara Dasa",
+    "language": "Kannada",
+    "stanzas": [
+        {
+            "raga": "Malahari",
+            "tala": "4-Rupaka",
+            "tempo": 120,
+            "lines": [
+                {
+                    "notes": "MPD>S>S>R>R>SDPMP",
+                    "lyrics": "Sri GaNanAtha, sindhUrA varNa",
+                    "translation": "Oh leader of the pramada ganas, you are the colour of vermillion."
+                },
+                {
+                    "notes": "RMPDMPDPMGRS",
+                    "lyrics": "karuNa sAgara, kari vadanA",
+                    "translation": "You are the the ocean of compassion and you have the visage of the mighty elephant."
+                },
+                {
+                    "notes": "SRM;GRSRGRS;",
+                    "lyrics": "lambOdara, lakumikara.",
+                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
+                },
+                {
+                    "notes": "RMPDMPDPMGRS",
+                    "lyrics": "ambAsuta, Amaravinuta",
+                    "translation": "O son of Parvathi, you are worshipped by the gods!"
+                },
+                {
+                    "notes": "SRM;GRSRGRS;",
+                    "lyrics": "lambOdara, lakumikara",
+                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
+                },
+                {
+                    "notes": "MPD>S>S>R>R>SDPMP",
+                    "lyrics": "sidhdha cAraNa, gaNasEvita",
+                    "translation": "You have all the holy men at your feet, and you are worshipped by the pramadha ganas who are the followers of lord Shiva!"
+                },
+                {
+                    "notes": "RMPDMPDPMGRS",
+                    "lyrics": "sidhdhi vinAyaka, tE namO namO",
+                    "translation": "You grant your devotees all their wishes, and I bow to you!"
+                },
+                {
+                    "notes": "SRM;GRSRGRS;",
+                    "lyrics": "lambOdara, lakumikara",
+                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
+                },
+                {
+                    "notes": "RMPDMPDPMGRS",
+                    "lyrics": "ambAsuta, Amaravinuta",
+                    "translation": "You have all the holy men at your feet, and you are worshipped by the pramadha ganas who are the followers of lord Shiva!"
+                },
+                {
+                    "notes": "SRM;GRSRGRS;",
+                    "lyrics": "lambOdara, lakumikara",
+                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
+                },
+                {
+                    "notes": "MPD>S>S>R>R>SDPMP",
+                    "lyrics": "sakala vidyAdi pUjita",
+                    "translation": "You are the first one to receive obeisance when setting upon acquiring any kind ofknowledge"
+                },
+                {
+                    "notes": "RMPDMPDPMGRS",
+                    "lyrics": "sarvOttama, tE namO namO",
+                    "translation": "You are the supreme one, and I bow to you!"
+                },
+                {
+                    "notes": "SRM;GRSRGRS;",
+                    "lyrics": "lambOdara, lakumikara",
+                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
+                },
+                {
+                    "notes": "RMPDMPDPMGRS",
+                    "lyrics": "ambAsuta, Amaravinuta",
+                    "translation": "You have all the holy men at your feet, and you are worshipped by the pramadha ganas who are the followers of lord Shiva!"
+                },
+                {
+                    "notes": "SRM;GRSRGRS;",
+                    "lyrics": "lambOdara, lakumikara",
+                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
+                }
+            ]
+        }
+    ]
+}
