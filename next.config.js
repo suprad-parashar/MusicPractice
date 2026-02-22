@@ -1,6 +1,11 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   images: {
     unoptimized: true,
   },
