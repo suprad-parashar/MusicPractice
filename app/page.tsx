@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
@@ -95,7 +95,7 @@ const VALID_METRONOME_MODES: MetronomeMode[] = ['simple', 'tala'];
  *
  * @returns The rendered Home page React element containing the sidebar, tab navigation, active practice content, and footer.
  */
-export default function Home() {
+function HomeContent() {
   const [storageReady, setStorageReady] = useState(false);
   const [selectedKey, setSelectedKey] = useState<KeyName>('C');
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
@@ -643,5 +643,19 @@ export default function Home() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[var(--page-bg)]">
+          <span className="text-[var(--text-muted)]">Loading...</span>
+        </div>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }
