@@ -2,16 +2,13 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
-import { MELAKARTA_RAGAS, Raga, getSwarafrequency } from '@/data/melakartaRagas';
-import { JANYA_RAGAS } from '@/data/janyaRagas';
+import { ALL_RAGAS, Raga, getSwarafrequency } from '@/data/ragas';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
 import { parseSongNotes } from '@/lib/songNotation';
 import { getStored, setStored } from '@/lib/storage';
 import { parseTalaString, getTalaDisplayWithFullName, getTalaAngaBarPositions } from '@/data/talas';
 import type { Song } from '@/data/songs';
-
-const ALL_RAGAS: Raga[] = [...MELAKARTA_RAGAS, ...JANYA_RAGAS];
 
 interface PlayableNote {
   swara: string;

@@ -5,10 +5,11 @@ import { SARALI_VARISAI, Varisai, convertVarisaiNote, parseVarisaiNote } from '@
 import { JANTA_VARISAI } from '@/data/jantaVarisai';
 import { MELASTHAYI_VARISAI } from '@/data/melasthayiVarisai';
 import { MANDARASTHAYI_VARISAI } from '@/data/mandarasthayiVarisai';
-import { getSwarafrequency } from '@/data/melakartaRagas';
-import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/melakartaRagas';
+import { getSwarafrequency } from '@/data/ragas';
+import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/ragas';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
+import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
 
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
@@ -161,9 +162,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
 
   const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => a.name.localeCompare(b.name));
 
-  const filteredRagas = sortedRagas.filter(raga =>
-    raga.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRagas = filterAndSortRagasBySearch(sortedRagas, searchQuery);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

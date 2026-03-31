@@ -180,7 +180,8 @@ CarnaticPractice/
 │   ├── VarisaiPlayer.tsx   # Varisai practice component
 │   └── AuditoryPractice.tsx # Auditory training component
 ├── data/
-│   ├── melakartaRagas.ts   # All 72 melakarta ragas
+│   ├── all_ragas.json      # Melakarta + janya ragas and metadata
+│   ├── ragas.ts            # Loads JSON; Raga types, MELAKARTA_RAGAS, JANYA_RAGAS, getSwarafrequency
 │   ├── saraliVarisai.ts    # Sarali varisai exercises
 │   ├── jantaVarisai.ts     # Janta varisai exercises
 │   ├── melasthayiVarisai.ts

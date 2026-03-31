@@ -107,11 +107,20 @@ html[data-theme] [class*="hover:bg-slate-"]:hover { background-color: var(--bord
 /* Amber + accent class → accent (user-chosen) in all themes */
 html[data-theme] [class*="focus:ring-accent"]:focus,
 html[data-theme] [class*="focus:ring-amber-"]:focus { --tw-ring-color: var(--accent) !important; }
+/* Hover → accent: use explicit utilities only. Do NOT use [class*="hover:bg-amber-"] — it matches
+   hover:bg-amber-600/25 (raga search rows) and forces a flat accent fill on hover. */
 html[data-theme] [class*="hover:bg-accent"]:hover,
-html[data-theme] [class*="hover:bg-amber-"]:hover { background-color: var(--accent) !important; }
-html[data-theme] [class*="bg-amber-"],
+html[data-theme] [class*="hover:bg-amber-500"]:hover,
+html[data-theme] [class*="hover:bg-amber-400"]:hover,
+html[data-theme] [class*="hover:bg-amber-600"]:not([class*="hover:bg-amber-600/"]):hover {
+  background-color: var(--accent) !important;
+}
+/* Solid bg-amber-* only — [class*="bg-amber-"] falsely matches hover:bg-amber-* (substring "bg-amber"). */
 html[data-theme] .bg-amber-500,
-html[data-theme] .bg-amber-400 { background-color: var(--accent) !important; }
+html[data-theme] .bg-amber-400,
+html[data-theme] .bg-amber-600 {
+  background-color: var(--accent) !important;
+}
 html[data-theme] [class*="text-amber-"],
 html[data-theme] .text-amber-400,
 html[data-theme] .text-amber-500 { color: var(--accent) !important; }
