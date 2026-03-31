@@ -4,9 +4,9 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react
 import { MELAKARTA_RAGAS, MelakartaRaga, getSwarafrequency } from '@/data/ragas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
 
-type SortOrder = 'number' | 'alphabetical';
 type PracticeMode = 'untimed' | 'timed';
 type NoteCount = 1 | 2 | 3;
 
@@ -27,7 +27,6 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
   );
-  const [sortOrder, setSortOrder] = useState<SortOrder>('number');
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('untimed');
   const [endGameIfWrong, setEndGameIfWrong] = useState(false);
   const [noteCount, setNoteCount] = useState<NoteCount>(1);
@@ -49,6 +48,9 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const [displayScore, setDisplayScore] = useState(0); // Score to display (accounts for timing)
   const [displayRound, setDisplayRound] = useState(0); // Round to display (accounts for timing)
   const [storageReady, setStorageReady] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const hasLoadedAuditoryRef = useRef(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -101,7 +103,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   // Load persisted auditory practice settings before first paint (avoids flash of defaults)
   const AUDITORY_STORAGE_KEY = 'auditorySettings';
   const AUDITORY_HIGH_SCORES_KEY = 'auditoryHighScores';
-  type StoredAuditorySettings = { ragaNumber?: number; sortOrder?: SortOrder; practiceMode?: PracticeMode; endGameIfWrong?: boolean; noteCount?: NoteCount; timerMinutes?: number };
+  type StoredAuditorySettings = { ragaNumber?: number; practiceMode?: PracticeMode; endGameIfWrong?: boolean; noteCount?: NoteCount; timerMinutes?: number };
   type HighScoresByMode = Record<string, number>;
   useLayoutEffect(() => {
     const stored = getStored<StoredAuditorySettings>(AUDITORY_STORAGE_KEY, {});
@@ -109,7 +111,6 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
       const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
       if (raga) setSelectedRaga(raga);
     }
-    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
     if (stored.practiceMode === 'untimed' || stored.practiceMode === 'timed') setPracticeMode(stored.practiceMode);
     if (typeof stored.endGameIfWrong === 'boolean') setEndGameIfWrong(stored.endGameIfWrong);
     if (stored.noteCount === 1 || stored.noteCount === 2 || stored.noteCount === 3) setNoteCount(stored.noteCount);
@@ -144,22 +145,39 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
     if (!hasLoadedAuditoryRef.current) return;
     setStored(AUDITORY_STORAGE_KEY, {
       ragaNumber: selectedRaga?.number,
-      sortOrder,
       practiceMode,
       endGameIfWrong,
       noteCount,
       timerMinutes,
     });
-  }, [selectedRaga, sortOrder, practiceMode, endGameIfWrong, noteCount, timerMinutes]);
+  }, [selectedRaga, practiceMode, endGameIfWrong, noteCount, timerMinutes]);
 
-  // Get sorted ragas
-  const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => {
-    if (sortOrder === 'number') {
-      return a.number - b.number;
-    } else {
-      return a.name.localeCompare(b.name);
+  const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => a.name.localeCompare(b.name));
+
+  const filteredRagas = filterAndSortRagasBySearch(sortedRagas, searchQuery);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
     }
-  });
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isGameActive) setDropdownOpen(false);
+  }, [isGameActive]);
 
   // Convert linear volume (0-1) to logarithmic gain
   const linearToLogGain = (linearValue: number): number => {
@@ -621,7 +639,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-700/50">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-700/50 overflow-visible">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-light mb-2 tracking-wide">
@@ -633,49 +651,62 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
         </div>
 
         {/* Raga Selection */}
-        <div className="mb-8">
+        <div className="mb-8 overflow-visible">
           <div className="flex flex-col sm:flex-row gap-4 items-center mb-4">
             <label className="text-sm font-medium text-slate-300 whitespace-nowrap">
               Select Raga:
             </label>
-            <select
-              value={selectedRaga.name}
-              onChange={(e) => {
-                const raga = MELAKARTA_RAGAS.find(r => r.name === e.target.value);
-                if (raga) setSelectedRaga(raga);
-              }}
-              disabled={isGameActive}
-              className="flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50"
-            >
-              {sortedRagas.map((raga) => (
-                <option key={raga.number} value={raga.name}>
-                  {sortOrder === 'number' ? `${raga.number}. ` : ''}{raga.name}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSortOrder('number')}
+            <div className="relative flex-1 min-w-0 w-full" ref={dropdownRef}>
+              <input
+                type="text"
+                value={dropdownOpen ? searchQuery : selectedRaga.name}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  if (isGameActive) return;
+                  setSearchQuery('');
+                  setDropdownOpen(true);
+                }}
+                placeholder={selectedRaga.name}
                 disabled={isGameActive}
-                className={`px-3 py-1 rounded text-sm ${
-                  sortOrder === 'number'
-                    ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                } disabled:opacity-50`}
-              >
-                By Number
-              </button>
-              <button
-                onClick={() => setSortOrder('alphabetical')}
-                disabled={isGameActive}
-                className={`px-3 py-1 rounded text-sm ${
-                  sortOrder === 'alphabetical'
-                    ? 'bg-amber-500 text-slate-900'
-                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                } disabled:opacity-50`}
-              >
-                A-Z
-              </button>
+                className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {dropdownOpen && !isGameActive && (
+                <div
+                  className="scroll-area-transparent absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl py-2"
+                  style={{ maxHeight: '280px', overflowY: 'auto' }}
+                >
+                  {filteredRagas.length > 0 ? (
+                    filteredRagas.map((raga) => (
+                      <button
+                        key={raga.ragaId}
+                        type="button"
+                        onClick={() => {
+                          setSelectedRaga(raga);
+                          setSearchQuery('');
+                          setDropdownOpen(false);
+                        }}
+                        className="w-full text-left pl-4 pr-4 py-3 text-sm cursor-pointer text-slate-200"
+                        style={{ transition: 'background-color 0.15s ease' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--accent, #f59e0b)';
+                          e.currentTarget.style.color = '#0f172a';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#e2e8f0';
+                        }}
+                      >
+                        {raga.name}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="pl-4 pr-4 py-3 text-sm text-slate-400 text-center">No ragas found</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
