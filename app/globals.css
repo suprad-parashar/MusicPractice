@@ -237,4 +237,23 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  /** Notched phones / home indicator — use with fixed sidebars and full-viewport shells */
+  .pt-safe {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+  .pb-safe {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  .pl-safe {
+    padding-left: max(0px, env(safe-area-inset-left));
+  }
+  .pr-safe {
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  /** Momentum scrolling for horizontal tab bars on iOS */
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+  }
 }

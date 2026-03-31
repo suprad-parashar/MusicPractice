@@ -323,8 +323,8 @@ function HomeContent() {
   }
 
   return (
-    <main className="h-screen overflow-hidden flex flex-col min-h-0 bg-[var(--page-bg)] text-[var(--text-primary)]">
-      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+    <main className="h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col min-h-0 bg-[var(--page-bg)] text-[var(--text-primary)] pt-safe">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative min-h-0">
         {/* Mobile sidebar backdrop */}
         <button
           type="button"
@@ -343,7 +343,7 @@ function HomeContent() {
             bg-[var(--sidebar-bg)] border-[var(--border)]
             w-80 min-w-[280px] max-w-[85vw] shrink-0
             lg:relative lg:translate-x-0 lg:border-r lg:p-6 lg:gap-8
-            fixed top-0 left-0 bottom-0 z-50 p-4 pt-14
+            fixed top-0 left-0 bottom-0 z-50 p-4 pt-14 pb-safe pl-safe
             transition-transform duration-300 ease-out
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           `}
@@ -393,8 +393,8 @@ function HomeContent() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Tab bar + Settings button (mobile) */}
-          <div className="bg-[var(--header-bg)] border-b border-[var(--border)] flex items-center">
-            <div className="flex-1 flex items-center gap-2 px-3 sm:px-6">
+          <div className="bg-[var(--header-bg)] border-b border-[var(--border)] flex items-center min-h-0 pr-safe">
+            <div className="flex-1 flex items-center gap-2 px-2 sm:px-4 md:px-6 min-w-0">
               <button
                 type="button"
                 aria-label="Open settings"
@@ -405,7 +405,7 @@ function HomeContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
-              <div className="flex gap-1 sm:gap-2 overflow-x-auto scrollbar-thin min-h-[48px] items-center pb-px">
+              <div className="flex gap-1 sm:gap-2 overflow-x-auto overflow-y-hidden scrollbar-thin scroll-touch scroll-smooth min-h-[48px] items-center pb-px [scrollbar-gutter:stable]">
                 <button
                   onClick={() => setActiveTab('raga')}
                   className={`
@@ -462,7 +462,7 @@ function HomeContent() {
             </div>
 
             {/* Key Display + Settings Button */}
-            <div className="flex items-center gap-2 px-3 sm:px-6">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0 px-1 sm:px-3 md:px-6">
               {/* Key Display */}
               <div className="relative" ref={keyPickerRef}>
                 <button
@@ -474,14 +474,14 @@ function HomeContent() {
                   className="shrink-0 px-3 py-1.5 rounded-md text-[var(--text-primary)] bg-[var(--card-bg)] hover:bg-[var(--sidebar-bg)] border border-[var(--border)] transition flex items-center gap-1.5"
                 >
                   <span className="text-sm font-semibold text-accent">{selectedKey}</span>
-                  <span className="text-xs text-[var(--text-muted)]">{KEYS[selectedKey].toFixed(0)} Hz</span>
+                  <span className="hidden sm:inline text-xs text-[var(--text-muted)]">{KEYS[selectedKey].toFixed(0)} Hz</span>
                   <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
                 {keyPickerOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden p-3">
+                  <div className="absolute right-0 top-full mt-2 w-[min(14rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1rem)] bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden p-3">
                     <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">Select Key</div>
                     <div className="grid grid-cols-4 gap-1">
                       {(Object.keys(KEYS) as KeyName[]).map((key) => (
@@ -524,7 +524,7 @@ function HomeContent() {
                 </button>
 
                 {themeAccentOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-[min(16rem,calc(100vw-1rem))] max-h-[min(24rem,calc(100dvh-6rem))] overflow-y-auto scroll-touch bg-[var(--card-bg)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-x-hidden">
                     {/* Theme Section */}
                     <div className="border-b border-[var(--border)] p-2">
                       <div className="text-xs font-semibold text-[var(--text-muted)] px-2 py-1 mb-1">Theme</div>
@@ -609,7 +609,7 @@ function HomeContent() {
 
           {/* Tab Content + Footer – scroll together */}
           <div className="scroll-area flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">
-            <div className="flex-1 flex items-start justify-center p-4 sm:p-6 min-w-0 w-full">
+            <div className="flex-1 flex items-start justify-center px-3 py-4 sm:px-4 sm:py-5 md:p-6 min-w-0 w-full max-w-[100vw] box-border">
               {activeTab === 'raga' ? (
                 <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'varisai' ? (
@@ -631,7 +631,7 @@ function HomeContent() {
                 <AuditoryPractice baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} />
               )}
             </div>
-            <footer className="shrink-0 pt-4 sm:pt-6 px-4 sm:px-8 pb-8 sm:pb-16 text-center border-t bg-[var(--page-bg)] border-[var(--border)]">
+            <footer className="shrink-0 pt-4 sm:pt-6 px-3 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-[max(4rem,env(safe-area-inset-bottom))] text-center border-t bg-[var(--page-bg)] border-[var(--border)]">
               <p className="text-[var(--text-muted)] text-xs sm:text-sm md:text-base font-light italic max-w-xl mx-auto mb-1.5">
                 &ldquo;Where there is practice, there is perfection.&rdquo;
               </p>

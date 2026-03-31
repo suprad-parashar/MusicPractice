@@ -638,11 +638,11 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-700/50 overflow-visible">
+    <div className="w-full max-w-4xl mx-auto min-w-0">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-12 shadow-2xl border border-slate-700/50 overflow-visible">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-light mb-2 tracking-wide">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light mb-2 tracking-wide">
             Auditory Practice
           </h1>
           <p className="text-slate-400 text-sm md:text-base">
@@ -804,15 +804,15 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
 
         {/* End game if wrong (high-score mode) */}
         {!isGameActive && (
-          <div className="mb-6 flex justify-center">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="mb-6 flex justify-center px-1">
+            <label className="flex items-start sm:items-center gap-2 cursor-pointer max-w-md text-center sm:text-left">
               <input
                 type="checkbox"
                 checked={endGameIfWrong}
                 onChange={(e) => setEndGameIfWrong(e.target.checked)}
-                className="w-4 h-4 rounded accent-amber-500 cursor-pointer"
+                className="w-4 h-4 mt-0.5 sm:mt-0 shrink-0 rounded accent-amber-500 cursor-pointer"
               />
-              <span className="text-sm text-slate-300">End game if wrong (high-score mode)</span>
+              <span className="text-sm text-slate-300 leading-snug">End game if wrong (high-score mode)</span>
             </label>
           </div>
         )}
@@ -871,11 +871,11 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
         {/* Control Buttons */}
         <div className="mb-6 flex flex-col items-center gap-4">
           {isGameActive && (
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3 sm:gap-4 justify-center w-full max-w-md">
               <button
                 onClick={playRootNote}
                 disabled={!audioContextRef.current}
-                className="px-6 py-3 rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-all duration-200 text-sm font-medium disabled:opacity-50"
+                className="min-h-[44px] min-w-[44px] px-5 sm:px-6 py-3 rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-all duration-200 text-sm font-medium disabled:opacity-50 touch-manipulation"
               >
                 Root Note
               </button>
@@ -890,7 +890,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
                   }
                 }}
                 disabled={!audioContextRef.current}
-                className="px-6 py-3 rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-all duration-200 text-sm font-medium disabled:opacity-50"
+                className="min-h-[44px] min-w-[44px] px-5 sm:px-6 py-3 rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition-all duration-200 text-sm font-medium disabled:opacity-50 touch-manipulation"
               >
                 Play Note{noteCount > 1 ? 's' : ''}
               </button>
@@ -920,7 +920,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
             <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
               Enter your answer
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-stretch">
               <input
                 type="text"
                 value={userInput}
@@ -928,7 +928,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
                 onKeyPress={handleKeyPress}
                 disabled={!!feedbackMessage}
                 placeholder={`Enter ${noteCount} note${noteCount > 1 ? 's' : ''} (e.g., ${noteCount === 1 ? 'S' : noteCount === 2 ? 'SR or Sa Re' : 'SRG or Sa Re Ga'})`}
-                className={`flex-1 px-4 py-3 bg-slate-700/50 border rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-center text-lg transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed ${
+                className={`flex-1 min-w-0 min-h-[48px] px-4 py-3 bg-slate-700/50 border rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-center text-base sm:text-lg transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed touch-manipulation ${
                   feedbackMessage?.type === 'correct' 
                     ? 'border-green-500 bg-green-500/20' 
                     : feedbackMessage?.type === 'wrong'
@@ -940,7 +940,7 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
               <button
                 onClick={checkAnswer}
                 disabled={!!feedbackMessage}
-                className="px-6 py-3 rounded-lg bg-amber-500 text-slate-900 hover:bg-amber-600 transition-all duration-200 text-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+                className="shrink-0 min-h-[48px] sm:min-w-[100px] px-6 py-3 rounded-lg bg-amber-500 text-slate-900 hover:bg-amber-600 transition-all duration-200 text-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed touch-manipulation"
               >
                 Check
               </button>

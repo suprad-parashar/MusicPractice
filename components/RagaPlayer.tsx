@@ -679,8 +679,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-3xl px-5 py-6 sm:px-6 sm:py-7 md:px-8 md:py-8 shadow-2xl border border-slate-700/50 ring-1 ring-white/[0.04]">
+    <div className="w-full max-w-6xl mx-auto min-w-0">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl sm:rounded-3xl px-4 py-5 sm:px-6 sm:py-7 md:px-8 md:py-8 shadow-2xl border border-slate-700/50 ring-1 ring-white/[0.04]">
         {/* Header */}
         <div className="text-center mb-6 md:mb-7">
           <h1 className="text-3xl md:text-4xl font-light mb-2 tracking-tight text-slate-100">
@@ -849,7 +849,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
               <div className="mt-4 border-t border-slate-700/35 pt-6 pb-5">
                 <div className="flex flex-col items-center gap-3">
                   <span className="text-sm font-medium text-slate-400">Tempo</span>
-                  <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-[280px] max-w-full divide-x divide-slate-600">
+                  <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-full max-w-[280px] divide-x divide-slate-600">
               <button
                 type="button"
                 onClick={() => { const v = Math.max(30, Math.round(Math.floor(baseBPM / 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}

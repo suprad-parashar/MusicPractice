@@ -73,11 +73,11 @@ export default function SongsList({ onSelectSong }: { onSelectSong: (slug: strin
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 md:p-10 shadow-2xl border border-slate-700/50 overflow-hidden">
+    <div className="w-full max-w-4xl mx-auto min-w-0 px-3 sm:px-4 md:px-6">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-2xl border border-slate-700/50 overflow-hidden">
         <div className="border-b border-slate-600/60 pb-2 mb-4">
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-light mb-3 tracking-wide text-[var(--text-primary)]">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light mb-3 tracking-wide text-[var(--text-primary)]">
               Songs
             </h1>
             <p className="text-slate-400 text-sm md:text-base">

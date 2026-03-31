@@ -809,11 +809,11 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto overflow-visible">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-700/50 overflow-visible">
+    <div className="w-full max-w-4xl mx-auto overflow-visible min-w-0">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-12 shadow-2xl border border-slate-700/50 overflow-visible">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-light mb-2 tracking-wide">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light mb-2 tracking-wide">
             {VARISAI_TYPES[varisaiType].name}
           </h1>
           <p className="text-slate-400 text-sm md:text-base">
@@ -1108,7 +1108,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
           {/* Tempo Control */}
           <div className="flex flex-col items-center gap-2">
             <label className="text-sm font-medium text-slate-300">Tempo</label>
-            <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-[280px] divide-x divide-slate-600">
+            <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-full max-w-[280px] divide-x divide-slate-600">
               <button
                 type="button"
                 onClick={() => { const v = Math.max(30, Math.round(Math.floor(baseBPM / 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
@@ -1178,7 +1178,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
         <div className="mt-8">
           <div className="text-center">
             <p className="text-slate-400 text-sm mb-4">Exercise Notes</p>
-            <div className="grid grid-cols-4 lg:grid-cols-8 gap-1.5 sm:gap-2 justify-items-center max-w-2xl mx-auto px-2">
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2 justify-items-center max-w-2xl mx-auto px-1 sm:px-2">
               {notes.map((note, index) => {
                 // Handle ";" as continuation marker
                 if (note === ";") {

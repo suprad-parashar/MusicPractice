@@ -506,8 +506,8 @@ export default function SongPlayer({
   });
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 md:p-12 shadow-2xl border border-slate-700/50">
+    <div className="w-full max-w-4xl mx-auto min-w-0">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 lg:p-12 shadow-2xl border border-slate-700/50">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
@@ -523,7 +523,7 @@ export default function SongPlayer({
                 Back to songs
               </button>
             )}
-            <h1 className="text-3xl md:text-4xl font-light tracking-wide">{song.name}</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-wide break-words">{song.name}</h1>
             <p className="text-slate-400 text-sm mt-1">{song.composer} · {song.language}</p>
           </div>
 
@@ -552,7 +552,7 @@ export default function SongPlayer({
             <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-6">
               <div className="flex flex-col items-center gap-2">
                 <label className="text-sm font-medium text-slate-300">Tempo</label>
-                <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-[280px] divide-x divide-slate-600">
+                <div className="flex flex-row items-stretch justify-center rounded-lg border border-slate-600 bg-slate-800/30 overflow-hidden w-full max-w-[280px] divide-x divide-slate-600">
                   <button
                     type="button"
                     onClick={() => { const v = Math.max(30, Math.round(Math.floor(baseBPM / 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}

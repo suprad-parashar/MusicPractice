@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   description: "Practice Carnatic vocal exercises with a digital tanpura",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+};
+
 const themeScript = `
 (function() {
   try {
