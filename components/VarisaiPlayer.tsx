@@ -11,7 +11,6 @@ import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type Inst
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
 import { getStored, setStored } from '@/lib/storage';
 
-type SortOrder = 'number' | 'alphabetical';
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
 
 const VARISAI_TYPES: { [key in VarisaiType]: { name: string; data: Varisai[] } } = {
@@ -40,7 +39,9 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
   );
-  const [sortOrder, setSortOrder] = useState<SortOrder>('number');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [baseBPM, setBaseBPM] = useState(90);
   const [tempoInputValue, setTempoInputValue] = useState(String(90));
@@ -111,7 +112,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
     varisaiType?: VarisaiType;
     selectedVarisaiNumber?: number;
     ragaNumber?: number;
-    sortOrder?: SortOrder;
     notesPerBeat?: number;
     loop?: boolean;
     practiceMode?: boolean;
@@ -133,7 +133,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       const raga = MELAKARTA_RAGAS.find(r => r.number === stored.ragaNumber);
       if (raga) setSelectedRaga(raga);
     }
-    if (stored.sortOrder === 'number' || stored.sortOrder === 'alphabetical') setSortOrder(stored.sortOrder);
     if (typeof stored.notesPerBeat === 'number' && [1, 2, 3, 4, 5].includes(stored.notesPerBeat)) setNotesPerBeat(stored.notesPerBeat);
     if (typeof stored.loop === 'boolean') setLoop(stored.loop);
     if (typeof stored.practiceMode === 'boolean') setPracticeMode(stored.practiceMode);
@@ -151,7 +150,6 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       varisaiType,
       selectedVarisaiNumber: selectedVarisai?.number,
       ragaNumber: selectedRaga?.number,
-      sortOrder,
       notesPerBeat,
       loop,
       practiceMode,
@@ -159,7 +157,32 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
       startFromCurrentExercise,
       startFromCurrentIndex,
     });
-  }, [varisaiType, selectedVarisai, selectedRaga, sortOrder, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
+  }, [varisaiType, selectedVarisai, selectedRaga, notesPerBeat, loop, practiceMode, singAlongMode, startFromCurrentExercise, startFromCurrentIndex]);
+
+  const sortedRagas = [...MELAKARTA_RAGAS].sort((a, b) => a.name.localeCompare(b.name));
+
+  const filteredRagas = sortedRagas.filter(raga =>
+    raga.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   // Sync sidebar voice volume to master gain when it changes
   useEffect(() => {
@@ -831,41 +854,55 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
           <label className="block text-sm font-medium text-slate-300 mb-3 text-center">
             Select Raga
           </label>
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full">
-            <select
-              value={selectedRaga.name}
-              onChange={(e) => handleRagaChange(e.target.value)}
-              className="flex-1 min-w-0 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
-            >
-              {[...MELAKARTA_RAGAS].sort((a, b) => {
-                if (sortOrder === 'number') return a.number - b.number;
-                return a.name.localeCompare(b.name);
-              }).map((raga) => (
-                <option key={raga.number} value={raga.name}>
-                  {sortOrder === 'number' ? `${raga.number}. ` : ''}{raga.name}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-2 flex-shrink-0 justify-center sm:justify-start">
-              <button
-                onClick={() => setSortOrder('number')}
-                className={`px-3 py-2 rounded text-sm whitespace-nowrap transition-all ${sortOrder === 'number'
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }`}
+          <div className="relative w-full" ref={dropdownRef}>
+            <input
+              type="text"
+              value={dropdownOpen ? searchQuery : selectedRaga.name}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setDropdownOpen(true);
+              }}
+              onFocus={() => {
+                setSearchQuery('');
+                setDropdownOpen(true);
+              }}
+              placeholder={selectedRaga.name}
+              className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm cursor-pointer"
+            />
+            {dropdownOpen && (
+              <div
+                className="scroll-area-transparent absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl py-2"
+                style={{ maxHeight: '280px', overflowY: 'auto' }}
               >
-                By Number
-              </button>
-              <button
-                onClick={() => setSortOrder('alphabetical')}
-                className={`px-3 py-2 rounded text-sm whitespace-nowrap transition-all ${sortOrder === 'alphabetical'
-                  ? 'bg-amber-500 text-slate-900'
-                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
-                  }`}
-              >
-                A-Z
-              </button>
-            </div>
+                {filteredRagas.length > 0 ? (
+                  filteredRagas.map((raga) => (
+                    <button
+                      key={raga.number}
+                      type="button"
+                      onClick={() => {
+                        handleRagaChange(raga.name);
+                        setSearchQuery('');
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full text-left pl-4 pr-4 py-3 text-sm cursor-pointer text-slate-200"
+                      style={{ transition: 'background-color 0.15s ease' }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--accent, #f59e0b)';
+                        e.currentTarget.style.color = '#0f172a';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = '#e2e8f0';
+                      }}
+                    >
+                      {raga.name}
+                    </button>
+                  ))
+                ) : (
+                  <div className="pl-4 pr-4 py-3 text-sm text-slate-400 text-center">No ragas found</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
