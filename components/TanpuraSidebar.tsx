@@ -189,13 +189,15 @@ export default function TanpuraSidebar({
         <label className="block text-xs font-medium text-slate-300 mb-2 text-center">
           Pattern
         </label>
-        <div className="flex border border-slate-600 rounded-lg overflow-hidden bg-slate-800/30">
+        <div className="flex flex-nowrap border border-slate-600 rounded-lg overflow-x-auto overflow-y-hidden bg-slate-800/30 [scrollbar-width:thin]">
           {TANPURA_PATTERNS.map((p, idx) => (
             <button
               key={p.id}
+              type="button"
               onClick={() => handlePatternChange(p.id)}
               className={`
-                flex-1 py-1.5 sm:py-2 px-1 text-[10px] sm:text-xs font-medium transition-all duration-200
+                flex flex-1 items-center justify-center
+                py-1.5 sm:py-2 px-0.5 sm:px-1.5 text-[9px] sm:text-[11px] font-medium transition-all duration-200 whitespace-nowrap
                 ${idx < TANPURA_PATTERNS.length - 1 ? 'border-r border-slate-600' : ''}
                 focus:outline-none focus:ring-0
                 ${pattern === p.id

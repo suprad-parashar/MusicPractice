@@ -187,7 +187,12 @@ function HomeContent() {
     if (typeof stored.tanpuraPluckDelay === 'number' && stored.tanpuraPluckDelay >= 0.8 && stored.tanpuraPluckDelay <= 2.5) setTanpuraPluckDelay(stored.tanpuraPluckDelay);
     if (typeof stored.tanpuraNoteLength === 'number' && stored.tanpuraNoteLength >= 2 && stored.tanpuraNoteLength <= 8) setTanpuraNoteLength(stored.tanpuraNoteLength);
     if (stored.tanpuraOctave && VALID_OCTAVES.includes(stored.tanpuraOctave)) setTanpuraOctave(stored.tanpuraOctave);
-    if (stored.tanpuraPattern && TANPURA_PATTERN_ORDER.includes(stored.tanpuraPattern)) setTanpuraPattern(stored.tanpuraPattern);
+    const rawPattern = (stored as { tanpuraPattern?: string }).tanpuraPattern;
+    if (rawPattern === 'mpps') {
+      setTanpuraPattern('m-hs-hs-s');
+    } else if (rawPattern && TANPURA_PATTERN_ORDER.includes(rawPattern as TanpuraPatternId)) {
+      setTanpuraPattern(rawPattern as TanpuraPatternId);
+    }
     if (stored.voiceOctave && VALID_OCTAVES.includes(stored.voiceOctave)) setVoiceOctave(stored.voiceOctave);
     if (stored.theme && VALID_THEMES.includes(stored.theme)) setTheme(stored.theme);
     else if (String(stored.theme) === 'high-contrast') setTheme('dark');
