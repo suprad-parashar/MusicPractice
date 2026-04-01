@@ -4,7 +4,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { ALL_RAGAS, Raga, getSwarafrequency } from '@/data/ragas';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
-import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
+import { type NotationLanguage } from '@/lib/swaraNotation';
+import { SwaraGlyph } from '@/components/SwaraGlyph';
 import { parseSongNotes } from '@/lib/songNotation';
 import { getStored, setStored } from '@/lib/storage';
 import { parseTalaString, getTalaDisplayWithFullName, getTalaAngaBarPositions } from '@/data/talas';
@@ -669,9 +670,6 @@ export default function SongPlayer({
                     <div className="flex flex-wrap gap-1.5">
                       {arohana.map((note, i) => {
                         const p = parseVarisaiNote(note);
-                        const base = p.swara.charAt(0);
-                        const num = p.swara.slice(1);
-                        const disp = getSwaraInScript(base, notationLanguage) + num;
                         const isHighlighted = isRagaPlaying && currentRagaNoteIndex === i;
                         return (
                           <span
@@ -680,7 +678,7 @@ export default function SongPlayer({
                               isHighlighted ? 'bg-amber-500 text-slate-900 ring-2 ring-amber-400/50 border-amber-600' : 'bg-slate-500/30 dark:bg-slate-700/50 text-slate-600 dark:text-slate-200 border-gray-400'
                             }`}
                           >
-                            {disp}
+                            <SwaraGlyph swara={p.swara} language={notationLanguage} />
                             {p.octave === 'higher' && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
                             {p.octave === 'lower' && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
                           </span>
@@ -693,9 +691,6 @@ export default function SongPlayer({
                     <div className="flex flex-wrap gap-1.5">
                       {avarohana.map((note, i) => {
                         const p = parseVarisaiNote(note);
-                        const base = p.swara.charAt(0);
-                        const num = p.swara.slice(1);
-                        const disp = getSwaraInScript(base, notationLanguage) + num;
                         const isHighlighted = isRagaPlaying && currentRagaNoteIndex === arohana.length + i;
                         return (
                           <span
@@ -704,7 +699,7 @@ export default function SongPlayer({
                               isHighlighted ? 'bg-amber-500 text-slate-900 ring-2 ring-amber-400/50 border-amber-600' : 'bg-slate-500/30 dark:bg-slate-700/50 text-slate-600 dark:text-slate-200 border-gray-400'
                             }`}
                           >
-                            {disp}
+                            <SwaraGlyph swara={p.swara} language={notationLanguage} />
                             {p.octave === 'higher' && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
                             {p.octave === 'lower' && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
                           </span>
@@ -766,8 +761,6 @@ export default function SongPlayer({
                             );
                           }
                           const parsed = parseVarisaiNote(t);
-                          const baseSwara = parsed.swara.charAt(0);
-                          const displayNote = getSwaraInScript(baseSwara, notationLanguage);
                           return (
                             <button
                               key={ii}
@@ -784,7 +777,7 @@ export default function SongPlayer({
                                 }
                               `}
                             >
-                              {displayNote}
+                              <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
                               {parsed.octave === 'higher' && (
                                 <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">•</span>
                               )}

@@ -4,7 +4,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { ALL_RAGAS, Raga, getMelakartaByNumber, getRagaByIdOrName, getRagaByName, getSwarafrequency } from '@/data/ragas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
-import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
+import { type NotationLanguage } from '@/lib/swaraNotation';
+import { SwaraGlyph } from '@/components/SwaraGlyph';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
 
@@ -926,9 +927,6 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                 {arohana.map((note, index) => {
                   const globalIndex = index;
                   const parsed = parseVarisaiNote(note);
-                  const baseSwara = parsed.swara.charAt(0);
-                  const numberSuffix = parsed.swara.slice(1); // e.g. "1", "2", "3" for R1, G2, M1
-                  const displayNote = getSwaraInScript(baseSwara, notationLanguage) + numberSuffix;
                   return (
                     <div
                       key={`arohana-${index}`}
@@ -944,7 +942,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                         }
                       `}
                     >
-                      {displayNote}
+                      <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
                       {parsed.octave === 'higher' && (
                         <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">•</span>
                       )}
@@ -964,9 +962,6 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                 {avarohana.map((note, index) => {
                   const globalIndex = arohana.length + index;
                   const parsed = parseVarisaiNote(note);
-                  const baseSwara = parsed.swara.charAt(0);
-                  const numberSuffix = parsed.swara.slice(1); // e.g. "1", "2", "3" for R1, G2, M1
-                  const displayNote = getSwaraInScript(baseSwara, notationLanguage) + numberSuffix;
                   return (
                     <div
                       key={`avarohana-${index}`}
@@ -982,7 +977,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                         }
                       `}
                     >
-                      {displayNote}
+                      <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
                       {parsed.octave === 'higher' && (
                         <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">•</span>
                       )}

@@ -52,3 +52,15 @@ export function getSwaraInScript(baseSwara: string, language: NotationLanguage):
   const map = SWARA_TO_SCRIPT[language];
   return map[upper] ?? upper;
 }
+
+/**
+ * Splits a swara token like `R1`, `G3`, or `S` into the leading letter and any trailing variant digits.
+ */
+export function splitSwaraVariant(swara: string): { letter: string; variantDigits: string } {
+  const s = swara.trim();
+  if (!s) return { letter: '', variantDigits: '' };
+  const letter = s.charAt(0).toUpperCase();
+  const rest = s.slice(1);
+  if (/^\d*$/.test(rest)) return { letter, variantDigits: rest };
+  return { letter, variantDigits: '' };
+}
