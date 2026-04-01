@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { ALL_RAGAS, Raga, getMelakartaByNumber, getRagaByIdOrName, getRagaByName, getSwarafrequency } from '@/data/ragas';
+import { ALL_RAGAS, Raga, getMelakartaByNumber, getRagaByIdOrName, getRagaByName } from '@/data/ragas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
-import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { getInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { playRagaNoteWithOptionalGlissando } from '@/lib/ragaOscillation';
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
@@ -92,7 +93,19 @@ function splitProseBlocks(text: string, maxPerBlock = 3): string[] {
 
 type LearnSection = 'mood' | 'description' | 'gamaka' | 'features' | 'compositions';
 
-export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
+export default function RagaPlayer({
+  baseFreq,
+  instrumentId = 'piano',
+  volume = 0.5,
+  notationLanguage = 'english',
+  gamakaEnabled = true,
+}: {
+  baseFreq: number;
+  instrumentId?: InstrumentId;
+  volume?: number;
+  notationLanguage?: NotationLanguage;
+  gamakaEnabled?: boolean;
+}) {
   const [selectedRaga, setSelectedRaga] = useState<Raga>(
     ALL_RAGAS.find(r => r.name === 'Mayamalavagowla') || ALL_RAGAS[14]
   );
@@ -123,10 +136,12 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   const baseFreqRef = useRef(baseFreq);
   const baseBPMRef = useRef(baseBPM);
   const selectedRagaRef = useRef<Raga>(selectedRaga);
+  const gamakaEnabledRef = useRef(gamakaEnabled);
   baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
   instrumentIdRef.current = instrumentId;
   selectedRagaRef.current = selectedRaga;
+  gamakaEnabledRef.current = gamakaEnabled;
 
   // Sync tempo input when baseBPM changes
   useEffect(() => {
@@ -221,33 +236,19 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
 
   const playNote = (swara: string, duration: number) => {
     if (!audioContextRef.current || !masterGainRef.current) return;
-
-    const parsed = parseVarisaiNote(swara);
-    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
-    if (parsed.octave === 'higher') freq = freq * 2;
-    else if (parsed.octave === 'lower') freq = freq * 0.5;
-
-    const now = audioContextRef.current.currentTime;
-    const durationSec = duration / 1000;
-    if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
-      // Fixed gain 1.5; volume is controlled by masterGainRef (sidebar)
-      soundfontPlayerRef.current.start(freqToNoteNameForInstrument(freq, instrumentIdRef.current), now, { duration: durationSec, gain: 1.5 });
-      return;
-    }
-
-    const osc = audioContextRef.current.createOscillator();
-    const gainNode = audioContextRef.current.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01);
-    gainNode.gain.setValueAtTime(0.3, now + durationSec - 0.05);
-    gainNode.gain.linearRampToValueAtTime(0, now + durationSec);
-    osc.connect(gainNode);
-    gainNode.connect(masterGainRef.current);
-    osc.start(now);
-    osc.stop(now + durationSec);
-    oscillatorsRef.current.push(osc);
+    playRagaNoteWithOptionalGlissando({
+      audioContext: audioContextRef.current,
+      masterGain: masterGainRef.current,
+      instrumentId: instrumentIdRef.current,
+      soundfontPlayer: soundfontPlayerRef.current,
+      baseFreq: baseFreqRef.current,
+      raga: selectedRagaRef.current,
+      fullToken: swara,
+      durationMs: duration,
+      oscillatorTracking: oscillatorsRef.current,
+      sineGain: 0.3,
+      gamakaEnabled: gamakaEnabledRef.current,
+    });
   };
 
   const playRaga = (startIndex: number = 0) => {
@@ -932,6 +933,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                   return (
                     <div
                       key={`arohana-${index}`}
+                      title={parsed.oscillationPath ? `${note} — oscillation: ${parsed.oscillationPath}` : note}
                       onClick={() => seekToNote(globalIndex)}
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative
@@ -970,6 +972,7 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
                   return (
                     <div
                       key={`avarohana-${index}`}
+                      title={parsed.oscillationPath ? `${note} — oscillation: ${parsed.oscillationPath}` : note}
                       onClick={() => seekToNote(globalIndex)}
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative

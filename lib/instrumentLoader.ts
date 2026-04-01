@@ -35,6 +35,11 @@ export function freqToMidi(freq: number): number {
   return Math.round(69 + 12 * Math.log2(freq / 440));
 }
 
+/** Equal-tempered frequency (Hz) for an integer MIDI note number. */
+export function midiToHz(midi: number): number {
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
 /**
  * Convert a MIDI note number into its note name with octave.
  *

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
-import { ALL_RAGAS, Raga, getSwarafrequency } from '@/data/ragas';
-import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { ALL_RAGAS, Raga } from '@/data/ragas';
+import { getInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { playRagaNoteWithOptionalGlissando } from '@/lib/ragaOscillation';
 import { getSwaraInScript, type NotationLanguage } from '@/lib/swaraNotation';
 import { parseSongNotes } from '@/lib/songNotation';
 import { getStored, setStored } from '@/lib/storage';
@@ -51,10 +52,12 @@ function buildRagaScale(raga: Raga): Record<string, string> {
 function convertNoteToRaga(swara: string, raga: Raga): string {
   const parsed = parseVarisaiNote(swara);
   const scale = buildRagaScale(raga);
-  const baseSwara = scale[parsed.swara] || parsed.swara;
-  if (parsed.octave === 'higher') return `>${baseSwara}`;
-  if (parsed.octave === 'lower') return `<${baseSwara}`;
-  return baseSwara;
+  const letter = parsed.swara.charAt(0);
+  const baseSwara = scale[letter] || scale[parsed.swara] || parsed.swara;
+  const bracket = parsed.oscillationPath != null ? `[${parsed.oscillationPath}]` : '';
+  if (parsed.octave === 'higher') return `>${baseSwara}${bracket}`;
+  if (parsed.octave === 'lower') return `<${baseSwara}${bracket}`;
+  return `${baseSwara}${bracket}`;
 }
 
 type SongPlayerProps = {
@@ -63,6 +66,7 @@ type SongPlayerProps = {
   instrumentId?: InstrumentId;
   volume?: number;
   notationLanguage?: NotationLanguage;
+  gamakaEnabled?: boolean;
   onBack?: () => void;
 };
 
@@ -72,6 +76,7 @@ export default function SongPlayer({
   instrumentId = 'violin',
   volume = 0.8,
   notationLanguage = 'english',
+  gamakaEnabled = true,
   onBack,
 }: SongPlayerProps) {
   const ragaName = song.stanzas[0]?.raga ?? 'Malahari';
@@ -118,6 +123,8 @@ export default function SongPlayer({
   const lastNotePlayerRef = useRef<{ osc?: OscillatorNode; gain?: GainNode; stopTime: number; extend?(d: number): void } | null>(null);
   baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
+  const gamakaEnabledRef = useRef(gamakaEnabled);
+  gamakaEnabledRef.current = gamakaEnabled;
 
   useEffect(() => setTempoInputValue(String(baseBPM)), [baseBPM]);
   useEffect(() => {
@@ -153,43 +160,47 @@ export default function SongPlayer({
   const playNote = (swara: string, durationMs: number): NotePlayer | null => {
     if (!audioContextRef.current || !masterGainRef.current) return null;
     const ragaSwara = convertNoteToRaga(swara, raga);
-    const parsed = parseVarisaiNote(ragaSwara);
-    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
-    if (parsed.octave === 'higher') freq *= 2;
-    else if (parsed.octave === 'lower') freq *= 0.5;
-
     const now = audioContextRef.current.currentTime;
     const dur = durationMs / 1000;
     const stopTime = now + dur;
 
-    if (!isSineInstrument(instrumentId) && soundfontPlayerRef.current) {
-      const noteName = freqToNoteNameForInstrument(freq, instrumentId);
-      soundfontPlayerRef.current.start(noteName, now, { duration: dur, gain: 1.5 });
-      const state = { stopTime };
-      return {
-        get stopTime() { return state.stopTime; },
-        extend(additionalDuration: number) {
-          if (!soundfontPlayerRef.current) return;
-          soundfontPlayerRef.current.start(noteName, state.stopTime, { duration: additionalDuration / 1000, gain: 1.5 });
-          state.stopTime += additionalDuration / 1000;
-        },
-      };
-    }
+    playRagaNoteWithOptionalGlissando({
+      audioContext: audioContextRef.current,
+      masterGain: masterGainRef.current,
+      instrumentId,
+      soundfontPlayer: soundfontPlayerRef.current,
+      baseFreq: baseFreqRef.current,
+      raga,
+      fullToken: ragaSwara,
+      durationMs,
+      oscillatorTracking: oscillatorsRef.current,
+      sineGain: 0.3,
+      gamakaEnabled: gamakaEnabledRef.current,
+    });
 
-    const osc = audioContextRef.current.createOscillator();
-    const gain = audioContextRef.current.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.3, now + 0.01);
-    gain.gain.setValueAtTime(0.3, now + dur - 0.05);
-    gain.gain.linearRampToValueAtTime(0, now + dur);
-    osc.connect(gain);
-    gain.connect(masterGainRef.current);
-    osc.start(now);
-    osc.stop(stopTime);
-    oscillatorsRef.current.push(osc);
-    return { osc, gain, stopTime };
+    const state = { stopTime };
+    return {
+      get stopTime() {
+        return state.stopTime;
+      },
+      extend(additionalDuration: number) {
+        if (!audioContextRef.current || !masterGainRef.current) return;
+        playRagaNoteWithOptionalGlissando({
+          audioContext: audioContextRef.current,
+          masterGain: masterGainRef.current,
+          instrumentId,
+          soundfontPlayer: soundfontPlayerRef.current,
+          baseFreq: baseFreqRef.current,
+          raga,
+          fullToken: ragaSwara,
+          durationMs: additionalDuration,
+          oscillatorTracking: oscillatorsRef.current,
+          sineGain: 0.3,
+          gamakaEnabled: gamakaEnabledRef.current,
+        });
+        state.stopTime += additionalDuration / 1000;
+      },
+    };
   };
 
   const extendNote = (notePlayer: NotePlayer, additionalDuration: number) => {
@@ -410,29 +421,19 @@ export default function SongPlayer({
     const playNoteForRaga = (swara: string) => {
       if (!audioContextRef.current || !masterGainRef.current) return;
       const ragaSwara = convertNoteToRaga(swara, stanzaRaga);
-      const parsed = parseVarisaiNote(ragaSwara);
-      let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
-      if (parsed.octave === 'higher') freq *= 2;
-      else if (parsed.octave === 'lower') freq *= 0.5;
-      const now = audioContextRef.current.currentTime;
-      const dur = noteDurationMs / 1000;
-      if (!isSineInstrument(instrumentId) && soundfontPlayerRef.current) {
-        const noteName = freqToNoteNameForInstrument(freq, instrumentId);
-        soundfontPlayerRef.current.start(noteName, now, { duration: dur, gain: 1.5 });
-      } else {
-        const osc = audioContextRef.current.createOscillator();
-        const gainNode = audioContextRef.current.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(0.25, now + 0.01);
-        gainNode.gain.linearRampToValueAtTime(0, now + dur);
-        osc.connect(gainNode);
-        gainNode.connect(masterGainRef.current);
-        osc.start(now);
-        osc.stop(now + dur);
-        oscillatorsRef.current.push(osc);
-      }
+      playRagaNoteWithOptionalGlissando({
+        audioContext: audioContextRef.current,
+        masterGain: masterGainRef.current,
+        instrumentId,
+        soundfontPlayer: soundfontPlayerRef.current,
+        baseFreq: baseFreqRef.current,
+        raga: stanzaRaga,
+        fullToken: ragaSwara,
+        durationMs: noteDurationMs,
+        oscillatorTracking: oscillatorsRef.current,
+        sineGain: 0.25,
+        gamakaEnabled: gamakaEnabledRef.current,
+      });
     };
 
     const run = async (i: number) => {

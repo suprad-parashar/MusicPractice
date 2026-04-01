@@ -10,6 +10,8 @@ interface InstrumentSettingsProps {
   onVolumeChange: (value: number) => void;
   octave: Octave;
   onOctaveChange: (value: Octave) => void;
+  gamakaEnabled: boolean;
+  onGamakaEnabledChange: (value: boolean) => void;
 }
 
 /**
@@ -21,9 +23,20 @@ interface InstrumentSettingsProps {
  * @param onVolumeChange - Called with the new volume (0–1) when the slider value changes.
  * @param octave - Currently selected octave ("low", "medium", or "high").
  * @param onOctaveChange - Called with the new octave when an octave button is clicked.
+ * @param gamakaEnabled - Whether bracket gamaka paths affect playback for bend-capable instruments.
+ * @param onGamakaEnabledChange - Called when the gamaka toggle changes.
  * @returns The instrument settings React element.
  */
-export default function InstrumentSettings({ instrumentId, onInstrumentChange, volume, onVolumeChange, octave, onOctaveChange }: InstrumentSettingsProps) {
+export default function InstrumentSettings({
+  instrumentId,
+  onInstrumentChange,
+  volume,
+  onVolumeChange,
+  octave,
+  onOctaveChange,
+  gamakaEnabled,
+  onGamakaEnabledChange,
+}: InstrumentSettingsProps) {
   return (
     <div className="w-full">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-700/50">
@@ -89,6 +102,57 @@ export default function InstrumentSettings({ instrumentId, onInstrumentChange, v
             <span className="text-slate-400 text-sm w-10 text-right shrink-0">
               {Math.round(volume * 100)}%
             </span>
+          </div>
+        </div>
+
+        <div className="mt-4 sm:mt-5 pt-4 border-t border-slate-700/50">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <p id="gamaka-label" className="text-sm font-medium text-slate-200 tracking-wide">
+                Gamaka
+              </p>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Pitch paths in brackets when the instrument can bend them. Piano and harmonium stay fixed.
+              </p>
+            </div>
+            <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={gamakaEnabled}
+                aria-labelledby="gamaka-label"
+                onClick={() => onGamakaEnabledChange(!gamakaEnabled)}
+                className={`
+                  relative h-8 w-[3.25rem] rounded-full
+                  transition-[background-color,box-shadow] duration-300 ease-out
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900
+                  ${gamakaEnabled
+                    ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_2px_10px_rgba(245,158,11,0.4)]'
+                    : 'bg-slate-800 ring-1 ring-inset ring-slate-600/70 shadow-inner'
+                  }
+                `}
+              >
+                <span
+                  aria-hidden
+                  className={`
+                    absolute top-1 left-1 h-6 w-6 rounded-full bg-white shadow-md
+                    ring-1 ring-black/[0.06] transition-transform duration-300 ease-[cubic-bezier(0.34,1.45,0.64,1)]
+                    ${gamakaEnabled ? 'translate-x-[1.25rem]' : 'translate-x-0'}
+                  `}
+                />
+                <span className="sr-only">{gamakaEnabled ? 'On' : 'Off'}</span>
+              </button>
+              <span
+                className={`
+                  text-[10px] font-semibold uppercase tracking-[0.12em] tabular-nums
+                  transition-colors duration-300
+                  ${gamakaEnabled ? 'text-amber-400/95' : 'text-slate-500'}
+                `}
+                aria-hidden
+              >
+                {gamakaEnabled ? 'On' : 'Off'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

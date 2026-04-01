@@ -80,17 +80,34 @@ export const SARALI_VARISAI: Varisai[] = [
   }
 ];
 
+/** Parsed note token: optional `[...]` suffix encodes oscillation path (see `lib/ragaOscillation.ts`). */
+export type ParsedVarisaiNote = {
+  swara: string;
+  octave: 'higher' | 'lower' | 'normal';
+  /** Inner text of trailing `[...]`, e.g. `SRSRSR` or `D>SN>SN>SN`; `null` if absent */
+  oscillationPath: string | null;
+};
+
+/** Split `R1[SRSRSR]` into core `R1` and path `SRSRSR`. */
+export function stripOscillationSuffix(note: string): { core: string; oscillationPath: string | null } {
+  const m = note.trim().match(/^(.*?)\[([^\]]+)\]$/);
+  if (m) return { core: m[1].trim(), oscillationPath: m[2] };
+  return { core: note.trim(), oscillationPath: null };
+}
+
 // Helper function to parse note with octave indicators
 // ">" prefix = higher octave (2x frequency)
 // "<" prefix = lower octave (0.5x frequency)
-// Returns: { swara: string, octave: 'higher' | 'lower' | 'normal' }
-export function parseVarisaiNote(note: string): { swara: string; octave: 'higher' | 'lower' | 'normal' } {
-  if (note.startsWith('>')) {
-    return { swara: note.substring(1), octave: 'higher' };
-  } else if (note.startsWith('<')) {
-    return { swara: note.substring(1), octave: 'lower' };
+// Optional trailing `[...]` = oscillation path (ignored for static pitch unless playback uses glissando)
+export function parseVarisaiNote(note: string): ParsedVarisaiNote {
+  const { core, oscillationPath } = stripOscillationSuffix(note);
+  if (core.startsWith('>')) {
+    return { swara: core.substring(1), octave: 'higher', oscillationPath };
   }
-  return { swara: note, octave: 'normal' };
+  if (core.startsWith('<')) {
+    return { swara: core.substring(1), octave: 'lower', oscillationPath };
+  }
+  return { swara: core, octave: 'normal', oscillationPath };
 }
 
 // Helper function to convert simple swara notation to full notation

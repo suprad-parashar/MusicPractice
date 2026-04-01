@@ -49,6 +49,7 @@ type StoredSettings = {
   metronomeJati?: JatiName;
   metronomeTempo?: number;
   metronomeVolume?: number;
+  gamakaEnabled?: boolean;
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -161,6 +162,7 @@ function HomeContent() {
   const [metronomeJati, setMetronomeJati] = useState<JatiName>('chatusra');
   const [metronomeTempo, setMetronomeTempo] = useState(90);
   const [metronomeVolume, setMetronomeVolume] = useState(0.7);
+  const [gamakaEnabled, setGamakaEnabled] = useState(true);
 
   // Handle ?song=slug deep link
   useEffect(() => {
@@ -199,6 +201,7 @@ function HomeContent() {
     if (stored.metronomeJati && JATI_ORDER.includes(stored.metronomeJati)) setMetronomeJati(stored.metronomeJati);
     // metronomeTempo is not persisted - always uses default 90
     if (typeof stored.metronomeVolume === 'number' && stored.metronomeVolume >= 0 && stored.metronomeVolume <= 1) setMetronomeVolume(stored.metronomeVolume);
+    if (typeof stored.gamakaEnabled === 'boolean') setGamakaEnabled(stored.gamakaEnabled);
     hasLoadedRef.current = true;
     setStorageReady(true);
   }, []);
@@ -304,8 +307,9 @@ function HomeContent() {
       metronomeTala,
       metronomeJati,
       metronomeVolume,
+      gamakaEnabled,
     });
-  }, [selectedKey, activeTab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, tanpuraPattern, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume]);
+  }, [selectedKey, activeTab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, tanpuraPattern, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume, gamakaEnabled]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
@@ -360,7 +364,16 @@ function HomeContent() {
           </button>
 
 
-          <InstrumentSettings instrumentId={instrumentId} onInstrumentChange={setInstrumentId} volume={voiceVolume} onVolumeChange={setVoiceVolume} octave={voiceOctave} onOctaveChange={setVoiceOctave} />
+          <InstrumentSettings
+            instrumentId={instrumentId}
+            onInstrumentChange={setInstrumentId}
+            volume={voiceVolume}
+            onVolumeChange={setVoiceVolume}
+            octave={voiceOctave}
+            onOctaveChange={setVoiceOctave}
+            gamakaEnabled={gamakaEnabled}
+            onGamakaEnabledChange={setGamakaEnabled}
+          />
           <TanpuraSidebar
             baseFreq={baseFreq}
             volume={tanpuraVolume}
@@ -611,7 +624,7 @@ function HomeContent() {
           <div className="scroll-area flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">
             <div className="flex-1 flex items-start justify-center px-3 py-4 sm:px-4 sm:py-5 md:p-6 min-w-0 w-full max-w-[100vw] box-border">
               {activeTab === 'raga' ? (
-                <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+                <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} gamakaEnabled={gamakaEnabled} />
               ) : activeTab === 'varisai' ? (
                 <VarisaiPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'songs' ? (
@@ -622,13 +635,14 @@ function HomeContent() {
                     instrumentId={instrumentId}
                     volume={voiceVolume}
                     notationLanguage={notationLanguage}
+                    gamakaEnabled={gamakaEnabled}
                     onBack={() => setSelectedSongSlug(null)}
                   />
                 ) : (
                   <SongsList onSelectSong={setSelectedSongSlug} />
                 )
               ) : (
-                <AuditoryPractice baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} />
+                <AuditoryPractice baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} gamakaEnabled={gamakaEnabled} />
               )}
             </div>
             <footer className="shrink-0 pt-4 sm:pt-6 px-3 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:pb-[max(4rem,env(safe-area-inset-bottom))] text-center border-t bg-[var(--page-bg)] border-[var(--border)]">

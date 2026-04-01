@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { MELAKARTA_RAGAS, MelakartaRaga, getSwarafrequency } from '@/data/ragas';
+import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/ragas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
-import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { getInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
+import { playRagaNoteWithOptionalGlissando } from '@/lib/ragaOscillation';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
 
@@ -23,7 +24,17 @@ type NoteCount = 1 | 2 | 3;
  * @param volume - Optional master volume as a linear value between 0 and 1 (default: `0.5`).
  * @returns The rendered React component for the auditory practice UI.
  */
-export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', volume = 0.5 }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number }) {
+export default function AuditoryPractice({
+  baseFreq,
+  instrumentId = 'piano',
+  volume = 0.5,
+  gamakaEnabled = true,
+}: {
+  baseFreq: number;
+  instrumentId?: InstrumentId;
+  volume?: number;
+  gamakaEnabled?: boolean;
+}) {
   const [selectedRaga, setSelectedRaga] = useState<MelakartaRaga>(
     MELAKARTA_RAGAS.find(r => r.name === 'Mayamalavagowla') || MELAKARTA_RAGAS[14]
   );
@@ -60,6 +71,8 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const instrumentIdRef = useRef<InstrumentId>(instrumentId);
   const loadedInstrumentIdRef = useRef<InstrumentId | null>(null);
   const baseFreqRef = useRef(baseFreq);
+  const selectedRagaRef = useRef(selectedRaga);
+  const gamakaEnabledRef = useRef(gamakaEnabled);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const stopwatchIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scoreRef = useRef(0);
@@ -68,7 +81,9 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const endGameIfWrongRef = useRef(endGameIfWrong);
   const noteCountRef = useRef(noteCount);
   baseFreqRef.current = baseFreq;
+  selectedRagaRef.current = selectedRaga;
   instrumentIdRef.current = instrumentId;
+  gamakaEnabledRef.current = gamakaEnabled;
   practiceModeRef.current = practiceMode;
   endGameIfWrongRef.current = endGameIfWrong;
   noteCountRef.current = noteCount;
@@ -321,34 +336,19 @@ export default function AuditoryPractice({ baseFreq, instrumentId = 'piano', vol
   const playNote = (swara: string, duration: number = 500) => {
     try {
       if (!audioContextRef.current || !masterGainRef.current) return;
-
-      const parsed = parseVarisaiNote(swara);
-      let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
-      if (parsed.octave === 'higher') freq = freq * 2;
-      else if (parsed.octave === 'lower') freq = freq * 0.5;
-
-      const now = audioContextRef.current.currentTime;
-      const durationSec = duration / 1000;
-
-      if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
-        // Fixed gain 1.5; volume is controlled by masterGainRef (sidebar)
-        soundfontPlayerRef.current.start(freqToNoteNameForInstrument(freq, instrumentIdRef.current), now, { duration: durationSec, gain: 1.5 });
-        return;
-      }
-
-      const osc = audioContextRef.current.createOscillator();
-      const gainNode = audioContextRef.current.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01);
-      gainNode.gain.setValueAtTime(0.3, now + durationSec - 0.05);
-      gainNode.gain.linearRampToValueAtTime(0, now + durationSec);
-      osc.connect(gainNode);
-      gainNode.connect(masterGainRef.current);
-      osc.start(now);
-      osc.stop(now + durationSec);
-      oscillatorsRef.current.push(osc);
+      playRagaNoteWithOptionalGlissando({
+        audioContext: audioContextRef.current,
+        masterGain: masterGainRef.current,
+        instrumentId: instrumentIdRef.current,
+        soundfontPlayer: soundfontPlayerRef.current,
+        baseFreq: baseFreqRef.current,
+        raga: selectedRagaRef.current,
+        fullToken: swara,
+        durationMs: duration,
+        oscillatorTracking: oscillatorsRef.current,
+        sineGain: 0.3,
+        gamakaEnabled: gamakaEnabledRef.current,
+      });
     } catch (error) {
       console.error('Error playing note:', error);
     }
