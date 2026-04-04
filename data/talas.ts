@@ -227,6 +227,27 @@ export function generateTalaPattern(talaName: TalaName, jatiName: JatiName): Tal
 }
 
 /**
+ * Per-anga beat counts for display, e.g. Chatusra Rupaka: "1 · 2 | 1 · 2 · 3 · 4"
+ * (numbers restart at 1 within each anga; | separates angas).
+ */
+export function formatTalaBeatsPerAngaLine(beats: TalaBeat[]): string {
+    if (beats.length === 0) return '';
+    const byAnga = new Map<number, TalaBeat[]>();
+    for (const b of beats) {
+        const arr = byAnga.get(b.angaIndex) ?? [];
+        arr.push(b);
+        byAnga.set(b.angaIndex, arr);
+    }
+    const order = [...byAnga.keys()].sort((a, b) => a - b);
+    return order
+        .map((ix) => {
+            const group = byAnga.get(ix)!;
+            return group.map((_, i) => String(i + 1)).join(' · ');
+        })
+        .join(' | ');
+}
+
+/**
  * Get the pattern notation string (e.g., "I O O" for Triputa, "3+2+2" for Misra Chapu)
  */
 export function getTalaPatternNotation(talaName: TalaName): string {

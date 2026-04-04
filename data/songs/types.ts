@@ -5,7 +5,10 @@ export interface SongLine {
 }
 
 export interface SongStanza {
-  raga: string;
+  /** Catalog `raga_id` (e.g. `malahari`) — preferred */
+  raga_id?: string;
+  /** Legacy: display name only — used when `raga_id` is absent */
+  raga?: string;
   tala: string;
   tempo?: number;
   lines: SongLine[];

@@ -19,3 +19,4 @@ export function getSong(slug: string): Song | null {
 }
 
 export type { Song, SongSummary, SongLine, SongStanza } from './types';
+export { resolveStanzaRaga } from './stanzaRaga';

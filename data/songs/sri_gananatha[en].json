@@ -4,7 +4,7 @@
     "language": "Kannada",
     "stanzas": [
         {
-            "raga": "Malahari",
+            "raga_id": "malahari",
             "tala": "4-Rupaka",
             "tempo": 120,
             "lines": [
