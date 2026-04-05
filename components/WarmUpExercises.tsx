@@ -15,11 +15,17 @@ import {
 } from '@/lib/staircasePattern';
 import { triadMirrorLines, descendingTriadMirrorLines } from '@/lib/triadMirrorPattern';
 import { buildJumpingNotesLetterNotes } from '@/lib/jumpingNotesPattern';
+import { THIRDS_ASC_NOTES, THIRDS_DESC_NOTES, THIRDS_NOTES_PER_ROW } from '@/lib/thirdsPattern';
+import {
+  CHROMATIC_FLAT_SEMITONES,
+  chromaticNoteLabelsAsc,
+  chromaticNoteLabelsDesc,
+} from '@/lib/chromaticPattern';
 import { getStored, setStored } from '@/lib/storage';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 
 const WARMUP_STORAGE_KEY = 'warmupSettings';
-type WarmupPattern = 'staircase' | 'triadMirror' | 'jumpingNotes';
+type WarmupPattern = 'staircase' | 'triadMirror' | 'jumpingNotes' | 'thirds' | 'chromatic';
 type StoredWarmup = { ragaNumber?: number; baseBPM?: number; warmupPattern?: WarmupPattern };
 
 /** Max swara cells per visual row (staircase / triad / jumping) so rows fit without clipping. */
@@ -31,16 +37,19 @@ function chunkTokens<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-/** Staircase keeps one full row per line (classic pyramid); other patterns wrap at WARMUP_NOTES_PER_ROW. */
+/** Staircase keeps one full row per line (classic pyramid); other patterns wrap at WARMUP_NOTES_PER_ROW (thirds uses THIRDS_NOTES_PER_ROW). */
 function chunksForWarmupRow(pattern: WarmupPattern, row: string[]): string[][] {
   if (pattern === 'staircase') return [row];
-  return chunkTokens(row, WARMUP_NOTES_PER_ROW);
+  const size = pattern === 'thirds' ? THIRDS_NOTES_PER_ROW : WARMUP_NOTES_PER_ROW;
+  return chunkTokens(row, size);
 }
 
 const WARMUP_PATTERNS: { id: WarmupPattern; label: string }[] = [
   { id: 'staircase', label: 'Staircase' },
   { id: 'triadMirror', label: 'Triad mirror' },
   { id: 'jumpingNotes', label: 'Jumping notes' },
+  { id: 'thirds', label: 'Thirds' },
+  { id: 'chromatic', label: 'Chromatic' },
 ];
 
 function convertVarisaiNoteToRaga(note: string, raga: MelakartaRaga): string {
@@ -87,9 +96,11 @@ export default function WarmUpExercises({
       const half = flat.length / 2;
       return chunkTokens(flat.slice(0, half), WARMUP_NOTES_PER_ROW);
     }
+    if (warmupPattern === 'thirds') return chunkTokens([...THIRDS_ASC_NOTES], THIRDS_NOTES_PER_ROW);
+    if (warmupPattern === 'chromatic') return chunkTokens(chromaticNoteLabelsAsc(baseFreq), WARMUP_NOTES_PER_ROW);
     if (warmupPattern === 'triadMirror') return triadMirrorLines();
     return staircaseLines(STAIR_VARISAI_TOKENS.length);
-  }, [warmupPattern]);
+  }, [warmupPattern, baseFreq]);
 
   const descLines = useMemo(() => {
     if (warmupPattern === 'jumpingNotes') {
@@ -97,9 +108,11 @@ export default function WarmUpExercises({
       const half = flat.length / 2;
       return chunkTokens(flat.slice(half), WARMUP_NOTES_PER_ROW);
     }
+    if (warmupPattern === 'thirds') return chunkTokens(THIRDS_DESC_NOTES, THIRDS_NOTES_PER_ROW);
+    if (warmupPattern === 'chromatic') return chunkTokens(chromaticNoteLabelsDesc(baseFreq), WARMUP_NOTES_PER_ROW);
     if (warmupPattern === 'triadMirror') return descendingTriadMirrorLines();
     return descendingStaircaseLines(STAIR_VARISAI_TOKENS.length);
-  }, [warmupPattern]);
+  }, [warmupPattern, baseFreq]);
 
   const ascLineCount = ascLines.length;
 
@@ -131,6 +144,7 @@ export default function WarmUpExercises({
   const baseBPMRef = useRef(baseBPM);
   const selectedRagaRef = useRef(selectedRaga);
   const rawFlatTokensRef = useRef(rawFlatTokens);
+  const warmupPatternRef = useRef(warmupPattern);
   const hasLoadedRef = useRef(false);
   const stairFitOuterRef = useRef<HTMLDivElement>(null);
   const stairFitBlockRef = useRef<HTMLDivElement>(null);
@@ -145,6 +159,7 @@ export default function WarmUpExercises({
   baseBPMRef.current = baseBPM;
   selectedRagaRef.current = selectedRaga;
   rawFlatTokensRef.current = rawFlatTokens;
+  warmupPatternRef.current = warmupPattern;
 
   const handleBaseBPMChange = (newBaseBPM: number) => {
     baseBPMRef.current = newBaseBPM;
@@ -186,7 +201,9 @@ export default function WarmUpExercises({
     if (
       stored.warmupPattern === 'staircase' ||
       stored.warmupPattern === 'triadMirror' ||
-      stored.warmupPattern === 'jumpingNotes'
+      stored.warmupPattern === 'jumpingNotes' ||
+      stored.warmupPattern === 'thirds' ||
+      stored.warmupPattern === 'chromatic'
     ) {
       setWarmupPattern(stored.warmupPattern);
     }
@@ -231,15 +248,18 @@ export default function WarmUpExercises({
   }, []);
 
   const displayTitle =
-    warmupPattern === 'triadMirror' ? 'Triad mirror' : warmupPattern === 'jumpingNotes' ? 'Jumping notes' : 'Staircase';
+    warmupPattern === 'triadMirror'
+      ? 'Triad mirror'
+      : warmupPattern === 'jumpingNotes'
+        ? 'Jumping notes'
+        : warmupPattern === 'thirds'
+          ? 'Thirds'
+          : warmupPattern === 'chromatic'
+            ? 'Chromatic'
+            : 'Staircase';
 
-  const playNote = (swara: string, duration: number, silent: boolean): NotePlayer | null => {
+  const playPitchHz = (freq: number, duration: number, silent: boolean): NotePlayer | null => {
     if (!audioContextRef.current || !masterGainRef.current) return null;
-    const parsed = parseVarisaiNote(swara);
-    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
-    if (parsed.octave === 'higher') freq *= 2;
-    else if (parsed.octave === 'lower') freq *= 0.5;
-
     const now = audioContextRef.current.currentTime;
     const stopTime = now + duration / 1000;
 
@@ -281,6 +301,19 @@ export default function WarmUpExercises({
     return { osc, gain, stopTime };
   };
 
+  const playNote = (swara: string, duration: number, silent: boolean): NotePlayer | null => {
+    const parsed = parseVarisaiNote(swara);
+    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
+    if (parsed.octave === 'higher') freq *= 2;
+    else if (parsed.octave === 'lower') freq *= 0.5;
+    return playPitchHz(freq, duration, silent);
+  };
+
+  const playChromaticSemitone = (semitonesFromRoot: number, duration: number, silent: boolean): NotePlayer | null => {
+    const freq = baseFreqRef.current * Math.pow(2, semitonesFromRoot / 12);
+    return playPitchHz(freq, duration, silent);
+  };
+
   const clearPlaybackTimers = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -294,6 +327,7 @@ export default function WarmUpExercises({
     const tokens = rawFlatTokensRef.current;
     const notes = tokens.map((t) => convertVarisaiNoteToRaga(t, selectedRagaRef.current));
     const total = notes.length;
+    const isChromatic = warmupPatternRef.current === 'chromatic';
 
     const playNext = (index: number) => {
       if (!isPlayingRef.current) {
@@ -310,7 +344,11 @@ export default function WarmUpExercises({
       }
 
       setCurrentNoteIndex(index);
-      playNote(notes[index], beatMs, false);
+      if (isChromatic) {
+        playChromaticSemitone(CHROMATIC_FLAT_SEMITONES[index], beatMs, false);
+      } else {
+        playNote(notes[index], beatMs, false);
+      }
       timeoutRef.current = setTimeout(() => playNext(index + 1), beatMs);
     };
 
@@ -432,6 +470,7 @@ export default function WarmUpExercises({
   const handleWarmupPatternChange = (pattern: WarmupPattern) => {
     if (pattern === warmupPattern) return;
     if (isPlayingRef.current) stopPlayback();
+    if (pattern === 'chromatic') setDropdownOpen(false);
     setWarmupPattern(pattern);
   };
 
@@ -521,63 +560,69 @@ export default function WarmUpExercises({
               ? 'Ārōhaṇa: each line adds the next swara and returns to ṣaḍjam, up to tāra ṣaḍjam. Then avarōhaṇa: each line from tāra ṣaḍjam steps down and returns to madhya ṣaḍjam.'
               : warmupPattern === 'triadMirror'
                 ? 'Ārōhaṇa: triad mirror lines from ṣaḍjam through tāra gāndhāra. Then avarōhaṇa: triad mirror lines from tāra gāndhāra down into the mandhra register through lower dhaivata (<Dha).'
-                : 'Ārōhaṇa: every pair of scale degrees (lower swara first, then higher). Avarōhaṇa: the same pairs in reverse order, each pair played high then low. Eight notes per line.'}
+                : warmupPattern === 'thirds'
+                  ? 'Ārōhaṇa: thirds pattern S G R M G P M D P N D ·S. Avarōhaṇa: the same sequence in reverse.'
+                  : warmupPattern === 'chromatic'
+                    ? 'Equal temperament: every semitone from your key up one octave and back. The first name matches your selected key.'
+                    : 'Ārōhaṇa: every pair of scale degrees (lower swara first, then higher). Avarōhaṇa: the same pairs in reverse order, each pair played high then low. Eight notes per line.'}
           </p>
         </div>
 
-        <div className="mb-8 w-full">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">Select Raga</label>
-          <div className="relative w-full" ref={dropdownRef}>
-            <input
-              type="text"
-              value={dropdownOpen ? searchQuery : selectedRaga.name}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setDropdownOpen(true);
-              }}
-              onFocus={() => {
-                setSearchQuery('');
-                setDropdownOpen(true);
-              }}
-              placeholder={selectedRaga.name}
-              className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm cursor-pointer"
-            />
-            {dropdownOpen && (
-              <div
-                className="scroll-area-transparent absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl py-2"
-                style={{ maxHeight: '280px', overflowY: 'auto' }}
-              >
-                {filteredRagas.length > 0 ? (
-                  filteredRagas.map((raga) => (
-                    <button
-                      key={raga.number}
-                      type="button"
-                      onClick={() => {
-                        handleRagaChange(raga.name);
-                        setSearchQuery('');
-                        setDropdownOpen(false);
-                      }}
-                      className="w-full text-left pl-4 pr-4 py-3 text-sm cursor-pointer text-slate-200"
-                      style={{ transition: 'background-color 0.15s ease' }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'var(--accent, #f59e0b)';
-                        e.currentTarget.style.color = '#0f172a';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = '#e2e8f0';
-                      }}
-                    >
-                      {raga.name}
-                    </button>
-                  ))
-                ) : (
-                  <div className="pl-4 pr-4 py-3 text-sm text-slate-400 text-center">No ragas found</div>
-                )}
-              </div>
-            )}
+        {warmupPattern !== 'chromatic' && (
+          <div className="mb-8 w-full">
+            <label className="block text-sm font-medium text-slate-300 mb-3 text-center">Select Raga</label>
+            <div className="relative w-full" ref={dropdownRef}>
+              <input
+                type="text"
+                value={dropdownOpen ? searchQuery : selectedRaga.name}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  setSearchQuery('');
+                  setDropdownOpen(true);
+                }}
+                placeholder={selectedRaga.name}
+                className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm cursor-pointer"
+              />
+              {dropdownOpen && (
+                <div
+                  className="scroll-area-transparent absolute z-50 w-full mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl py-2"
+                  style={{ maxHeight: '280px', overflowY: 'auto' }}
+                >
+                  {filteredRagas.length > 0 ? (
+                    filteredRagas.map((raga) => (
+                      <button
+                        key={raga.number}
+                        type="button"
+                        onClick={() => {
+                          handleRagaChange(raga.name);
+                          setSearchQuery('');
+                          setDropdownOpen(false);
+                        }}
+                        className="w-full text-left pl-4 pr-4 py-3 text-sm cursor-pointer text-slate-200"
+                        style={{ transition: 'background-color 0.15s ease' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--accent, #f59e0b)';
+                          e.currentTarget.style.color = '#0f172a';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = '#e2e8f0';
+                        }}
+                      >
+                        {raga.name}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="pl-4 pr-4 py-3 text-sm text-slate-400 text-center">No ragas found</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex flex-col items-center mb-8">
           <button
@@ -715,7 +760,11 @@ export default function WarmUpExercises({
                     ? 'Staircase pattern'
                     : warmupPattern === 'triadMirror'
                       ? 'Triad mirror pattern'
-                      : 'Jumping notes pattern'
+                      : warmupPattern === 'thirds'
+                        ? 'Thirds pattern'
+                        : warmupPattern === 'chromatic'
+                          ? 'Chromatic pattern'
+                          : 'Jumping notes pattern'
                 }
               >
                 {/*
@@ -811,7 +860,7 @@ export default function WarmUpExercises({
                                     const active = isPlaying && currentNoteIndex === flatIdx;
                                     return (
                                       <div
-                                        key={`${lineIdx}-${chunkIdx}-${pos}-${token}`}
+                                        key={flatIdx}
                                         role="button"
                                         tabIndex={0}
                                         onClick={() => seekToNote(flatIdx)}
@@ -826,7 +875,9 @@ export default function WarmUpExercises({
                                           transition-colors duration-200 cursor-pointer
                                           ${compactStaircase
                                             ? 'w-[1.375rem] h-[1.375rem] min-[380px]:w-6 min-[380px]:h-6 sm:w-7 sm:h-8 rounded-md text-[9px] min-[380px]:text-[10px] sm:text-xs'
-                                            : 'w-9 h-9 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-lg'
+                                            : warmupPattern === 'chromatic'
+                                              ? 'min-w-[2.25rem] px-1 h-9 sm:min-w-[2.75rem] sm:px-1.5 sm:h-12 rounded-lg text-xs sm:text-sm'
+                                              : 'w-9 h-9 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-lg'
                                           }
                                           ${active
                                             ? 'bg-amber-500 text-slate-900 shadow-lg ring-2 ring-amber-400/80 ring-inset'
@@ -836,28 +887,34 @@ export default function WarmUpExercises({
                                           }
                                         `}
                                       >
-                                        <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                                        {parsed.octave === 'higher' && (
-                                          <span
-                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
-                                              compactStaircase
-                                                ? 'top-0 text-[6px] translate-y-[2px] sm:translate-y-[3px]'
-                                                : 'top-0 text-[10px] -translate-y-[-6px]'
-                                            }`}
-                                          >
-                                            •
-                                          </span>
-                                        )}
-                                        {parsed.octave === 'lower' && (
-                                          <span
-                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
-                                              compactStaircase
-                                                ? 'bottom-0 text-[6px] -translate-y-[2px] sm:-translate-y-[3px]'
-                                                : 'bottom-0 text-[10px] translate-y-[-6px]'
-                                            }`}
-                                          >
-                                            •
-                                          </span>
+                                        {warmupPattern === 'chromatic' ? (
+                                          <span className="tabular-nums tracking-tight">{token}</span>
+                                        ) : (
+                                          <>
+                                            <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
+                                            {parsed.octave === 'higher' && (
+                                              <span
+                                                className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                                  compactStaircase
+                                                    ? 'top-0 text-[6px] translate-y-[2px] sm:translate-y-[3px]'
+                                                    : 'top-0 text-[10px] -translate-y-[-6px]'
+                                                }`}
+                                              >
+                                                •
+                                              </span>
+                                            )}
+                                            {parsed.octave === 'lower' && (
+                                              <span
+                                                className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                                  compactStaircase
+                                                    ? 'bottom-0 text-[6px] -translate-y-[2px] sm:-translate-y-[3px]'
+                                                    : 'bottom-0 text-[10px] translate-y-[-6px]'
+                                                }`}
+                                              >
+                                                •
+                                              </span>
+                                            )}
+                                          </>
                                         )}
                                       </div>
                                     );
@@ -915,7 +972,7 @@ export default function WarmUpExercises({
                                     const active = isPlaying && currentNoteIndex === flatIdx;
                                     return (
                                       <div
-                                        key={`${lineIdx}-${chunkIdx}-${pos}-${token}`}
+                                        key={flatIdx}
                                         role="button"
                                         tabIndex={0}
                                         onClick={() => seekToNote(flatIdx)}
@@ -930,7 +987,9 @@ export default function WarmUpExercises({
                                           transition-colors duration-200 cursor-pointer
                                           ${compactStaircase
                                             ? 'w-[1.375rem] h-[1.375rem] min-[380px]:w-6 min-[380px]:h-6 sm:w-7 sm:h-8 rounded-md text-[9px] min-[380px]:text-[10px] sm:text-xs'
-                                            : 'w-9 h-9 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-lg'
+                                            : warmupPattern === 'chromatic'
+                                              ? 'min-w-[2.25rem] px-1 h-9 sm:min-w-[2.75rem] sm:px-1.5 sm:h-12 rounded-lg text-xs sm:text-sm'
+                                              : 'w-9 h-9 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-lg'
                                           }
                                           ${active
                                             ? 'bg-amber-500 text-slate-900 shadow-lg ring-2 ring-amber-400/80 ring-inset'
@@ -940,28 +999,34 @@ export default function WarmUpExercises({
                                           }
                                         `}
                                       >
-                                        <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                                        {parsed.octave === 'higher' && (
-                                          <span
-                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
-                                              compactStaircase
-                                                ? 'top-0 text-[6px] translate-y-[2px] sm:translate-y-[3px]'
-                                                : 'top-0 text-[10px] -translate-y-[-6px]'
-                                            }`}
-                                          >
-                                            •
-                                          </span>
-                                        )}
-                                        {parsed.octave === 'lower' && (
-                                          <span
-                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
-                                              compactStaircase
-                                                ? 'bottom-0 text-[6px] -translate-y-[2px] sm:-translate-y-[3px]'
-                                                : 'bottom-0 text-[10px] translate-y-[-6px]'
-                                            }`}
-                                          >
-                                            •
-                                          </span>
+                                        {warmupPattern === 'chromatic' ? (
+                                          <span className="tabular-nums tracking-tight">{token}</span>
+                                        ) : (
+                                          <>
+                                            <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
+                                            {parsed.octave === 'higher' && (
+                                              <span
+                                                className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                                  compactStaircase
+                                                    ? 'top-0 text-[6px] translate-y-[2px] sm:translate-y-[3px]'
+                                                    : 'top-0 text-[10px] -translate-y-[-6px]'
+                                                }`}
+                                              >
+                                                •
+                                              </span>
+                                            )}
+                                            {parsed.octave === 'lower' && (
+                                              <span
+                                                className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                                  compactStaircase
+                                                    ? 'bottom-0 text-[6px] -translate-y-[2px] sm:-translate-y-[3px]'
+                                                    : 'bottom-0 text-[10px] translate-y-[-6px]'
+                                                }`}
+                                              >
+                                                •
+                                              </span>
+                                            )}
+                                          </>
                                         )}
                                       </div>
                                     );
