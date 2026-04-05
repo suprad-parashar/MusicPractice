@@ -535,15 +535,39 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
             </button>
           )}
         </div>
-        {cleanText(m.wikipediaUrl) && (
-          <a
-            href={m.wikipediaUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 text-xs font-medium text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline"
-          >
-            Wikipedia ↗
-          </a>
+        {(cleanText(m.wikipediaUrl) || cleanText(m.ragasurabhiUrl) || cleanText(m.youtubeUrl)) && (
+          <div className="shrink-0 flex flex-col items-end gap-1">
+            {cleanText(m.wikipediaUrl) && (
+              <a
+                href={m.wikipediaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline"
+              >
+                Wikipedia ↗
+              </a>
+            )}
+            {cleanText(m.ragasurabhiUrl) && (
+              <a
+                href={m.ragasurabhiUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline"
+              >
+                Raga Surabhi ↗
+              </a>
+            )}
+            {cleanText(m.youtubeUrl) && (
+              <a
+                href={m.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-amber-400 hover:text-amber-300 underline-offset-2 hover:underline"
+              >
+                YouTube ↗
+              </a>
+            )}
+          </div>
         )}
       </div>
 

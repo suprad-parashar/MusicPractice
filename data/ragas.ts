@@ -45,6 +45,8 @@ export type RagaMeta = {
   notableCompositions: RagaComposition[];
   notableFeatures: string;
   wikipediaUrl: string;
+  ragasurabhiUrl: string;
+  youtubeUrl: string;
 };
 
 type RagaJsonRow = {
@@ -75,6 +77,8 @@ type RagaJsonRow = {
   notable_compositions: { name: string; composer: string; language: string }[];
   notable_features: string;
   wikipedia_url: string;
+  ragasurabhi_url?: string;
+  youtube_url?: string;
 };
 
 function rowToMeta(row: RagaJsonRow): RagaMeta {
@@ -102,6 +106,8 @@ function rowToMeta(row: RagaJsonRow): RagaMeta {
     notableCompositions: row.notable_compositions ?? [],
     notableFeatures: row.notable_features ?? '',
     wikipediaUrl: row.wikipedia_url ?? '',
+    ragasurabhiUrl: row.ragasurabhi_url ?? '',
+    youtubeUrl: row.youtube_url ?? '',
   };
 }
 
