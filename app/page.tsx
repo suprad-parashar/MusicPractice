@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { KEYS, type KeyName } from '@/components/KeySection';
 import NotationSection from '@/components/NotationSection';
@@ -20,6 +20,7 @@ import { getOctaveMultiplier, TANPURA_PATTERN_ORDER, type Octave, type TanpuraPa
 import { getStored, setStored } from '@/lib/storage';
 import { version } from '@/package.json';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
+import { getLocalCalendarDateKey, getRagaOfTheDayForDate, msUntilNextLocalMidnight } from '@/lib/ragaOfTheDay';
 
 type Tab = 'raga' | 'varisai' | 'auditory' | 'songs';
 type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
@@ -152,8 +153,32 @@ function HomeContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSection, setSidebarSection] = useState<SidebarSection>('music');
   const [selectedSongSlug, setSelectedSongSlug] = useState<string | null>(null);
+  const [ragaOfDayDateKey, setRagaOfDayDateKey] = useState(() => getLocalCalendarDateKey());
+  const [ragaOpenRequest, setRagaOpenRequest] = useState<{ ragaId: string; nonce: number } | null>(null);
   const hasLoadedRef = useRef(false);
   const searchParams = useSearchParams();
+
+  const ragaOfDay = getRagaOfTheDayForDate(ragaOfDayDateKey);
+
+  useEffect(() => {
+    const ms = msUntilNextLocalMidnight();
+    const id = window.setTimeout(() => {
+      setRagaOfDayDateKey(getLocalCalendarDateKey());
+    }, ms);
+    return () => clearTimeout(id);
+  }, [ragaOfDayDateKey]);
+
+  const clearRagaOpenRequest = useCallback(() => {
+    setRagaOpenRequest(null);
+  }, []);
+
+  const goToRagaOfTheDay = useCallback(() => {
+    setActiveTab('raga');
+    setRagaOpenRequest((prev) => ({
+      ragaId: ragaOfDay.ragaId,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+  }, [ragaOfDay.ragaId]);
 
   // Metronome state
   const [metronomeMode, setMetronomeMode] = useState<MetronomeMode>('simple');
@@ -615,9 +640,47 @@ function HomeContent() {
 
           {/* Tab Content + Footer – scroll together */}
           <div className="scroll-area flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">
+            <div className="shrink-0 w-full min-w-0 border-b border-[var(--border)] bg-[var(--page-bg)] box-border px-3 pt-3 pb-3 sm:px-4 sm:pt-4 sm:pb-4 md:px-6">
+              <button
+                type="button"
+                onClick={goToRagaOfTheDay}
+                className="
+                  group w-full min-w-0 flex flex-row items-center justify-between gap-2 sm:gap-3
+                  text-left rounded-xl px-4 py-3 sm:px-5 sm:py-3.5
+                  bg-[var(--card-bg)] border border-[var(--border)] shadow-sm
+                  text-[11px] sm:text-sm text-[var(--text-muted)]
+                  hover:border-accent/40 hover:shadow-md transition-[box-shadow,border-color]
+                "
+                title={`Open ${ragaOfDay.name} on the Ragas tab`}
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="opacity-80">Raga of the day</span>
+                  <span className="mx-1.5 sm:mx-2 text-[var(--text-muted)] opacity-50" aria-hidden>
+                    ·
+                  </span>
+                  <span className="font-semibold text-[var(--text-primary)]">{ragaOfDay.name}</span>
+                </span>
+                <svg
+                  className="shrink-0 w-4 h-4 text-[var(--text-muted)] opacity-70 group-hover:text-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
             <div className="flex-1 flex items-start justify-center px-3 py-4 sm:px-4 sm:py-5 md:p-6 min-w-0 w-full max-w-[100vw] box-border">
               {activeTab === 'raga' ? (
-                <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+                <RagaPlayer
+                  baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
+                  instrumentId={instrumentId}
+                  volume={voiceVolume}
+                  notationLanguage={notationLanguage}
+                  openRagaRequest={ragaOpenRequest}
+                  onOpenRagaRequestConsumed={clearRagaOpenRequest}
+                />
               ) : activeTab === 'varisai' ? (
                 <PracticeSection baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'songs' ? (

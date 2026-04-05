@@ -1977,7 +1977,7 @@
     "notable_features": "Melakarta #15; 3rd chakra Agni; mnemonic name Agni-Go; mnemonic phrase sa ra gu ma pa dha nu. Shuddha madhyamam equivalent of Kamavardhini (Pantuvarali, #51). Ancient, highly auspicious, and a foundational teaching raga for beginners. It eschews vivadi swaras and has uniform spacing and symmetry, which makes it easy to learn. It is a murchana karaka mela: graha bhedam on madhyamam gives Simhendramadhyamam and on rishabham gives Rasikapriya. It has many janya ragas. The text also notes that Muthuswami Dikshitar's first composition is in this raga and mentions his gouḻānta kritis on Goddess Nilothpalamba, one of which is in Mayamalavagowla.",
     "wikipedia_url": "https://en.wikipedia.org/wiki/Mayamalavagowla",
     "ragasurabhi_url": "https://ragasurabhi.com/carnatic-music/raga/raga--mayamalavagowlai.html",
-    "youtube_url": "https://www.youtube.com/watch?v=Ewz1AeIGIvI"
+    "youtube_url": ""
   },
   {
     "raga_id": "chakravakam",
@@ -12893,8 +12893,7 @@
     "raga_name": "Kalyana Vasantham",
     "other_names": [
       "Kalyanavasantam",
-      "kalyanavasantham",
-      "Varamu"
+      "kalyanavasantham"
     ],
     "melakarta_number": null,
     "is_melakarta": false,
@@ -12998,7 +12997,7 @@
         "language": ""
       }
     ],
-    "notable_features": "Janya of Keeravani (21st melakarta). Audava-sampurna structure: ascent omits R and P, descent includes P and R2. The raga is said to combine the pentatonic Chandrakauns with Keeravani. Scale similarity noted with Chandrakauns: S G2 M1 D1 N3 S / S N3 D1 M1 G2 S. The source lists it as having several tanavarnams and kritis, but no additional theoretical details such as graha bhedam or prati madhyama equivalent are provided. Also referred to as Varamu in some sources.",
+    "notable_features": "Janya of Keeravani (21st melakarta). Audava-sampurna structure: ascent omits R and P, descent includes P and R2. The raga is said to combine the pentatonic Chandrakauns with Keeravani. Scale similarity noted with Chandrakauns: S G2 M1 D1 N3 S / S N3 D1 M1 G2 S. The source lists it as having several tanavarnams and kritis, but no additional theoretical details such as graha bhedam or prati madhyama equivalent are provided.",
     "ragasurabhi_url": "https://ragasurabhi.com/carnatic-music/raga/raga--kalyana-vasantham.html",
     "youtube_url": ""
   },
@@ -20121,6 +20120,56 @@
     "notable_features": "Valaji is a symmetric audava-audava raga with no rishabham or madhyamam. It is associated with Chakravakam (16th melakarta) but can also be derived from Harikambhoji, Vagadheeswari, Ramapriya, Vachaspati, or Nasikabhooshani by omitting R and M. Graha bhedam on Valaji yields Abhogi. The raga is noted as pleasing and has relatively few classical compositions, though it is also used in film music.",
     "wikipedia_url": "https://en.wikipedia.org/wiki/Valaji",
     "ragasurabhi_url": "https://ragasurabhi.com/carnatic-music/raga/raga--valaji.html",
+    "youtube_url": ""
+  },
+  {
+    "raga_id": "varamu",
+    "raga_name": "Varamu",
+    "other_names": [
+      "Shuddha Hindolam",
+      "Hindola Gamini"
+    ],
+    "melakarta_number": null,
+    "is_melakarta": false,
+    "parent_raga": 22,
+    "inventor": "",
+    "chakra": "",
+    "arohana": [
+      "S",
+      "G2",
+      "M1",
+      "D2",
+      "N2",
+      ">S"
+    ],
+    "avrohana": [
+      ">S",
+      "N2",
+      "D2",
+      "M1",
+      "G2",
+      "S"
+    ],
+    "raga_type": "shadava",
+    "is_vakra": false,
+    "is_bhashanga": false,
+    "anya_swaras": [],
+    "uses_vivadi_swaras": false,
+    "rasa": [
+      "Shanta",
+      "Bhakti"
+    ],
+    "mood": "Varamu has a calm, meditative, and devotional mood. Its compact scale and the gentle movement between the notes create an introspective atmosphere that feels serene, soothing, and spiritually inclined. The raga can evoke quiet joy, surrender, and a sense of inward reflection rather than dramatic emotion.",
+    "description": "Varamu is a janya raga of the 22nd melakarta, Karaharapriya, and is also known as Shuddha Hindolam and Hindola Gamini. Its scale is S G2 M1 D2 N2 S / S N2 D2 M1 G2 S: a shadava structure with six notes in both ascent and descent (R and P omitted). The raga is closely associated with a Dorian-type scalar feel in Western terms. It is a well-known derived raga used in Carnatic music and is often treated as a serene, devotional raga. It appears in concert and pedagogical contexts, including vocal exercises and featured raga discussions.",
+    "time_of_day": "",
+    "gamaka_usage": "The raga is typically rendered with restrained, gentle gamakas rather than heavy oscillation. G2 and N2 are usually given light kampita or subtle oscillatory treatment, while M1 and D2 are held more steadily or connected with smooth jaru-like transitions. S is stable, and the overall phraseology should remain simple and flowing to preserve the raga’s meditative character. Because the scale is compact and derived from Karaharapriya, over-ornamentation can blur its identity; the characteristic prayogas should be kept clear and unhurried.",
+    "hindustani_equivalent": "unknown",
+    "western_equivalent": "Dorian mode",
+    "popular_janya_ragas": [],
+    "notable_compositions": [],
+    "notable_features": "Also called Shuddha Hindolam and Hindola Gamini. Scale S G2 M1 D2 N2 S / S N2 D2 M1 G2 S; janya of Karaharapriya (22nd melakarta), shadava-shadava (six swaras in ascent and descent, R and P omitted). Often compared to the Western Dorian scale in pedagogy.",
+    "wikipedia_url": "",
+    "ragasurabhi_url": "https://ragasurabhi.com/carnatic-music/raga/raga--varamu.html",
     "youtube_url": ""
   },
   {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { ALL_RAGAS, Raga, getMelakartaByNumber, getRagaByIdOrName, getRagaByName, getSwarafrequency } from '@/data/ragas';
+import { ALL_RAGAS, Raga, getMelakartaByNumber, getRagaById, getRagaByIdOrName, getRagaByName, getSwarafrequency } from '@/data/ragas';
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { type NotationLanguage } from '@/lib/swaraNotation';
@@ -94,7 +94,22 @@ function splitProseBlocks(text: string, maxPerBlock = 3): string[] {
 
 type LearnSection = 'mood' | 'description' | 'gamaka' | 'features' | 'compositions';
 
-export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 0.5, notationLanguage = 'english' }: { baseFreq: number; instrumentId?: InstrumentId; volume?: number; notationLanguage?: NotationLanguage }) {
+export default function RagaPlayer({
+  baseFreq,
+  instrumentId = 'piano',
+  volume = 0.5,
+  notationLanguage = 'english',
+  openRagaRequest,
+  onOpenRagaRequestConsumed,
+}: {
+  baseFreq: number;
+  instrumentId?: InstrumentId;
+  volume?: number;
+  notationLanguage?: NotationLanguage;
+  /** When `nonce` changes, select that raga (e.g. “raga of the day” navigation). */
+  openRagaRequest?: { ragaId: string; nonce: number } | null;
+  onOpenRagaRequestConsumed?: () => void;
+}) {
   const [selectedRaga, setSelectedRaga] = useState<Raga>(
     ALL_RAGAS.find(r => r.name === 'Mayamalavagowla') || ALL_RAGAS[14]
   );
@@ -187,6 +202,13 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
       loop,
     });
   }, [selectedRaga, loop]);
+
+  useEffect(() => {
+    if (!openRagaRequest) return;
+    const r = getRagaById(openRagaRequest.ragaId);
+    if (r) setSelectedRaga(r);
+    onOpenRagaRequestConsumed?.();
+  }, [openRagaRequest?.nonce, onOpenRagaRequestConsumed]);
 
   // Get sorted ragas (always alphabetical)
   const sortedRagas = [...ALL_RAGAS].sort((a, b) => a.name.localeCompare(b.name));
