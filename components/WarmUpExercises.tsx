@@ -21,11 +21,22 @@ import {
   chromaticNoteLabelsAsc,
   chromaticNoteLabelsDesc,
 } from '@/lib/chromaticPattern';
+import { threesAndFoursAscLines, threesAndFoursDescLines } from '@/lib/threesAndFoursPattern';
+import { fourthsAscLines, fourthsDescLines } from '@/lib/fourthsPattern';
+import { fifthsAscLines, fifthsDescLines } from '@/lib/fifthsPattern';
 import { getStored, setStored } from '@/lib/storage';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 
 const WARMUP_STORAGE_KEY = 'warmupSettings';
-type WarmupPattern = 'staircase' | 'triadMirror' | 'jumpingNotes' | 'thirds' | 'chromatic';
+type WarmupPattern =
+  | 'staircase'
+  | 'triadMirror'
+  | 'jumpingNotes'
+  | 'thirds'
+  | 'threesAndFours'
+  | 'fourths'
+  | 'fifths'
+  | 'chromatic';
 type StoredWarmup = { ragaNumber?: number; baseBPM?: number; warmupPattern?: WarmupPattern };
 
 /** Max swara cells per visual row (staircase / triad / jumping) so rows fit without clipping. */
@@ -37,9 +48,16 @@ function chunkTokens<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-/** Staircase keeps one full row per line (classic pyramid); other patterns wrap at WARMUP_NOTES_PER_ROW (thirds uses THIRDS_NOTES_PER_ROW). */
+/** Staircase and threes-and-fours keep one full row per line; other patterns wrap at WARMUP_NOTES_PER_ROW (thirds uses THIRDS_NOTES_PER_ROW). */
 function chunksForWarmupRow(pattern: WarmupPattern, row: string[]): string[][] {
-  if (pattern === 'staircase') return [row];
+  if (
+    pattern === 'staircase' ||
+    pattern === 'threesAndFours' ||
+    pattern === 'fourths' ||
+    pattern === 'fifths'
+  ) {
+    return [row];
+  }
   const size = pattern === 'thirds' ? THIRDS_NOTES_PER_ROW : WARMUP_NOTES_PER_ROW;
   return chunkTokens(row, size);
 }
@@ -49,6 +67,9 @@ const WARMUP_PATTERNS: { id: WarmupPattern; label: string }[] = [
   { id: 'triadMirror', label: 'Triad mirror' },
   { id: 'jumpingNotes', label: 'Jumping notes' },
   { id: 'thirds', label: 'Thirds' },
+  { id: 'threesAndFours', label: 'Threes and fours' },
+  { id: 'fourths', label: 'Fourths' },
+  { id: 'fifths', label: 'Fifths' },
   { id: 'chromatic', label: 'Chromatic' },
 ];
 
@@ -97,6 +118,9 @@ export default function WarmUpExercises({
       return chunkTokens(flat.slice(0, half), WARMUP_NOTES_PER_ROW);
     }
     if (warmupPattern === 'thirds') return chunkTokens([...THIRDS_ASC_NOTES], THIRDS_NOTES_PER_ROW);
+    if (warmupPattern === 'threesAndFours') return threesAndFoursAscLines();
+    if (warmupPattern === 'fourths') return fourthsAscLines();
+    if (warmupPattern === 'fifths') return fifthsAscLines();
     if (warmupPattern === 'chromatic') return chunkTokens(chromaticNoteLabelsAsc(baseFreq), WARMUP_NOTES_PER_ROW);
     if (warmupPattern === 'triadMirror') return triadMirrorLines();
     return staircaseLines(STAIR_VARISAI_TOKENS.length);
@@ -109,6 +133,9 @@ export default function WarmUpExercises({
       return chunkTokens(flat.slice(half), WARMUP_NOTES_PER_ROW);
     }
     if (warmupPattern === 'thirds') return chunkTokens(THIRDS_DESC_NOTES, THIRDS_NOTES_PER_ROW);
+    if (warmupPattern === 'threesAndFours') return threesAndFoursDescLines();
+    if (warmupPattern === 'fourths') return fourthsDescLines();
+    if (warmupPattern === 'fifths') return fifthsDescLines();
     if (warmupPattern === 'chromatic') return chunkTokens(chromaticNoteLabelsDesc(baseFreq), WARMUP_NOTES_PER_ROW);
     if (warmupPattern === 'triadMirror') return descendingTriadMirrorLines();
     return descendingStaircaseLines(STAIR_VARISAI_TOKENS.length);
@@ -203,6 +230,9 @@ export default function WarmUpExercises({
       stored.warmupPattern === 'triadMirror' ||
       stored.warmupPattern === 'jumpingNotes' ||
       stored.warmupPattern === 'thirds' ||
+      stored.warmupPattern === 'threesAndFours' ||
+      stored.warmupPattern === 'fourths' ||
+      stored.warmupPattern === 'fifths' ||
       stored.warmupPattern === 'chromatic'
     ) {
       setWarmupPattern(stored.warmupPattern);
@@ -254,9 +284,15 @@ export default function WarmUpExercises({
         ? 'Jumping notes'
         : warmupPattern === 'thirds'
           ? 'Thirds'
-          : warmupPattern === 'chromatic'
-            ? 'Chromatic'
-            : 'Staircase';
+          : warmupPattern === 'threesAndFours'
+            ? 'Threes and fours'
+            : warmupPattern === 'fourths'
+              ? 'Fourths'
+              : warmupPattern === 'fifths'
+                ? 'Fifths'
+                : warmupPattern === 'chromatic'
+                  ? 'Chromatic'
+                  : 'Staircase';
 
   const playPitchHz = (freq: number, duration: number, silent: boolean): NotePlayer | null => {
     if (!audioContextRef.current || !masterGainRef.current) return null;
@@ -522,7 +558,11 @@ export default function WarmUpExercises({
     );
   }
 
-  const compactStaircase = warmupPattern === 'staircase';
+  const compactStaircase =
+    warmupPattern === 'staircase' ||
+    warmupPattern === 'threesAndFours' ||
+    warmupPattern === 'fourths' ||
+    warmupPattern === 'fifths';
 
   return (
     <div className="w-full max-w-4xl mx-auto min-w-0 overflow-x-hidden">
@@ -562,9 +602,15 @@ export default function WarmUpExercises({
                 ? 'Ārōhaṇa: triad mirror lines from ṣaḍjam through tāra gāndhāra. Then avarōhaṇa: triad mirror lines from tāra gāndhāra down into the mandhra register through lower dhaivata (<Dha).'
                 : warmupPattern === 'thirds'
                   ? 'Ārōhaṇa: thirds pattern S G R M G P M D P N D ·S. Avarōhaṇa: the same sequence in reverse.'
-                  : warmupPattern === 'chromatic'
-                    ? 'Equal temperament: every semitone from your key up one octave and back. The first name matches your selected key.'
-                    : 'Ārōhaṇa: every pair of scale degrees (lower swara first, then higher). Avarōhaṇa: the same pairs in reverse order, each pair played high then low. Eight notes per line.'}
+                  : warmupPattern === 'threesAndFours'
+                    ? 'Ārōhaṇa: three swaras then four from the same start up to ·S. Avarōhaṇa: the same shape coming down from ·S (e.g. ·S N D ·S N D P, N D P N D P M, … to ṣaḍjam).'
+                    : warmupPattern === 'fourths'
+                      ? 'Ārōhaṇa: fourths as pairs (S M, R P, G D, M N, P ·S). Avarōhaṇa: that line reversed in pairs (·S P, N M, D G, P R, M S).'
+                      : warmupPattern === 'fifths'
+                        ? 'Ārōhaṇa: fifths as pairs (S P, R D, G N, M ·S). Avarōhaṇa: that line reversed in pairs (·S M, N G, D R, P S).'
+                        : warmupPattern === 'chromatic'
+                          ? 'Equal temperament: every semitone from your key up one octave and back. The first name matches your selected key.'
+                          : 'Ārōhaṇa: every pair of scale degrees (lower swara first, then higher). Avarōhaṇa: the same pairs in reverse order, each pair played high then low. Eight notes per line.'}
           </p>
         </div>
 
@@ -762,9 +808,15 @@ export default function WarmUpExercises({
                       ? 'Triad mirror pattern'
                       : warmupPattern === 'thirds'
                         ? 'Thirds pattern'
-                        : warmupPattern === 'chromatic'
-                          ? 'Chromatic pattern'
-                          : 'Jumping notes pattern'
+                        : warmupPattern === 'threesAndFours'
+                          ? 'Threes and fours pattern'
+                          : warmupPattern === 'fourths'
+                            ? 'Fourths pattern'
+                            : warmupPattern === 'fifths'
+                              ? 'Fifths pattern'
+                              : warmupPattern === 'chromatic'
+                                ? 'Chromatic pattern'
+                                : 'Jumping notes pattern'
                 }
               >
                 {/*
