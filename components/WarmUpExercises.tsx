@@ -13,16 +13,17 @@ import {
   descendingStaircaseLines,
   STAIR_VARISAI_TOKENS,
 } from '@/lib/staircasePattern';
+import { triadMirrorLines, descendingTriadMirrorLines } from '@/lib/triadMirrorPattern';
 import { getStored, setStored } from '@/lib/storage';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 
 const WARMUP_STORAGE_KEY = 'warmupSettings';
-type StairMode = 'ascending' | 'descending';
-type StoredWarmup = { ragaNumber?: number; baseBPM?: number; stairMode?: StairMode };
+type WarmupPattern = 'staircase' | 'triadMirror';
+type StoredWarmup = { ragaNumber?: number; baseBPM?: number; warmupPattern?: WarmupPattern };
 
-const STAIR_MODES: { id: StairMode; label: string }[] = [
-  { id: 'ascending', label: 'Ascending' },
-  { id: 'descending', label: 'Descending' },
+const WARMUP_PATTERNS: { id: WarmupPattern; label: string }[] = [
+  { id: 'staircase', label: 'Staircase' },
+  { id: 'triadMirror', label: 'Triad mirror' },
 ];
 
 function convertVarisaiNoteToRaga(note: string, raga: MelakartaRaga): string {
@@ -61,15 +62,21 @@ export default function WarmUpExercises({
   volume?: number;
   notationLanguage?: NotationLanguage;
 }) {
-  const [stairMode, setStairMode] = useState<StairMode>('ascending');
+  const [warmupPattern, setWarmupPattern] = useState<WarmupPattern>('staircase');
 
-  const stairLines = useMemo(
-    () =>
-      stairMode === 'ascending'
-        ? staircaseLines(STAIR_VARISAI_TOKENS.length)
-        : descendingStaircaseLines(STAIR_VARISAI_TOKENS.length),
-    [stairMode]
-  );
+  const ascLines = useMemo(() => {
+    if (warmupPattern === 'triadMirror') return triadMirrorLines();
+    return staircaseLines(STAIR_VARISAI_TOKENS.length);
+  }, [warmupPattern]);
+
+  const descLines = useMemo(() => {
+    if (warmupPattern === 'triadMirror') return descendingTriadMirrorLines();
+    return descendingStaircaseLines(STAIR_VARISAI_TOKENS.length);
+  }, [warmupPattern]);
+
+  const ascLineCount = ascLines.length;
+
+  const stairLines = useMemo(() => [...ascLines, ...descLines], [ascLines, descLines]);
 
   const rawFlatTokens = useMemo(() => stairLines.flat(), [stairLines]);
 
@@ -149,8 +156,8 @@ export default function WarmUpExercises({
     if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 300) {
       setBaseBPM(stored.baseBPM);
     }
-    if (stored.stairMode === 'ascending' || stored.stairMode === 'descending') {
-      setStairMode(stored.stairMode);
+    if (stored.warmupPattern === 'staircase' || stored.warmupPattern === 'triadMirror') {
+      setWarmupPattern(stored.warmupPattern);
     }
     hasLoadedRef.current = true;
     setStorageReady(true);
@@ -158,8 +165,8 @@ export default function WarmUpExercises({
 
   useEffect(() => {
     if (!hasLoadedRef.current) return;
-    setStored(WARMUP_STORAGE_KEY, { ragaNumber: selectedRaga.number, baseBPM, stairMode });
-  }, [selectedRaga, baseBPM, stairMode]);
+    setStored(WARMUP_STORAGE_KEY, { ragaNumber: selectedRaga.number, baseBPM, warmupPattern });
+  }, [selectedRaga, baseBPM, warmupPattern]);
 
   const linearToLogGain = (linearValue: number): number => {
     if (linearValue === 0) return 0;
@@ -192,7 +199,7 @@ export default function WarmUpExercises({
     };
   }, []);
 
-  const displayTitle = stairMode === 'ascending' ? 'Ascending staircase' : 'Descending staircase';
+  const displayTitle = warmupPattern === 'triadMirror' ? 'Triad mirror' : 'Staircase';
 
   const playNote = (swara: string, duration: number, silent: boolean): NotePlayer | null => {
     if (!audioContextRef.current || !masterGainRef.current) return null;
@@ -390,10 +397,10 @@ export default function WarmUpExercises({
     }
   };
 
-  const handleStairModeChange = (mode: StairMode) => {
-    if (mode === stairMode) return;
+  const handleWarmupPatternChange = (pattern: WarmupPattern) => {
+    if (pattern === warmupPattern) return;
     if (isPlayingRef.current) stopPlayback();
-    setStairMode(mode);
+    setWarmupPattern(pattern);
   };
 
   const flatIndexBeforeLine = (lineIdx: number) => {
@@ -427,7 +434,7 @@ export default function WarmUpExercises({
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [stairLines, stairMode, selectedRaga, notationLanguage]);
+  }, [stairLines, warmupPattern, selectedRaga, notationLanguage]);
 
   if (!storageReady) {
     return (
@@ -446,19 +453,19 @@ export default function WarmUpExercises({
         </div>
 
         <div className="mb-8">
-          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">Pattern</label>
+          <label className="block text-sm font-medium text-slate-300 mb-3 text-center">Exercise</label>
           <div className="flex flex-wrap gap-2 justify-center">
-            {STAIR_MODES.map(({ id, label }) => (
+            {WARMUP_PATTERNS.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => handleStairModeChange(id)}
+                onClick={() => handleWarmupPatternChange(id)}
                 className={`
                   px-4 py-2 rounded-lg
                   transition-all duration-200
                   text-sm font-medium
                   cursor-pointer
-                  ${stairMode === id
+                  ${warmupPattern === id
                     ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
                     : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:scale-102'
                   }
@@ -469,9 +476,9 @@ export default function WarmUpExercises({
             ))}
           </div>
           <p className="mt-3 text-center text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
-            {stairMode === 'ascending'
-              ? 'Each line adds the next ārōhaṇa swara and returns to ṣaḍjam (S, S R S, S R G R S, … up to tāra ṣaḍjam).'
-              : 'Each line from tāra ṣaḍjam adds the next avarōhaṇa step and returns (·S, ·S N ·S, ·S N D N ·S, … down to madhya ṣaḍjam).'}
+            {warmupPattern === 'staircase'
+              ? 'Ārōhaṇa: each line adds the next swara and returns to ṣaḍjam, up to tāra ṣaḍjam. Then avarōhaṇa: each line from tāra ṣaḍjam steps down and returns to madhya ṣaḍjam.'
+              : 'Ārōhaṇa: triad mirror lines from ṣaḍjam through tāra gāndhāra. Then avarōhaṇa: triad mirror lines from tāra gāndhāra down into the mandhra register through lower dhaivata (<Dha).'}
           </p>
         </div>
 
@@ -660,7 +667,7 @@ export default function WarmUpExercises({
                 ref={stairFitOuterRef}
                 className="box-border w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/40"
                 role="region"
-                aria-label="Staircase pattern"
+                aria-label={warmupPattern === 'staircase' ? 'Staircase pattern' : 'Triad mirror pattern'}
               >
                 {/*
                   Transform alone does not shrink layout; clip to (bw×scale)×(bh×scale) and scale from top-left
@@ -699,7 +706,18 @@ export default function WarmUpExercises({
                       ref={stairFitBlockRef}
                       className="inline-flex w-max max-w-none flex-col items-center divide-y divide-slate-700/45"
                     >
-                      {stairLines.map((row, lineIdx) => {
+                      {ascLineCount > 0 && (
+                        <div
+                          className="flex w-full min-w-[12rem] flex-col items-center gap-1 border-b border-slate-700/45 bg-slate-800/20 py-2.5"
+                          role="separator"
+                          aria-label="Ārōhaṇa section"
+                        >
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:text-xs">
+                            Ārōhaṇa
+                          </span>
+                        </div>
+                      )}
+                      {ascLines.map((row, lineIdx) => {
                         const baseFlat = flatIndexBeforeLine(lineIdx);
                         const rowHasActive =
                           isPlaying &&
@@ -707,7 +725,79 @@ export default function WarmUpExercises({
                           currentNoteIndex < baseFlat + row.length;
                         return (
                           <div
-                            key={lineIdx}
+                            key={`asc-${lineIdx}`}
+                            className={`
+                              flex w-max max-w-none flex-nowrap justify-center gap-1.5 px-2 py-2 transition-colors sm:gap-2 sm:px-3 sm:py-2.5
+                              ${rowHasActive ? 'bg-amber-500/[0.06]' : ''}
+                            `}
+                          >
+                            {row.map((token, pos) => {
+                              const flatIdx = baseFlat + pos;
+                              const note = convertVarisaiNoteToRaga(token, selectedRaga);
+                              const parsed = parseVarisaiNote(note);
+                              const done = isPlaying && currentNoteIndex > flatIdx;
+                              const active = isPlaying && currentNoteIndex === flatIdx;
+                              return (
+                                <div
+                                  key={`${lineIdx}-${pos}-${token}`}
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => seekToNote(flatIdx)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      seekToNote(flatIdx);
+                                    }
+                                  }}
+                                  className={`
+                                    w-9 h-9 sm:w-12 sm:h-12 flex shrink-0 items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
+                                    transition-colors duration-200 cursor-pointer
+                                    ${active
+                                      ? 'bg-amber-500 text-slate-900 shadow-lg ring-2 ring-amber-400/80 ring-inset'
+                                      : done
+                                        ? 'bg-slate-700/30 text-slate-500 hover:bg-slate-600/50'
+                                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/70'
+                                    }
+                                  `}
+                                >
+                                  <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
+                                  {parsed.octave === 'higher' && (
+                                    <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">
+                                      •
+                                    </span>
+                                  )}
+                                  {parsed.octave === 'lower' && (
+                                    <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[-6px] text-[10px] leading-none">
+                                      •
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                      {descLines.length > 0 && (
+                        <div
+                          className="flex w-full min-w-[12rem] flex-col items-center gap-1 border-t border-slate-600/80 bg-slate-800/30 py-2.5"
+                          role="separator"
+                          aria-label="Avarōhaṇa section"
+                        >
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-slate-500 sm:text-xs">
+                            Avarōhaṇa
+                          </span>
+                        </div>
+                      )}
+                      {descLines.map((row, i) => {
+                        const lineIdx = ascLineCount + i;
+                        const baseFlat = flatIndexBeforeLine(lineIdx);
+                        const rowHasActive =
+                          isPlaying &&
+                          currentNoteIndex >= baseFlat &&
+                          currentNoteIndex < baseFlat + row.length;
+                        return (
+                          <div
+                            key={`desc-${i}`}
                             className={`
                               flex w-max max-w-none flex-nowrap justify-center gap-1.5 px-2 py-2 transition-colors sm:gap-2 sm:px-3 sm:py-2.5
                               ${rowHasActive ? 'bg-amber-500/[0.06]' : ''}
