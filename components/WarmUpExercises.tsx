@@ -14,16 +14,33 @@ import {
   STAIR_VARISAI_TOKENS,
 } from '@/lib/staircasePattern';
 import { triadMirrorLines, descendingTriadMirrorLines } from '@/lib/triadMirrorPattern';
+import { buildJumpingNotesLetterNotes } from '@/lib/jumpingNotesPattern';
 import { getStored, setStored } from '@/lib/storage';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 
 const WARMUP_STORAGE_KEY = 'warmupSettings';
-type WarmupPattern = 'staircase' | 'triadMirror';
+type WarmupPattern = 'staircase' | 'triadMirror' | 'jumpingNotes';
 type StoredWarmup = { ragaNumber?: number; baseBPM?: number; warmupPattern?: WarmupPattern };
+
+/** Max swara cells per visual row (staircase / triad / jumping) so rows fit without clipping. */
+const WARMUP_NOTES_PER_ROW = 8;
+
+function chunkTokens<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+/** Staircase keeps one full row per line (classic pyramid); other patterns wrap at WARMUP_NOTES_PER_ROW. */
+function chunksForWarmupRow(pattern: WarmupPattern, row: string[]): string[][] {
+  if (pattern === 'staircase') return [row];
+  return chunkTokens(row, WARMUP_NOTES_PER_ROW);
+}
 
 const WARMUP_PATTERNS: { id: WarmupPattern; label: string }[] = [
   { id: 'staircase', label: 'Staircase' },
   { id: 'triadMirror', label: 'Triad mirror' },
+  { id: 'jumpingNotes', label: 'Jumping notes' },
 ];
 
 function convertVarisaiNoteToRaga(note: string, raga: MelakartaRaga): string {
@@ -65,11 +82,21 @@ export default function WarmUpExercises({
   const [warmupPattern, setWarmupPattern] = useState<WarmupPattern>('staircase');
 
   const ascLines = useMemo(() => {
+    if (warmupPattern === 'jumpingNotes') {
+      const flat = buildJumpingNotesLetterNotes();
+      const half = flat.length / 2;
+      return chunkTokens(flat.slice(0, half), WARMUP_NOTES_PER_ROW);
+    }
     if (warmupPattern === 'triadMirror') return triadMirrorLines();
     return staircaseLines(STAIR_VARISAI_TOKENS.length);
   }, [warmupPattern]);
 
   const descLines = useMemo(() => {
+    if (warmupPattern === 'jumpingNotes') {
+      const flat = buildJumpingNotesLetterNotes();
+      const half = flat.length / 2;
+      return chunkTokens(flat.slice(half), WARMUP_NOTES_PER_ROW);
+    }
     if (warmupPattern === 'triadMirror') return descendingTriadMirrorLines();
     return descendingStaircaseLines(STAIR_VARISAI_TOKENS.length);
   }, [warmupPattern]);
@@ -156,7 +183,11 @@ export default function WarmUpExercises({
     if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 300) {
       setBaseBPM(stored.baseBPM);
     }
-    if (stored.warmupPattern === 'staircase' || stored.warmupPattern === 'triadMirror') {
+    if (
+      stored.warmupPattern === 'staircase' ||
+      stored.warmupPattern === 'triadMirror' ||
+      stored.warmupPattern === 'jumpingNotes'
+    ) {
       setWarmupPattern(stored.warmupPattern);
     }
     hasLoadedRef.current = true;
@@ -199,7 +230,8 @@ export default function WarmUpExercises({
     };
   }, []);
 
-  const displayTitle = warmupPattern === 'triadMirror' ? 'Triad mirror' : 'Staircase';
+  const displayTitle =
+    warmupPattern === 'triadMirror' ? 'Triad mirror' : warmupPattern === 'jumpingNotes' ? 'Jumping notes' : 'Staircase';
 
   const playNote = (swara: string, duration: number, silent: boolean): NotePlayer | null => {
     if (!audioContextRef.current || !masterGainRef.current) return null;
@@ -416,13 +448,14 @@ export default function WarmUpExercises({
 
     const measure = () => {
       const cw = outer.getBoundingClientRect().width;
-      const bw = block.scrollWidth;
-      const bh = block.scrollHeight;
+      const bw = Math.max(block.scrollWidth, block.offsetWidth);
+      const bh = Math.max(block.scrollHeight, block.offsetHeight);
       if (bw < 1 || bh < 1) {
         setStairFit({ scale: 1, bw: 0, bh: 0 });
         return;
       }
-      const scale = cw > 0 ? Math.min(1, cw / bw) : 1;
+      const PAD = 6;
+      const scale = cw > PAD ? Math.min(1, (cw - PAD) / bw) : Math.min(1, cw / bw);
       setStairFit({ scale, bw, bh });
     };
 
@@ -430,6 +463,12 @@ export default function WarmUpExercises({
     const raf = requestAnimationFrame(measure);
     const ro = new ResizeObserver(() => requestAnimationFrame(measure));
     ro.observe(outer);
+    ro.observe(block);
+    const fontsDone =
+      typeof document !== 'undefined' && document.fonts?.ready
+        ? document.fonts.ready.then(() => requestAnimationFrame(measure))
+        : Promise.resolve();
+    fontsDone.catch(() => {});
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
@@ -443,6 +482,8 @@ export default function WarmUpExercises({
       </div>
     );
   }
+
+  const compactStaircase = warmupPattern === 'staircase';
 
   return (
     <div className="w-full max-w-4xl mx-auto min-w-0 overflow-x-hidden">
@@ -478,7 +519,9 @@ export default function WarmUpExercises({
           <p className="mt-3 text-center text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
             {warmupPattern === 'staircase'
               ? 'Ārōhaṇa: each line adds the next swara and returns to ṣaḍjam, up to tāra ṣaḍjam. Then avarōhaṇa: each line from tāra ṣaḍjam steps down and returns to madhya ṣaḍjam.'
-              : 'Ārōhaṇa: triad mirror lines from ṣaḍjam through tāra gāndhāra. Then avarōhaṇa: triad mirror lines from tāra gāndhāra down into the mandhra register through lower dhaivata (<Dha).'}
+              : warmupPattern === 'triadMirror'
+                ? 'Ārōhaṇa: triad mirror lines from ṣaḍjam through tāra gāndhāra. Then avarōhaṇa: triad mirror lines from tāra gāndhāra down into the mandhra register through lower dhaivata (<Dha).'
+                : 'Ārōhaṇa: every pair of scale degrees (lower swara first, then higher). Avarōhaṇa: the same pairs in reverse order, each pair played high then low. Eight notes per line.'}
           </p>
         </div>
 
@@ -659,47 +702,63 @@ export default function WarmUpExercises({
           </div>
         </div>
 
-        <div className="mt-8 min-w-0 w-full max-w-full">
+        <div className="relative z-0 mt-8 min-w-0 w-full max-w-full isolate">
           <div className="text-center">
             <p className="text-slate-400 text-sm mb-4">Exercise notes</p>
             <div className="mx-auto w-full min-w-0 max-w-3xl px-1 sm:px-2">
               <div
                 ref={stairFitOuterRef}
-                className="box-border w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/40"
+                className="relative z-0 box-border w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-2xl border border-slate-700/50 bg-slate-900/40"
                 role="region"
-                aria-label={warmupPattern === 'staircase' ? 'Staircase pattern' : 'Triad mirror pattern'}
+                aria-label={
+                  warmupPattern === 'staircase'
+                    ? 'Staircase pattern'
+                    : warmupPattern === 'triadMirror'
+                      ? 'Triad mirror pattern'
+                      : 'Jumping notes pattern'
+                }
               >
                 {/*
-                  Transform alone does not shrink layout; clip to (bw×scale)×(bh×scale) and scale from top-left
-                  so the staircase never overflows horizontally.
+                  Scaled content is position:absolute; the dimension wrapper MUST always be position:relative
+                  (even before ResizeObserver runs) or the absolute layer anchors to a distant ancestor and
+                  can paint over the header. Clip to measured (bw×scale)×(bh×scale).
                 */}
                 <div
                   className="mx-auto box-border max-w-full"
                   style={
                     stairFit.bw > 0 && stairFit.bh > 0
                       ? {
-                          width: stairFit.bw * stairFit.scale,
+                          width: '100%',
                           maxWidth: '100%',
                           height: stairFit.bh * stairFit.scale,
                           overflow: 'hidden',
                           position: 'relative',
                         }
-                      : { minHeight: '8rem' }
+                      : {
+                          minHeight: '10rem',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          width: '100%',
+                        }
                   }
                 >
                   <div
-                    className="absolute top-0 box-border"
+                    className="box-border"
                     style={
                       stairFit.bw > 0
                         ? {
+                            position: 'absolute',
                             left: '50%',
+                            top: 0,
                             width: stairFit.bw,
-                            marginLeft: -stairFit.bw / 2,
-                            transform: `scale(${stairFit.scale})`,
+                            transform: `translateX(-50%) scale(${stairFit.scale})`,
                             transformOrigin: 'top center',
                             willChange: 'transform',
                           }
-                        : { left: 0 }
+                        : {
+                            position: 'relative',
+                            width: '100%',
+                          }
                     }
                   >
                     <div
@@ -723,54 +782,86 @@ export default function WarmUpExercises({
                           isPlaying &&
                           currentNoteIndex >= baseFlat &&
                           currentNoteIndex < baseFlat + row.length;
+                        const chunks = chunksForWarmupRow(warmupPattern, row);
                         return (
                           <div
                             key={`asc-${lineIdx}`}
-                            className={`
-                              flex w-max max-w-none flex-nowrap justify-center gap-1.5 px-2 py-2 transition-colors sm:gap-2 sm:px-3 sm:py-2.5
-                              ${rowHasActive ? 'bg-amber-500/[0.06]' : ''}
-                            `}
+                            className={`flex w-full flex-col items-center py-1.5 sm:py-2 ${
+                              compactStaircase ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5'
+                            }`}
                           >
-                            {row.map((token, pos) => {
-                              const flatIdx = baseFlat + pos;
-                              const note = convertVarisaiNoteToRaga(token, selectedRaga);
-                              const parsed = parseVarisaiNote(note);
-                              const done = isPlaying && currentNoteIndex > flatIdx;
-                              const active = isPlaying && currentNoteIndex === flatIdx;
+                            {chunks.map((chunk, chunkIdx) => {
+                              const chunkBase = chunks
+                                .slice(0, chunkIdx)
+                                .reduce((sum, c) => sum + c.length, 0);
                               return (
                                 <div
-                                  key={`${lineIdx}-${pos}-${token}`}
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => seekToNote(flatIdx)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                      e.preventDefault();
-                                      seekToNote(flatIdx);
-                                    }
-                                  }}
+                                  key={`${lineIdx}-${chunkIdx}`}
                                   className={`
-                                    w-9 h-9 sm:w-12 sm:h-12 flex shrink-0 items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
-                                    transition-colors duration-200 cursor-pointer
-                                    ${active
-                                      ? 'bg-amber-500 text-slate-900 shadow-lg ring-2 ring-amber-400/80 ring-inset'
-                                      : done
-                                        ? 'bg-slate-700/30 text-slate-500 hover:bg-slate-600/50'
-                                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/70'
-                                    }
+                                    flex w-max max-w-none flex-nowrap justify-center transition-colors
+                                    ${compactStaircase ? 'gap-1 px-1 sm:gap-1.5 sm:px-2' : 'gap-1.5 px-2 sm:gap-2 sm:px-3'}
+                                    ${rowHasActive ? 'bg-amber-500/[0.06]' : ''}
                                   `}
                                 >
-                                  <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                                  {parsed.octave === 'higher' && (
-                                    <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">
-                                      •
-                                    </span>
-                                  )}
-                                  {parsed.octave === 'lower' && (
-                                    <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[-6px] text-[10px] leading-none">
-                                      •
-                                    </span>
-                                  )}
+                                  {chunk.map((token, pos) => {
+                                    const flatIdx = baseFlat + chunkBase + pos;
+                                    const note = convertVarisaiNoteToRaga(token, selectedRaga);
+                                    const parsed = parseVarisaiNote(note);
+                                    const done = isPlaying && currentNoteIndex > flatIdx;
+                                    const active = isPlaying && currentNoteIndex === flatIdx;
+                                    return (
+                                      <div
+                                        key={`${lineIdx}-${chunkIdx}-${pos}-${token}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => seekToNote(flatIdx)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            seekToNote(flatIdx);
+                                          }
+                                        }}
+                                        className={`
+                                          flex shrink-0 items-center justify-center font-semibold relative
+                                          transition-colors duration-200 cursor-pointer
+                                          ${compactStaircase
+                                            ? 'w-[1.375rem] h-[1.375rem] min-[380px]:w-6 min-[380px]:h-6 sm:w-7 sm:h-8 rounded-md text-[9px] min-[380px]:text-[10px] sm:text-xs'
+                                            : 'w-9 h-9 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-lg'
+                                          }
+                                          ${active
+                                            ? 'bg-amber-500 text-slate-900 shadow-lg ring-2 ring-amber-400/80 ring-inset'
+                                            : done
+                                              ? 'bg-slate-700/30 text-slate-500 hover:bg-slate-600/50'
+                                              : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/70'
+                                          }
+                                        `}
+                                      >
+                                        <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
+                                        {parsed.octave === 'higher' && (
+                                          <span
+                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                              compactStaircase
+                                                ? 'top-0 text-[6px] translate-y-[2px] sm:translate-y-[3px]'
+                                                : 'top-0 text-[10px] -translate-y-[-6px]'
+                                            }`}
+                                          >
+                                            •
+                                          </span>
+                                        )}
+                                        {parsed.octave === 'lower' && (
+                                          <span
+                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                              compactStaircase
+                                                ? 'bottom-0 text-[6px] -translate-y-[2px] sm:-translate-y-[3px]'
+                                                : 'bottom-0 text-[10px] translate-y-[-6px]'
+                                            }`}
+                                          >
+                                            •
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
                             })}
@@ -795,54 +886,86 @@ export default function WarmUpExercises({
                           isPlaying &&
                           currentNoteIndex >= baseFlat &&
                           currentNoteIndex < baseFlat + row.length;
+                        const chunks = chunksForWarmupRow(warmupPattern, row);
                         return (
                           <div
                             key={`desc-${i}`}
-                            className={`
-                              flex w-max max-w-none flex-nowrap justify-center gap-1.5 px-2 py-2 transition-colors sm:gap-2 sm:px-3 sm:py-2.5
-                              ${rowHasActive ? 'bg-amber-500/[0.06]' : ''}
-                            `}
+                            className={`flex w-full flex-col items-center py-1.5 sm:py-2 ${
+                              compactStaircase ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5'
+                            }`}
                           >
-                            {row.map((token, pos) => {
-                              const flatIdx = baseFlat + pos;
-                              const note = convertVarisaiNoteToRaga(token, selectedRaga);
-                              const parsed = parseVarisaiNote(note);
-                              const done = isPlaying && currentNoteIndex > flatIdx;
-                              const active = isPlaying && currentNoteIndex === flatIdx;
+                            {chunks.map((chunk, chunkIdx) => {
+                              const chunkBase = chunks
+                                .slice(0, chunkIdx)
+                                .reduce((sum, c) => sum + c.length, 0);
                               return (
                                 <div
-                                  key={`${lineIdx}-${pos}-${token}`}
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() => seekToNote(flatIdx)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                      e.preventDefault();
-                                      seekToNote(flatIdx);
-                                    }
-                                  }}
+                                  key={`${i}-${chunkIdx}`}
                                   className={`
-                                    w-9 h-9 sm:w-12 sm:h-12 flex shrink-0 items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
-                                    transition-colors duration-200 cursor-pointer
-                                    ${active
-                                      ? 'bg-amber-500 text-slate-900 shadow-lg ring-2 ring-amber-400/80 ring-inset'
-                                      : done
-                                        ? 'bg-slate-700/30 text-slate-500 hover:bg-slate-600/50'
-                                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/70'
-                                    }
+                                    flex w-max max-w-none flex-nowrap justify-center transition-colors
+                                    ${compactStaircase ? 'gap-1 px-1 sm:gap-1.5 sm:px-2' : 'gap-1.5 px-2 sm:gap-2 sm:px-3'}
+                                    ${rowHasActive ? 'bg-amber-500/[0.06]' : ''}
                                   `}
                                 >
-                                  <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                                  {parsed.octave === 'higher' && (
-                                    <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">
-                                      •
-                                    </span>
-                                  )}
-                                  {parsed.octave === 'lower' && (
-                                    <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[-6px] text-[10px] leading-none">
-                                      •
-                                    </span>
-                                  )}
+                                  {chunk.map((token, pos) => {
+                                    const flatIdx = baseFlat + chunkBase + pos;
+                                    const note = convertVarisaiNoteToRaga(token, selectedRaga);
+                                    const parsed = parseVarisaiNote(note);
+                                    const done = isPlaying && currentNoteIndex > flatIdx;
+                                    const active = isPlaying && currentNoteIndex === flatIdx;
+                                    return (
+                                      <div
+                                        key={`${lineIdx}-${chunkIdx}-${pos}-${token}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => seekToNote(flatIdx)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            seekToNote(flatIdx);
+                                          }
+                                        }}
+                                        className={`
+                                          flex shrink-0 items-center justify-center font-semibold relative
+                                          transition-colors duration-200 cursor-pointer
+                                          ${compactStaircase
+                                            ? 'w-[1.375rem] h-[1.375rem] min-[380px]:w-6 min-[380px]:h-6 sm:w-7 sm:h-8 rounded-md text-[9px] min-[380px]:text-[10px] sm:text-xs'
+                                            : 'w-9 h-9 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-lg'
+                                          }
+                                          ${active
+                                            ? 'bg-amber-500 text-slate-900 shadow-lg ring-2 ring-amber-400/80 ring-inset'
+                                            : done
+                                              ? 'bg-slate-700/30 text-slate-500 hover:bg-slate-600/50'
+                                              : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/70'
+                                          }
+                                        `}
+                                      >
+                                        <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
+                                        {parsed.octave === 'higher' && (
+                                          <span
+                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                              compactStaircase
+                                                ? 'top-0 text-[6px] translate-y-[2px] sm:translate-y-[3px]'
+                                                : 'top-0 text-[10px] -translate-y-[-6px]'
+                                            }`}
+                                          >
+                                            •
+                                          </span>
+                                        )}
+                                        {parsed.octave === 'lower' && (
+                                          <span
+                                            className={`absolute left-1/2 -translate-x-1/2 leading-none ${
+                                              compactStaircase
+                                                ? 'bottom-0 text-[6px] -translate-y-[2px] sm:-translate-y-[3px]'
+                                                : 'bottom-0 text-[10px] translate-y-[-6px]'
+                                            }`}
+                                          >
+                                            •
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
                             })}
