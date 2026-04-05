@@ -9,7 +9,7 @@ import MetronomeSidebar, { type MetronomeMode } from '@/components/MetronomeSide
 import { TALA_ORDER, JATI_ORDER, type TalaName, type JatiName } from '@/data/talas';
 import InstrumentSettings from '@/components/InstrumentSettings';
 import RagaPlayer from '@/components/RagaPlayer';
-import VarisaiPlayer from '@/components/VarisaiPlayer';
+import PracticeSection from '@/components/PracticeSection';
 import AuditoryPractice from '@/components/AuditoryPractice';
 import SongsList from '@/components/SongsList';
 import SongPlayer from '@/components/SongPlayer';
@@ -19,6 +19,7 @@ import type { NotationLanguage } from '@/lib/swaraNotation';
 import { getOctaveMultiplier, TANPURA_PATTERN_ORDER, type Octave, type TanpuraPatternId } from '@/lib/tanpuraTone';
 import { getStored, setStored } from '@/lib/storage';
 import { version } from '@/package.json';
+import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 
 type Tab = 'raga' | 'varisai' | 'auditory' | 'songs';
 type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
@@ -91,7 +92,7 @@ const VALID_METRONOME_MODES: MetronomeMode[] = ['simple', 'tala'];
  * Renders the main practice UI with a left settings sidebar and a tabbed practice area.
  *
  * The component hydrates user settings from persistent storage before rendering to avoid flashing defaults,
- * persists setting changes after initial load, and switches between Raga, Varisai, and Auditory practice views.
+ * persists setting changes after initial load, and switches between Raga, Practice (varisais / warm-ups), Auditory, and Songs views.
  *
  * @returns The rendered Home page React element containing the sidebar, tab navigation, active practice content, and footer.
  */
@@ -159,7 +160,7 @@ function HomeContent() {
   const [metronomeSimpleBeats, setMetronomeSimpleBeats] = useState(4);
   const [metronomeTala, setMetronomeTala] = useState<TalaName>('triputa');
   const [metronomeJati, setMetronomeJati] = useState<JatiName>('chatusra');
-  const [metronomeTempo, setMetronomeTempo] = useState(90);
+  const [metronomeTempo, setMetronomeTempo] = useState(DEFAULT_PRACTICE_BPM);
   const [metronomeVolume, setMetronomeVolume] = useState(0.7);
 
   // Handle ?song=slug deep link
@@ -202,7 +203,7 @@ function HomeContent() {
     if (typeof stored.metronomeSimpleBeats === 'number' && stored.metronomeSimpleBeats >= 1 && stored.metronomeSimpleBeats <= 9) setMetronomeSimpleBeats(stored.metronomeSimpleBeats);
     if (stored.metronomeTala && TALA_ORDER.includes(stored.metronomeTala)) setMetronomeTala(stored.metronomeTala);
     if (stored.metronomeJati && JATI_ORDER.includes(stored.metronomeJati)) setMetronomeJati(stored.metronomeJati);
-    // metronomeTempo is not persisted - always uses default 90
+    // metronomeTempo is not persisted - always uses default (see DEFAULT_PRACTICE_BPM)
     if (typeof stored.metronomeVolume === 'number' && stored.metronomeVolume >= 0 && stored.metronomeVolume <= 1) setMetronomeVolume(stored.metronomeVolume);
     hasLoadedRef.current = true;
     setStorageReady(true);
@@ -303,7 +304,7 @@ function HomeContent() {
       voiceOctave,
       theme,
       accentColor,
-      // Metronome settings (tempo is not persisted - always defaults to 90)
+      // Metronome settings (tempo is not persisted - always defaults to DEFAULT_PRACTICE_BPM)
       metronomeMode,
       metronomeSimpleBeats,
       metronomeTala,
@@ -618,7 +619,7 @@ function HomeContent() {
               {activeTab === 'raga' ? (
                 <RagaPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'varisai' ? (
-                <VarisaiPlayer baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+                <PracticeSection baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'songs' ? (
                 selectedSongSlug && getSong(selectedSongSlug) ? (
                   <SongPlayer

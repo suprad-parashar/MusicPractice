@@ -8,6 +8,7 @@ import { type NotationLanguage } from '@/lib/swaraNotation';
 import { SwaraGlyph } from '@/components/SwaraGlyph';
 import { parseSongNotes } from '@/lib/songNotation';
 import { getStored, setStored } from '@/lib/storage';
+import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 import {
   parseTalaString,
   getTalaDisplayName,
@@ -141,8 +142,8 @@ export default function SongPlayer({
 
   const songTempo = song.stanzas[0]?.tempo;
   const [isPlaying, setIsPlaying] = useState(false);
-  const [baseBPM, setBaseBPM] = useState(90);
-  const [tempoInputValue, setTempoInputValue] = useState('90');
+  const [baseBPM, setBaseBPM] = useState(DEFAULT_PRACTICE_BPM);
+  const [tempoInputValue, setTempoInputValue] = useState(String(DEFAULT_PRACTICE_BPM));
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
@@ -158,7 +159,7 @@ export default function SongPlayer({
     const stored = getStored<{ baseBPM?: number }>(SONG_STORAGE_KEY, {});
     const stanzaHasTempo = songTempo != null && songTempo >= 30 && songTempo <= 300;
     const storedValid = typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 300;
-    const bpm = stanzaHasTempo ? songTempo! : (storedValid ? stored.baseBPM! : 90);
+    const bpm = stanzaHasTempo ? songTempo! : (storedValid ? stored.baseBPM! : DEFAULT_PRACTICE_BPM);
     setBaseBPM(bpm);
     setTempoInputValue(String(bpm));
     baseBPMRef.current = bpm;

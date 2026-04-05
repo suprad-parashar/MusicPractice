@@ -8,6 +8,7 @@ import { type NotationLanguage } from '@/lib/swaraNotation';
 import { SwaraGlyph } from '@/components/SwaraGlyph';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
+import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 
 
 
@@ -99,8 +100,8 @@ export default function RagaPlayer({ baseFreq, instrumentId = 'piano', volume = 
   );
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [baseBPM, setBaseBPM] = useState(90);
-  const [tempoInputValue, setTempoInputValue] = useState(String(90));
+  const [baseBPM, setBaseBPM] = useState(DEFAULT_PRACTICE_BPM);
+  const [tempoInputValue, setTempoInputValue] = useState(String(DEFAULT_PRACTICE_BPM));
   const [loop, setLoop] = useState(false); // Loop playback
   const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
