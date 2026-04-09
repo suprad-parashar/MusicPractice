@@ -6,6 +6,8 @@ import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { type NotationLanguage } from '@/lib/swaraNotation';
 import { SwaraGlyph } from '@/components/SwaraGlyph';
+import RagaPianoKeyboard from '@/components/RagaPianoKeyboard';
+import { midiKeyFrequency } from '@/lib/ragaPianoKeyboard';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
@@ -18,7 +20,8 @@ import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
  * Renders a UI to select a melakarta raga, control playback (start/stop, loop, tempo), and visualize arohana/avarohana
  * while playing audible notes using either a synth oscillator or a loaded instrument.
  *
- * @param baseFreq - Reference base frequency (Hz) used to compute swara frequencies
+ * @param baseFreq - Madhya ṣaḍjam (Hz) for playback; may include vocal octave shift
+ * @param pianoLayoutSaFreq - Optional Sa (Hz) for piano key layout only; keeps labels fixed when octave changes
  * @param instrumentId - Instrument identifier to use for playback; sine-based instruments use an internal oscillator,
  *   other values load a soundfont-backed player
  * @param volume - Linear volume in the range [0, 1]; mapped to a perceptual gain curve for audio output
@@ -96,13 +99,21 @@ type LearnSection = 'mood' | 'description' | 'gamaka' | 'features' | 'compositio
 
 export default function RagaPlayer({
   baseFreq,
+  pianoLayoutSaFreq,
   instrumentId = 'piano',
   volume = 0.5,
   notationLanguage = 'english',
   openRagaRequest,
   onOpenRagaRequestConsumed,
 }: {
+  /** Madhya ṣaḍjam (Hz) for playback and piano key clicks — include vocal octave when used. */
   baseFreq: number;
+  /**
+   * Sa (Hz) used only to map swaras onto the fixed piano strip (labels + playback highlight).
+   * When vocal octave shifts playback pitch, pass the unshifted key reference here so the keyboard
+   * layout stays put. Defaults to `baseFreq`.
+   */
+  pianoLayoutSaFreq?: number;
   instrumentId?: InstrumentId;
   volume?: number;
   notationLanguage?: NotationLanguage;
@@ -141,6 +152,7 @@ export default function RagaPlayer({
   const baseBPMRef = useRef(baseBPM);
   const selectedRagaRef = useRef<Raga>(selectedRaga);
   baseFreqRef.current = baseFreq;
+  const pianoKeyboardSaHz = pianoLayoutSaFreq ?? baseFreq;
   baseBPMRef.current = baseBPM;
   instrumentIdRef.current = instrumentId;
   selectedRagaRef.current = selectedRaga;
@@ -243,19 +255,16 @@ export default function RagaPlayer({
     return Math.pow(linearValue, 3);
   };
 
-  const playNote = (swara: string, duration: number) => {
+  const playFrequencyHz = (freq: number, durationMs: number) => {
     if (!audioContextRef.current || !masterGainRef.current) return;
 
-    const parsed = parseVarisaiNote(swara);
-    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
-    if (parsed.octave === 'higher') freq = freq * 2;
-    else if (parsed.octave === 'lower') freq = freq * 0.5;
-
     const now = audioContextRef.current.currentTime;
-    const durationSec = duration / 1000;
+    const durationSec = durationMs / 1000;
     if (!isSineInstrument(instrumentIdRef.current) && soundfontPlayerRef.current) {
-      // Fixed gain 1.5; volume is controlled by masterGainRef (sidebar)
-      soundfontPlayerRef.current.start(freqToNoteNameForInstrument(freq, instrumentIdRef.current), now, { duration: durationSec, gain: 1.5 });
+      soundfontPlayerRef.current.start(freqToNoteNameForInstrument(freq, instrumentIdRef.current), now, {
+        duration: durationSec,
+        gain: 1.5,
+      });
       return;
     }
 
@@ -272,6 +281,50 @@ export default function RagaPlayer({
     osc.start(now);
     osc.stop(now + durationSec);
     oscillatorsRef.current.push(osc);
+  };
+
+  const playNote = (swara: string, durationMs: number) => {
+    const parsed = parseVarisaiNote(swara);
+    let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
+    if (parsed.octave === 'higher') freq = freq * 2;
+    else if (parsed.octave === 'lower') freq = freq * 0.5;
+    playFrequencyHz(freq, durationMs);
+  };
+
+  const playPianoKeyMidi = async (midi: number) => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+      if (!masterGainRef.current) {
+        masterGainRef.current = audioContextRef.current.createGain();
+        masterGainRef.current.connect(audioContextRef.current.destination);
+        masterGainRef.current.gain.value = linearToLogGain(volume);
+      }
+      if (!isSineInstrument(instrumentIdRef.current)) {
+        if (!soundfontPlayerRef.current) {
+          try {
+            soundfontPlayerRef.current = await getInstrument(
+              audioContextRef.current,
+              instrumentIdRef.current,
+              masterGainRef.current
+            );
+          } catch (err) {
+            console.error('Failed to load instrument:', err);
+            return;
+          }
+        }
+      }
+      const freq = midiKeyFrequency(baseFreqRef.current, midi);
+      const noteDurationMs = (60 / baseBPMRef.current) * 1000;
+      playFrequencyHz(freq, noteDurationMs);
+    } catch (e) {
+      console.error('Piano key playback:', e);
+    }
   };
 
   const playRaga = (startIndex: number = 0) => {
@@ -511,6 +564,7 @@ export default function RagaPlayer({
   // Notes for display - include higher Sa twice (at end of arohana and start of avarohana)
   const arohana = selectedRaga.arohana;
   const avarohana = selectedRaga.avarohana;
+  const playbackNotes = [...arohana, ...avarohana];
 
   if (!storageReady) {
     return (
@@ -980,7 +1034,7 @@ export default function RagaPlayer({
                       onClick={() => seekToNote(globalIndex)}
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative
-                        transition-all duration-200 cursor-pointer hover:scale-105
+                        cursor-pointer hover:scale-105
                         ${isPlaying && globalIndex === currentNoteIndex
                           ? 'bg-amber-500 text-neutral-950 scale-110 shadow-lg ring-1 ring-black/20'
                           : isPlaying && globalIndex < currentNoteIndex
@@ -1015,7 +1069,7 @@ export default function RagaPlayer({
                       onClick={() => seekToNote(globalIndex)}
                       className={`
                         px-4 py-2 rounded-lg text-lg font-semibold relative
-                        transition-all duration-200 cursor-pointer hover:scale-105
+                        cursor-pointer hover:scale-105
                         ${isPlaying && globalIndex === currentNoteIndex
                           ? 'bg-amber-500 text-neutral-950 scale-110 shadow-lg ring-1 ring-black/20'
                           : isPlaying && globalIndex < currentNoteIndex
@@ -1037,6 +1091,14 @@ export default function RagaPlayer({
               </div>
             </div>
           </div>
+
+          <RagaPianoKeyboard
+            baseFreq={pianoKeyboardSaHz}
+            raga={selectedRaga}
+            notationLanguage={notationLanguage}
+            activeNoteString={isPlaying ? playbackNotes[currentNoteIndex] ?? null : null}
+            onMidiClick={playPianoKeyMidi}
+          />
                 </div>
               </div>
             </div>

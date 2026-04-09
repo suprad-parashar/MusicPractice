@@ -689,6 +689,7 @@ function HomeContent() {
               {activeTab === 'raga' ? (
                 <RagaPlayer
                   baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
+                  pianoLayoutSaFreq={baseFreq}
                   instrumentId={instrumentId}
                   volume={voiceVolume}
                   notationLanguage={notationLanguage}
