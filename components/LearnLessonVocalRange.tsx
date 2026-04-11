@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { hzToMidiFloat } from '@/lib/varisaiPitch';
 import { autoCorrelate } from '@/lib/vocalPitchMonitor/autoCorrelate';
 import {
@@ -26,7 +26,7 @@ function linearToLogGain(linearValue: number): number {
 
 type LessonPhase = 'idle' | 'capturing' | 'results';
 
-export default function LearnLessonVocalRange({ volume = 0.8 }: { volume?: number }) {
+export default function LearnLessonVocalRange({ volume = 0.8, footer }: { volume?: number; footer?: ReactNode }) {
   const [phase, setPhase] = useState<LessonPhase>('idle');
   const [captureSegment, setCaptureSegment] = useState<'high' | 'low'>('high');
   const [remainingSec, setRemainingSec] = useState(0);
@@ -236,7 +236,7 @@ export default function LearnLessonVocalRange({ volume = 0.8 }: { volume?: numbe
 
   return (
     <div className="rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-8 shadow-2xl">
-      <h2 className="text-xl sm:text-2xl font-light tracking-wide text-slate-100">Find your range &amp; key</h2>
+      <h2 className="text-xl sm:text-2xl font-light tracking-wide text-slate-100">Range and Key</h2>
       <p className="mt-2 text-sm text-slate-400">
         You&apos;ll sing twice into the mic: first as <strong className="text-slate-200">high as feels easy</strong> — no
         pushing or screaming — then as <strong className="text-slate-200">low as stays full</strong>, without going
@@ -320,6 +320,8 @@ export default function LearnLessonVocalRange({ volume = 0.8 }: { volume?: numbe
           </div>
         </div>
       )}
+
+      {footer ? <div className="mt-8 border-t border-slate-600/40 pt-6">{footer}</div> : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import confetti from 'canvas-confetti';
 import { convertVarisaiNote, parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
@@ -17,12 +17,40 @@ const MATCH_CENTS = 50;
 const PITCH_MIN_HZ = 32;
 const PITCH_MAX_HZ = 1600;
 const GRAPH_TIME_WINDOW_SEC = 5;
+/** CSS pixel height for the pitch graph canvas (taller = more vertical resolution per note). */
+const GRAPH_CANVAS_HEIGHT_CSS = 536;
 const TRACE_GAP_BREAK_SEC = 0.045;
 const VPM_DISPLAY_THRESHOLD_HZ = 10;
 const MATCH_CLEAR_MS = 1500;
 
 /** Sarali-style sequence in the selected key: ṣaḍjam, pañcamam, tārasthayi ṣaḍjam. */
 export const SARALI_SPS_TOKENS = ['S', 'P', '>S'] as const;
+
+/**
+ * Full melakarta Mayamalavagowla arohaṇa then avarohaṇa in the selected key (16 steps).
+ * The first tāra ṣaḍjam closes the ascent; the second opens the descent (traditional “two upper Sa”).
+ */
+export const MAYAMALAVAGOWLA_AROHANA_AVAROHANA_TOKENS = [
+  'S',
+  'R1',
+  'G3',
+  'M1',
+  'P',
+  'D1',
+  'N3',
+  '>S',
+  '>S',
+  'N3',
+  'D1',
+  'P',
+  'M1',
+  'G3',
+  'R1',
+  'S',
+] as const;
+
+/** Steps 0 … this−1 are arohaṇa (through the first tāra ṣaḍjam); remainder are avarohaṇa (from the second). */
+export const MAYAMALAVAGOWLA_AROHANA_STEP_COUNT = 8;
 
 /** Playback stays at written pitch; mic may match one octave below that reference on every step. */
 function spsMatchRefHzList(targetHz: number): number[] {
@@ -47,14 +75,15 @@ function fireLessonConfetti() {
 
 type CoachVariant = 'idle' | 'listen' | 'higher' | 'lower' | 'lock' | 'near';
 
-function pitchCoachSPS(
+function pitchCoachSteppedLesson(
   signedCents: number | null,
   hasPitch: boolean,
-  phase: 'idle' | 'active' | 'complete'
+  phase: 'idle' | 'active' | 'complete',
+  stepCount: number
 ): { headline: string; sub: string; badge: string; variant: CoachVariant } {
   if (phase === 'complete') {
     return {
-      headline: 'All three steps — complete.',
+      headline: `All ${stepCount} steps — complete.`,
       sub: 'Nice work matching each reference in your key.',
       badge: 'Complete',
       variant: 'lock',
@@ -145,20 +174,77 @@ function SwaraStepVisual({ token, notationLanguage }: { token: string; notationL
   );
 }
 
+function StepSwaraTile({
+  token,
+  stepIndex: i,
+  phase,
+  activeStepIndex,
+  notationLanguage,
+}: {
+  token: string;
+  stepIndex: number;
+  phase: 'idle' | 'active' | 'complete';
+  activeStepIndex: number;
+  notationLanguage: NotationLanguage;
+}) {
+  const isCurrent = phase === 'active' && i === activeStepIndex;
+  const isDone = phase === 'complete' || (phase === 'active' && i < activeStepIndex);
+  return (
+    <div
+      className={`
+                  flex flex-col items-center justify-center rounded-xl border px-3 py-2 transition-all
+                  ${isCurrent ? 'scale-105 border-amber-400/60 bg-amber-500/10 shadow-md ring-2 ring-amber-300/40' : ''}
+                  ${isDone && !isCurrent ? 'border-emerald-800/50 bg-emerald-950/30' : ''}
+                  ${!isCurrent && !isDone ? 'border-slate-700/80 bg-slate-800/50' : ''}
+                `}
+    >
+      <div className={`text-lg sm:text-xl ${isCurrent ? 'text-amber-100' : isDone ? 'text-emerald-200' : 'text-slate-300'}`}>
+        <SwaraStepVisual token={token} notationLanguage={notationLanguage} />
+      </div>
+    </div>
+  );
+}
+
 export default function LearnLessonSPS({
   baseFreq,
   instrumentId = 'violin',
   volume = 0.8,
   notationLanguage = 'english',
+  stepTokens = SARALI_SPS_TOKENS,
+  title = 'Sa Pa Sa',
+  description,
+  referenceDurationMs = 850,
+  arohanaStepCount,
+  footer,
 }: {
   baseFreq: number;
   instrumentId?: InstrumentId;
   volume?: number;
   notationLanguage?: NotationLanguage;
+  /** Varisai-style tokens in order (supports explicit variants like R1, D1). */
+  stepTokens?: readonly string[];
+  title?: string;
+  description?: ReactNode;
+  /** Length of each reference tone in milliseconds. */
+  referenceDurationMs?: number;
+  /**
+   * When set, the first `arohanaStepCount` steps render under “Arohaṇa” and the rest under “Avarohaṇa” (two neat rows).
+   */
+  arohanaStepCount?: number;
+  /** Optional footer inside the lesson card (e.g. next lesson control). */
+  footer?: ReactNode;
 }) {
+  const tokenList = useMemo(() => [...stepTokens], [stepTokens]);
+  const stepCount = tokenList.length;
+  const splitAroAvar =
+    typeof arohanaStepCount === 'number' &&
+    arohanaStepCount > 0 &&
+    arohanaStepCount < stepCount;
+  const aroSplitAt = splitAroAvar ? arohanaStepCount! : 0;
+
   const targetHzSteps = useMemo(
-    () => [...SARALI_SPS_TOKENS].map((t) => varisaiTokenToFreqHz(baseFreq, t)),
-    [baseFreq]
+    () => tokenList.map((t) => varisaiTokenToFreqHz(baseFreq, t)),
+    [baseFreq, tokenList]
   );
 
   const [phase, setPhase] = useState<'idle' | 'active' | 'complete'>('idle');
@@ -193,9 +279,11 @@ export default function LearnLessonSPS({
   const phaseRef = useRef(phase);
   const stepIndexRef = useRef(stepIndex);
   const targetHzStepsRef = useRef(targetHzSteps);
+  const referenceDurationMsRef = useRef(referenceDurationMs);
   phaseRef.current = phase;
   stepIndexRef.current = stepIndex;
   targetHzStepsRef.current = targetHzSteps;
+  referenceDurationMsRef.current = referenceDurationMs;
 
   useEffect(() => {
     if (masterGainRef.current) {
@@ -209,7 +297,7 @@ export default function LearnLessonSPS({
     const wrap = graphWrapRef.current;
     if (!cv || !wrap) return;
     const wCss = Math.max(260, Math.floor(wrap.getBoundingClientRect().width));
-    const hCss = 268;
+    const hCss = GRAPH_CANVAS_HEIGHT_CSS;
     cv.width = wCss;
     cv.height = hCss;
     const ctx = cv.getContext('2d');
@@ -257,7 +345,7 @@ export default function LearnLessonSPS({
     (index: number) => {
       const hz = targetHzStepsRef.current[index];
       if (hz === undefined || hz <= 0) return;
-      playPitchHz(hz, 850);
+      playPitchHz(hz, referenceDurationMsRef.current);
     },
     [playPitchHz]
   );
@@ -350,7 +438,7 @@ export default function LearnLessonSPS({
         const canvas = canvasRef.current;
         const wrap = graphWrapRef.current;
         const wCss = Math.max(260, Math.floor(wrap?.getBoundingClientRect().width ?? 600));
-        const hCss = 268;
+        const hCss = GRAPH_CANVAS_HEIGHT_CSS;
         if (canvas && (canvas.width !== wCss || canvas.height !== hCss)) {
           canvas.width = wCss;
           canvas.height = hCss;
@@ -523,41 +611,22 @@ export default function LearnLessonSPS({
     };
   }, [stopMicAndLoop]);
 
-  const coach = pitchCoachSPS(signedCentsLive, signedCentsLive !== null, phase);
+  const coach = pitchCoachSteppedLesson(signedCentsLive, signedCentsLive !== null, phase, stepCount);
+  const showPracticeUI = phase === 'active' || phase === 'complete';
+
+  const defaultDescription = (
+    <>
+      Sarali-style: when you begin, match each reference in order in whatever key you have selected (sidebar). Same flow as
+      the tritone lesson: listen, sing, coach feedback, pitch graph. On each step the reference may sound high; you may sing the
+      same swara <strong className="text-slate-200">one octave lower</strong> and still pass (±{MATCH_CENTS}¢ to either the
+      reference tone or that octave).
+    </>
+  );
 
   return (
     <div className="rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-8 shadow-2xl">
-      <h2 className="text-xl font-light tracking-wide text-slate-100 sm:text-2xl">Sa-Pa-Sa</h2>
-      <p className="mt-2 text-sm text-slate-400">
-        Sarali-style: match the three notes below in whatever key you have selected (sidebar). Same flow as the tritone lesson:
-        listen, sing, coach feedback, pitch graph. On each step the reference may sound high; you may sing the same
-        swara <strong className="text-slate-200">one octave lower</strong> and still pass (±{MATCH_CENTS}¢ to either the
-        reference tone or that octave).
-      </p>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap items-end gap-3">
-          {SARALI_SPS_TOKENS.map((tok, i) => {
-            const isCurrent = phase === 'active' && i === stepIndex;
-            const isDone = phase === 'complete' || (phase === 'active' && i < stepIndex);
-            return (
-              <div
-                key={tok + String(i)}
-                className={`
-                  flex flex-col items-center justify-center rounded-xl border px-3 py-2 transition-all
-                  ${isCurrent ? 'scale-105 border-amber-400/60 bg-amber-500/10 shadow-md ring-2 ring-amber-300/40' : ''}
-                  ${isDone && !isCurrent ? 'border-emerald-800/50 bg-emerald-950/30' : ''}
-                  ${!isCurrent && !isDone ? 'border-slate-700/80 bg-slate-800/50' : ''}
-                `}
-              >
-                <div className={`text-lg sm:text-xl ${isCurrent ? 'text-amber-100' : isDone ? 'text-emerald-200' : 'text-slate-300'}`}>
-                  <SwaraStepVisual token={tok} notationLanguage={notationLanguage} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <h2 className="text-xl font-light tracking-wide text-slate-100 sm:text-2xl">{title}</h2>
+      <p className="mt-2 text-sm text-slate-400">{description ?? defaultDescription}</p>
 
       {micError && (
         <p className="mt-4 rounded-lg border border-rose-800/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-200" role="alert">
@@ -565,43 +634,100 @@ export default function LearnLessonSPS({
         </p>
       )}
 
-      <div className="mt-6 space-y-4">
-        <div ref={graphWrapRef}>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Pitch</p>
-          <canvas
-            ref={canvasRef}
-            width={600}
-            height={268}
-            className="h-[min(268px,55vh)] w-full max-w-full rounded-xl border border-slate-600/50 bg-white shadow-sm"
-          />
-        </div>
+      {showPracticeUI ? (
+        <>
+          <div className="mt-6 space-y-5">
+            {splitAroAvar ? (
+              <>
+                <div>
+                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Arohaṇa</p>
+                  <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+                    {tokenList.slice(0, aroSplitAt).map((tok, i) => (
+                      <StepSwaraTile
+                        key={`step-${i}`}
+                        token={tok}
+                        stepIndex={i}
+                        phase={phase}
+                        activeStepIndex={stepIndex}
+                        notationLanguage={notationLanguage}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Avarohaṇa</p>
+                  <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+                    {tokenList.slice(aroSplitAt).map((tok, j) => {
+                      const i = aroSplitAt + j;
+                      return (
+                        <StepSwaraTile
+                          key={`step-${i}`}
+                          token={tok}
+                          stepIndex={i}
+                          phase={phase}
+                          activeStepIndex={stepIndex}
+                          notationLanguage={notationLanguage}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+                {tokenList.map((tok, i) => (
+                  <StepSwaraTile
+                    key={`step-${i}`}
+                    token={tok}
+                    stepIndex={i}
+                    phase={phase}
+                    activeStepIndex={stepIndex}
+                    notationLanguage={notationLanguage}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
-        <div
-          className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-xl ring-1 ring-inset ring-white/5 sm:p-6 ${COACH_SURFACE[coach.variant]}`}
-        >
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" aria-hidden />
-          <div className="flex gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-lg font-semibold text-white shadow-lg shadow-violet-500/20"
-              aria-hidden
-            >
-              AI
+          <div className="mt-6 space-y-4">
+            <div ref={graphWrapRef}>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Pitch</p>
+              <canvas
+                ref={canvasRef}
+                width={600}
+                height={GRAPH_CANVAS_HEIGHT_CSS}
+                className="h-[min(536px,70vh)] w-full max-w-full rounded-xl border border-slate-600/50 bg-white shadow-sm"
+              />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/90">{coach.badge}</p>
-              <p className="mt-2 text-lg font-semibold leading-snug text-white sm:text-xl">{coach.headline}</p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-300/95">{coach.sub}</p>
-              {phase === 'active' && (
-                <p className="mt-4 border-t border-white/10 pt-3 text-xs text-slate-400/95">
-                  Steady hold {Math.round(matchHeldMs)} / {MATCH_CLEAR_MS} ms
-                </p>
-              )}
+
+            <div
+              className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-xl ring-1 ring-inset ring-white/5 sm:p-6 ${COACH_SURFACE[coach.variant]}`}
+            >
+              <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" aria-hidden />
+              <div className="flex gap-4">
+                <div
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-lg font-semibold text-white shadow-lg shadow-violet-500/20"
+                  aria-hidden
+                >
+                  AI
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/90">{coach.badge}</p>
+                  <p className="mt-2 text-lg font-semibold leading-snug text-white sm:text-xl">{coach.headline}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300/95">{coach.sub}</p>
+                  {phase === 'active' && (
+                    <p className="mt-4 border-t border-white/10 pt-3 text-xs text-slate-400/95">
+                      Steady hold {Math.round(matchHeldMs)} / {MATCH_CLEAR_MS} ms
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      ) : null}
 
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      <div className={`flex flex-wrap items-center gap-3 ${showPracticeUI ? 'mt-8' : 'mt-10'}`}>
         {phase === 'idle' && (
           <button
             type="button"
@@ -642,6 +768,8 @@ export default function LearnLessonSPS({
           </div>
         )}
       </div>
+
+      {footer ? <div className="mt-8 border-t border-slate-600/40 pt-6">{footer}</div> : null}
     </div>
   );
 }

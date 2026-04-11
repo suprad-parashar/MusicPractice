@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import confetti from 'canvas-confetti';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { mulberry32 } from '@/lib/voicePattern';
@@ -118,10 +118,12 @@ export default function LearnLessonPitchMatch({
   baseFreq: _baseFreq,
   instrumentId = 'violin',
   volume = 0.8,
+  footer,
 }: {
   baseFreq: number;
   instrumentId?: InstrumentId;
   volume?: number;
+  footer?: ReactNode;
 }) {
   void _baseFreq;
   const [targetHzSteps, setTargetHzSteps] = useState<number[]>(() => {
@@ -509,51 +511,15 @@ export default function LearnLessonPitchMatch({
   }, [stopMicAndLoop]);
 
   const coach = pitchCoachCopy(signedCentsLive, signedCentsLive !== null, phase);
+  const showPracticeUI = phase === 'active' || phase === 'complete';
 
   return (
     <div className="rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-8 shadow-2xl">
-      <h2 className="text-xl sm:text-2xl font-light tracking-wide text-slate-100">Tritone pitch match</h2>
+      <h2 className="text-xl sm:text-2xl font-light tracking-wide text-slate-100">Tritone Match</h2>
       <p className="mt-2 text-sm text-slate-400">
         Three random targets drawn from tritone pairs (augmented fourth / diminished fifth). Sing the same pitch class in
         any octave. The coach only says higher, lower, or hold — no note names. ±{MATCH_CENTS}¢ to pass each step.
       </p>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap gap-2">
-          {[0, 1, 2].map((i) => {
-            const isCurrent = phase === 'active' && i === stepIndex;
-            const isDone = phase === 'complete' || (phase === 'active' && i < stepIndex);
-            return (
-              <div
-                key={i}
-                className={`
-                  flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold transition-all
-                  ${isCurrent ? 'scale-105 bg-amber-500 text-slate-900 shadow-md ring-2 ring-amber-300/50' : ''}
-                  ${isDone && !isCurrent ? 'bg-emerald-900/50 text-emerald-200' : ''}
-                  ${!isCurrent && !isDone ? 'bg-slate-800/80 text-slate-400' : ''}
-                `}
-              >
-                {i + 1}
-              </div>
-            );
-          })}
-        </div>
-        <button
-          type="button"
-          onClick={regenerateNotes}
-          disabled={phase === 'active'}
-          aria-label="Shuffle tritone targets"
-          title="Shuffle tritone targets"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-800/80 text-slate-300 transition hover:border-slate-500 hover:bg-slate-700/90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-            <path d="M16 16h5v5" />
-          </svg>
-        </button>
-      </div>
 
       {micError && (
         <p className="mt-4 rounded-lg border border-rose-800/60 bg-rose-950/40 px-3 py-2 text-sm text-rose-200" role="alert">
@@ -561,43 +527,84 @@ export default function LearnLessonPitchMatch({
         </p>
       )}
 
-      <div className="mt-6 space-y-4">
-        <div ref={graphWrapRef}>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Pitch</p>
-          <canvas
-            ref={canvasRef}
-            width={600}
-            height={268}
-            className="h-[min(268px,55vh)] w-full max-w-full rounded-xl border border-slate-600/50 bg-white shadow-sm"
-          />
-        </div>
-
-        <div
-          className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-xl ring-1 ring-inset ring-white/5 sm:p-6 ${COACH_SURFACE[coach.variant]}`}
-        >
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" aria-hidden />
-          <div className="flex gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-lg font-semibold text-white shadow-lg shadow-violet-500/20"
-              aria-hidden
-            >
-              AI
+      {showPracticeUI ? (
+        <>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap gap-2">
+              {[0, 1, 2].map((i) => {
+                const isCurrent = phase === 'active' && i === stepIndex;
+                const isDone = phase === 'complete' || (phase === 'active' && i < stepIndex);
+                return (
+                  <div
+                    key={i}
+                    className={`
+                  flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold transition-all
+                  ${isCurrent ? 'scale-105 bg-amber-500 text-slate-900 shadow-md ring-2 ring-amber-300/50' : ''}
+                  ${isDone && !isCurrent ? 'bg-emerald-900/50 text-emerald-200' : ''}
+                  ${!isCurrent && !isDone ? 'bg-slate-800/80 text-slate-400' : ''}
+                `}
+                  >
+                    {i + 1}
+                  </div>
+                );
+              })}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/90">{coach.badge}</p>
-              <p className="mt-2 text-lg font-semibold leading-snug text-white sm:text-xl">{coach.headline}</p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-300/95">{coach.sub}</p>
-              {phase === 'active' && (
-                <p className="mt-4 border-t border-white/10 pt-3 text-xs text-slate-400/95">
-                  Steady hold {Math.round(matchHeldMs)} / {MATCH_CLEAR_MS} ms
-                </p>
-              )}
+            <button
+              type="button"
+              onClick={regenerateNotes}
+              disabled={phase === 'active'}
+              aria-label="Shuffle tritone targets"
+              title="Shuffle tritone targets"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-600/80 bg-slate-800/80 text-slate-300 transition hover:border-slate-500 hover:bg-slate-700/90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <div ref={graphWrapRef}>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-500">Pitch</p>
+              <canvas
+                ref={canvasRef}
+                width={600}
+                height={268}
+                className="h-[min(268px,55vh)] w-full max-w-full rounded-xl border border-slate-600/50 bg-white shadow-sm"
+              />
+            </div>
+
+            <div
+              className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-xl ring-1 ring-inset ring-white/5 sm:p-6 ${COACH_SURFACE[coach.variant]}`}
+            >
+              <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/10 blur-2xl" aria-hidden />
+              <div className="flex gap-4">
+                <div
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-lg font-semibold text-white shadow-lg shadow-violet-500/20"
+                  aria-hidden
+                >
+                  AI
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-violet-200/90">{coach.badge}</p>
+                  <p className="mt-2 text-lg font-semibold leading-snug text-white sm:text-xl">{coach.headline}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300/95">{coach.sub}</p>
+                  {phase === 'active' && (
+                    <p className="mt-4 border-t border-white/10 pt-3 text-xs text-slate-400/95">
+                      Steady hold {Math.round(matchHeldMs)} / {MATCH_CLEAR_MS} ms
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      ) : null}
 
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      <div className={`flex flex-wrap items-center gap-3 ${showPracticeUI ? 'mt-8' : 'mt-10'}`}>
         {phase === 'idle' && (
           <button
             type="button"
@@ -646,6 +653,8 @@ export default function LearnLessonPitchMatch({
           </div>
         )}
       </div>
+
+      {footer ? <div className="mt-8 border-t border-slate-600/40 pt-6">{footer}</div> : null}
     </div>
   );
 }
