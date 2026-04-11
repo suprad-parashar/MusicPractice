@@ -12,6 +12,7 @@ import RagaPlayer from '@/components/RagaPlayer';
 import PracticeSection from '@/components/PracticeSection';
 import AuditoryPractice from '@/components/AuditoryPractice';
 import VoiceTrainingSection from '@/components/VoiceTrainingSection';
+import LearnSection from '@/components/LearnSection';
 import SongsList from '@/components/SongsList';
 import SongPlayer from '@/components/SongPlayer';
 import { getSong } from '@/data/songs';
@@ -23,7 +24,7 @@ import { version } from '@/package.json';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 import { getLocalCalendarDateKey, getRagaOfTheDayForDate, msUntilNextLocalMidnight } from '@/lib/ragaOfTheDay';
 
-type Tab = 'raga' | 'varisai' | 'auditory' | 'voice' | 'songs';
+type Tab = 'raga' | 'varisai' | 'auditory' | 'learn' | 'voice' | 'songs';
 type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
 
 const STORAGE_KEY = 'settings';
@@ -55,7 +56,7 @@ type StoredSettings = {
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory', 'voice', 'songs'];
+const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory', 'learn', 'voice', 'songs'];
 const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
@@ -478,6 +479,19 @@ function HomeContent() {
                   Ear Training
                 </button>
                 <button
+                  onClick={() => setActiveTab('learn')}
+                  className={`
+                    shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
+                    transition-all duration-200 text-xs sm:text-sm font-medium
+                    ${activeTab === 'learn'
+                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
+                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
+                    }
+                  `}
+                >
+                  Learn
+                </button>
+                <button
                   onClick={() => setActiveTab('voice')}
                   className={`
                     shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
@@ -698,6 +712,13 @@ function HomeContent() {
                 />
               ) : activeTab === 'varisai' ? (
                 <PracticeSection baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
+              ) : activeTab === 'learn' ? (
+                <LearnSection
+                  baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
+                  instrumentId={instrumentId}
+                  volume={voiceVolume}
+                  notationLanguage={notationLanguage}
+                />
               ) : activeTab === 'voice' ? (
                 <VoiceTrainingSection
                   baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
