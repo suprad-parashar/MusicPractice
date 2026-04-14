@@ -127,6 +127,40 @@ export function LessonStaffClefsLedgerLines({ footer }: FooterProps) {
   );
 }
 
+/* ═══════════════════════════════════════════════════════════
+   ANALYSIS (placeholders)
+   ═══════════════════════════════════════════════════════════ */
+
+export function LessonAnalysisOCanada({ footer }: FooterProps) {
+  return (
+    <LearnTheoryArticle title="Analysis: O Canada" footer={footer}>
+      <p>
+        This lesson is coming soon.
+      </p>
+    </LearnTheoryArticle>
+  );
+}
+
+export function LessonAnalysisAuldLangSyne({ footer }: FooterProps) {
+  return (
+    <LearnTheoryArticle title="Analysis: Auld Lang Syne" footer={footer}>
+      <p>
+        This lesson is coming soon.
+      </p>
+    </LearnTheoryArticle>
+  );
+}
+
+export function LessonAnalysisMoonlightSonata({ footer }: FooterProps) {
+  return (
+    <LearnTheoryArticle title="Analysis: Moonlight Sonata" footer={footer}>
+      <p>
+        This lesson is coming soon.
+      </p>
+    </LearnTheoryArticle>
+  );
+}
+
 export function LessonNoteDuration({ footer }: FooterProps) {
   return (
     <LearnTheoryArticle title="Note Duration" footer={footer}>

@@ -26,8 +26,9 @@ import { version } from '@/package.json';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 import { getLocalCalendarDateKey, getRagaOfTheDayForDate, msUntilNextLocalMidnight } from '@/lib/ragaOfTheDay';
 
-type Tab = 'raga' | 'varisai' | 'auditory' | 'learn' | 'sheet-music' | 'voice' | 'rhythm' | 'songs';
+type Tab = 'raga' | 'varisai' | 'auditory' | 'learn' | 'voice' | 'rhythm' | 'songs';
 type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
+type LearnSubtab = 'carnatic' | 'sheet-music';
 
 const STORAGE_KEY = 'settings';
 
@@ -36,6 +37,7 @@ type SidebarSection = 'music';
 type StoredSettings = {
   selectedKey?: KeyName;
   activeTab?: Tab;
+  learnSubtab?: LearnSubtab;
   sidebarSection?: SidebarSection;
   instrumentId?: InstrumentId;
   voiceVolume?: number;
@@ -58,7 +60,7 @@ type StoredSettings = {
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory', 'learn', 'sheet-music', 'voice', 'rhythm', 'songs'];
+const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory', 'learn', 'voice', 'rhythm', 'songs'];
 const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
@@ -106,6 +108,7 @@ function HomeContent() {
   const [selectedKey, setSelectedKey] = useState<KeyName>('C');
   const [baseFreq, setBaseFreq] = useState(261.63); // Default C
   const [activeTab, setActiveTab] = useState<Tab>('raga');
+  const [learnSubtab, setLearnSubtab] = useState<LearnSubtab>('carnatic');
   const [instrumentId, setInstrumentId] = useState<InstrumentId>('violin');
   const [voiceVolume, setVoiceVolume] = useState(0.8);
   const [notationLanguage, setNotationLanguage] = useState<NotationLanguage>('english');
@@ -203,12 +206,21 @@ function HomeContent() {
 
   // Load persisted settings before showing UI (avoids any flash of defaults)
   useLayoutEffect(() => {
-    const stored = getStored<StoredSettings>(STORAGE_KEY, {});
+    const stored = getStored<Omit<StoredSettings, 'activeTab'> & { activeTab?: string }>(STORAGE_KEY, {});
     if (stored.selectedKey && VALID_KEYS.includes(stored.selectedKey)) {
       setSelectedKey(stored.selectedKey);
       setBaseFreq(KEYS[stored.selectedKey]);
     }
-    if (stored.activeTab && VALID_TABS.includes(stored.activeTab)) setActiveTab(stored.activeTab);
+    // Migrate legacy "sheet-music" tab (now lives under Learn)
+    if (stored.activeTab === 'sheet-music') {
+      setActiveTab('learn');
+      setLearnSubtab('sheet-music');
+    } else if (stored.activeTab && VALID_TABS.includes(stored.activeTab as Tab)) {
+      setActiveTab(stored.activeTab as Tab);
+    }
+    if (stored.learnSubtab === 'carnatic' || stored.learnSubtab === 'sheet-music') {
+      setLearnSubtab(stored.learnSubtab);
+    }
     if (stored.sidebarSection && VALID_SIDEBAR_SECTIONS.includes(stored.sidebarSection)) setSidebarSection(stored.sidebarSection);
     if (stored.instrumentId && VALID_INSTRUMENTS.includes(stored.instrumentId)) setInstrumentId(stored.instrumentId);
     if (typeof stored.voiceVolume === 'number' && stored.voiceVolume >= 0 && stored.voiceVolume <= 1) setVoiceVolume(stored.voiceVolume);
@@ -321,6 +333,7 @@ function HomeContent() {
     setStored(STORAGE_KEY, {
       selectedKey,
       activeTab,
+      learnSubtab,
       sidebarSection,
       instrumentId,
       voiceVolume,
@@ -340,7 +353,7 @@ function HomeContent() {
       metronomeJati,
       metronomeVolume,
     });
-  }, [selectedKey, activeTab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, tanpuraPattern, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume]);
+  }, [selectedKey, activeTab, learnSubtab, sidebarSection, instrumentId, voiceVolume, notationLanguage, tanpuraVolume, tanpuraPluckDelay, tanpuraNoteLength, tanpuraOctave, tanpuraPattern, voiceOctave, theme, accentColor, metronomeMode, metronomeSimpleBeats, metronomeTala, metronomeJati, metronomeVolume]);
 
   const handleKeyChange = (key: KeyName) => {
     setSelectedKey(key);
@@ -492,19 +505,6 @@ function HomeContent() {
                   `}
                 >
                   Learn
-                </button>
-                <button
-                  onClick={() => setActiveTab('sheet-music')}
-                  className={`
-                    shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
-                    transition-all duration-200 text-xs sm:text-sm font-medium
-                    ${activeTab === 'sheet-music'
-                      ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
-                      : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
-                    }
-                  `}
-                >
-                  Sheet Music
                 </button>
                 <button
                   onClick={() => setActiveTab('voice')}
@@ -741,14 +741,48 @@ function HomeContent() {
               ) : activeTab === 'varisai' ? (
                 <PracticeSection baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} notationLanguage={notationLanguage} />
               ) : activeTab === 'learn' ? (
-                <LearnSection
-                  baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
-                  instrumentId={instrumentId}
-                  volume={voiceVolume}
-                  notationLanguage={notationLanguage}
-                />
-              ) : activeTab === 'sheet-music' ? (
-                <LearnSheetMusicSection />
+                <div className="w-full max-w-6xl mx-auto min-w-0">
+                  {/* Learn subtabs */}
+                  <div className="mb-5 flex items-center gap-2 border-b border-[var(--border)]">
+                    <button
+                      type="button"
+                      onClick={() => setLearnSubtab('carnatic')}
+                      className={`
+                        -mb-px rounded-t-lg px-3 py-2 text-xs sm:text-sm font-medium transition-colors
+                        ${learnSubtab === 'carnatic'
+                          ? 'border-b-2 border-accent text-accent'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}
+                      `}
+                      aria-current={learnSubtab === 'carnatic' ? 'page' : undefined}
+                    >
+                      Carnatic
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLearnSubtab('sheet-music')}
+                      className={`
+                        -mb-px rounded-t-lg px-3 py-2 text-xs sm:text-sm font-medium transition-colors
+                        ${learnSubtab === 'sheet-music'
+                          ? 'border-b-2 border-accent text-accent'
+                          : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}
+                      `}
+                      aria-current={learnSubtab === 'sheet-music' ? 'page' : undefined}
+                    >
+                      Sheet Music
+                    </button>
+                  </div>
+
+                  {learnSubtab === 'carnatic' ? (
+                    <LearnSection
+                      baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
+                      instrumentId={instrumentId}
+                      volume={voiceVolume}
+                      notationLanguage={notationLanguage}
+                    />
+                  ) : learnSubtab === 'sheet-music' ? (
+                    <LearnSheetMusicSection />
+                  ) : null}
+                </div>
               ) : activeTab === 'voice' ? (
                 <VoiceTrainingSection
                   baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}

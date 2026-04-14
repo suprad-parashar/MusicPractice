@@ -30,14 +30,17 @@ import {
   LessonRomanNumeralSeventhChords,
   LessonComposingWithMinorScales,
   LessonVoicingChords,
+  LessonAnalysisOCanada,
   LessonNonharmonicTones,
   LessonPhrasesAndCadences,
   LessonCircleProgressions,
   LessonCommonChordProgressions,
   LessonTriadsFirstInversion,
   LessonTriadsSecondInversion,
+  LessonAnalysisAuldLangSyne,
   LessonBuildingNeapolitan,
   LessonUsingNeapolitan,
+  LessonAnalysisMoonlightSonata,
 } from '@/components/sheetMusicLessons';
 
 export type SheetMusicLessonId =
@@ -202,14 +205,17 @@ const LESSON_COMPONENT: Record<SheetMusicLessonId, React.ComponentType<{ footer?
   'roman-numeral-seventh-chords': LessonRomanNumeralSeventhChords,
   'composing-minor-scales': LessonComposingWithMinorScales,
   'voicing-chords': LessonVoicingChords,
+  'analysis-o-canada': LessonAnalysisOCanada,
   'nonharmonic-tones': LessonNonharmonicTones,
   'phrases-cadences': LessonPhrasesAndCadences,
   'circle-progressions': LessonCircleProgressions,
   'common-chord-progressions': LessonCommonChordProgressions,
   'triads-first-inversion': LessonTriadsFirstInversion,
   'triads-second-inversion': LessonTriadsSecondInversion,
+  'analysis-auld-lang-syne': LessonAnalysisAuldLangSyne,
   'building-neapolitan': LessonBuildingNeapolitan,
   'using-neapolitan': LessonUsingNeapolitan,
+  'analysis-moonlight-sonata': LessonAnalysisMoonlightSonata,
 };
 
 export default function LearnSheetMusicSection() {
