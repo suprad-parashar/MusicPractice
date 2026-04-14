@@ -3,16 +3,17 @@
 import { useState, useLayoutEffect, useEffect } from 'react';
 import VarisaiPlayer from '@/components/VarisaiPlayer';
 import WarmUpExercises from '@/components/WarmUpExercises';
+import VoicePatternTraining from '@/components/VoicePatternTraining';
 import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
 import { getStored, setStored } from '@/lib/storage';
 
-export type PracticeSubTab = 'varisai' | 'warmup';
+export type PracticeSubTab = 'varisai' | 'warmup' | 'patterns';
 
 const STORAGE_KEY = 'practiceSection';
 type Stored = { subTab?: PracticeSubTab };
 
-const VALID: PracticeSubTab[] = ['varisai', 'warmup'];
+const VALID: PracticeSubTab[] = ['varisai', 'warmup', 'patterns'];
 
 export default function PracticeSection({
   baseFreq,
@@ -31,6 +32,11 @@ export default function PracticeSection({
   useLayoutEffect(() => {
     const s = getStored<Stored>(STORAGE_KEY, {});
     if (s.subTab && VALID.includes(s.subTab)) setSubTab(s.subTab);
+    else {
+      // Migration: legacy "Voice training → Patterns" now lives under Practice.
+      const legacy = getStored<{ subTab?: string }>('voiceTrainingSection', {});
+      if (legacy.subTab === 'patterns') setSubTab('patterns');
+    }
     setReady(true);
   }, []);
 
@@ -76,6 +82,19 @@ export default function PracticeSection({
         >
           Warm up exercises
         </button>
+        <button
+          type="button"
+          onClick={() => setSubTab('patterns')}
+          className={`
+            px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+            ${subTab === 'patterns'
+              ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30 scale-105'
+              : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+            }
+          `}
+        >
+          Patterns
+        </button>
       </div>
 
       {subTab === 'varisai' ? (
@@ -85,8 +104,15 @@ export default function PracticeSection({
           volume={volume}
           notationLanguage={notationLanguage}
         />
-      ) : (
+      ) : subTab === 'warmup' ? (
         <WarmUpExercises
+          baseFreq={baseFreq}
+          instrumentId={instrumentId}
+          volume={volume}
+          notationLanguage={notationLanguage}
+        />
+      ) : (
+        <VoicePatternTraining
           baseFreq={baseFreq}
           instrumentId={instrumentId}
           volume={volume}

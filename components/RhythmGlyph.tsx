@@ -206,6 +206,8 @@ export default function RhythmGlyph({ kind, className = '' }: { kind: RhythmKind
           <line x1="23.2" y1="38" x2="23.2" y2="6.5" stroke={c} strokeWidth={STEM} strokeLinecap="round" />
           <line x1="61.2" y1="38" x2="61.2" y2="6.5" stroke={c} strokeWidth={STEM} strokeLinecap="round" />
           <rect x="23.2" y="5" width="38" height={BEAM_THICK} rx={0.35} fill={c} />
+          {/* Secondary beam only on the sixteenth (note 2) */}
+          <rect x="44.2" y={5 + BEAM_THICK + BEAM_GAP} width="17" height={BEAM_THICK} rx={0.35} fill={c} />
           <circle cx="30" cy="42" r="1.85" fill={c} />
         </svg>
       );
