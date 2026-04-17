@@ -1,8 +1,8 @@
-import { SONGS } from '@/data/songs';
+import { COMPOSITIONS } from '@/data/compositions';
 import SongRedirect from './SongRedirect';
 
 export function generateStaticParams() {
-  return SONGS.map((song) => ({ slug: song.slug }));
+  return COMPOSITIONS.map((c) => ({ slug: c.slug }));
 }
 
 export default function SongPage() {

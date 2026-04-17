@@ -15,6 +15,7 @@ import {
     type TalaName,
     type JatiName,
 } from '@/data/talas';
+import { PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 
 export type MetronomeMode = 'simple' | 'tala';
 
@@ -34,7 +35,7 @@ interface MetronomeSidebarProps {
 }
 
 const TEMPO_MIN = 30;
-const TEMPO_MAX = 300;
+const TEMPO_MAX = PRACTICE_TEMPO_MAX_BPM;
 const TEMPO_STEP = 5;
 
 /**

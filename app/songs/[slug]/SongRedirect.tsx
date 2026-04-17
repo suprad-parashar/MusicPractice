@@ -10,7 +10,7 @@ export default function SongRedirect() {
 
   useEffect(() => {
     if (slug) {
-      router.replace(`/?song=${encodeURIComponent(slug)}`);
+      router.replace(`/?composition=${encodeURIComponent(slug)}`);
     }
   }, [slug, router]);
 

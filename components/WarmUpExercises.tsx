@@ -25,7 +25,7 @@ import { threesAndFoursAscLines, threesAndFoursDescLines } from '@/lib/threesAnd
 import { fourthsAscLines, fourthsDescLines } from '@/lib/fourthsPattern';
 import { fifthsAscLines, fifthsDescLines } from '@/lib/fifthsPattern';
 import { getStored, setStored } from '@/lib/storage';
-import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
+import { DEFAULT_PRACTICE_BPM, PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 
 const WARMUP_STORAGE_KEY = 'warmupSettings';
 type WarmupPattern =
@@ -222,7 +222,7 @@ export default function WarmUpExercises({
       const raga = MELAKARTA_RAGAS.find((r) => r.number === stored.ragaNumber);
       if (raga) setSelectedRaga(raga);
     }
-    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 300) {
+    if (typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= PRACTICE_TEMPO_MAX_BPM) {
       setBaseBPM(stored.baseBPM);
     }
     if (
@@ -754,7 +754,7 @@ export default function WarmUpExercises({
                   onBlur={() => {
                     let num = parseInt(tempoInputValue, 10);
                     if (isNaN(num) || num < 30) num = 30;
-                    if (num > 300) num = 300;
+                    if (num > PRACTICE_TEMPO_MAX_BPM) num = PRACTICE_TEMPO_MAX_BPM;
                     num = Math.round(num / 5) * 5;
                     handleBaseBPMChange(num);
                     setTempoInputValue(String(num));
@@ -766,11 +766,11 @@ export default function WarmUpExercises({
               <button
                 type="button"
                 onClick={() => {
-                  const v = Math.min(300, baseBPM + 5);
+                  const v = Math.min(PRACTICE_TEMPO_MAX_BPM, baseBPM + 5);
                   handleBaseBPMChange(v);
                   setTempoInputValue(String(v));
                 }}
-                disabled={baseBPM >= 300}
+                disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                 aria-label="Increase tempo"
                 className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-lg leading-none text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
               >
@@ -779,11 +779,11 @@ export default function WarmUpExercises({
               <button
                 type="button"
                 onClick={() => {
-                  const v = Math.min(300, Math.round((baseBPM * 2) / 5) * 5);
+                  const v = Math.min(PRACTICE_TEMPO_MAX_BPM, Math.round((baseBPM * 2) / 5) * 5);
                   handleBaseBPMChange(v);
                   setTempoInputValue(String(v));
                 }}
-                disabled={baseBPM >= 300}
+                disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                 aria-label="Double tempo"
                 className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
               >

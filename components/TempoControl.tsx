@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 
 const MIN = 30;
-const MAX = 300;
+const MAX = PRACTICE_TEMPO_MAX_BPM;
 
 /**
  * Shared tempo control (÷2, −, BPM field, +, ×2) — same behaviour as the Raga player tempo strip.

@@ -5,6 +5,8 @@ export interface SongLine {
 }
 
 export interface SongStanza {
+  /** Section id from composition JSON, e.g. `pallavi`, `charanam_0` — for display labels */
+  section_name?: string;
   /** Catalog `raga_id` (e.g. `malahari`) — preferred */
   raga_id?: string;
   /** Legacy: display name only — used when `raga_id` is absent */

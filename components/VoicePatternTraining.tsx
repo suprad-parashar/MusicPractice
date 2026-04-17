@@ -8,7 +8,7 @@ import type { NotationLanguage } from '@/lib/swaraNotation';
 import { SwaraGlyph } from '@/components/SwaraGlyph';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
-import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
+import { DEFAULT_PRACTICE_BPM, PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 import {
   voiceNotePool,
   generateVoicePatternTokens,
@@ -200,7 +200,7 @@ export default function VoicePatternTraining({
       const raga = MELAKARTA_RAGAS.find((r) => r.number === s.ragaNumber);
       if (raga) setSelectedRaga(raga);
     }
-    if (typeof s.baseBPM === 'number' && s.baseBPM >= 30 && s.baseBPM <= 300) {
+    if (typeof s.baseBPM === 'number' && s.baseBPM >= 30 && s.baseBPM <= PRACTICE_TEMPO_MAX_BPM) {
       setBaseBPM(s.baseBPM);
       baseBPMRef.current = s.baseBPM;
     }
@@ -833,7 +833,7 @@ export default function VoicePatternTraining({
                   onBlur={() => {
                     let num = parseInt(tempoInputValue, 10);
                     if (Number.isNaN(num) || num < 30) num = 30;
-                    if (num > 300) num = 300;
+                    if (num > PRACTICE_TEMPO_MAX_BPM) num = PRACTICE_TEMPO_MAX_BPM;
                     num = Math.round(num / 5) * 5;
                     handleBaseBPMChange(num);
                     setTempoInputValue(String(num));
@@ -845,11 +845,11 @@ export default function VoicePatternTraining({
               <button
                 type="button"
                 onClick={() => {
-                  const v = Math.min(300, baseBPM + 5);
+                  const v = Math.min(PRACTICE_TEMPO_MAX_BPM, baseBPM + 5);
                   handleBaseBPMChange(v);
                   setTempoInputValue(String(v));
                 }}
-                disabled={baseBPM >= 300}
+                disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                 aria-label="Increase tempo"
                 className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-lg leading-none text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
               >
@@ -858,11 +858,11 @@ export default function VoicePatternTraining({
               <button
                 type="button"
                 onClick={() => {
-                  const v = Math.min(300, Math.round((baseBPM * 2) / 5) * 5);
+                  const v = Math.min(PRACTICE_TEMPO_MAX_BPM, Math.round((baseBPM * 2) / 5) * 5);
                   handleBaseBPMChange(v);
                   setTempoInputValue(String(v));
                 }}
-                disabled={baseBPM >= 300}
+                disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                 aria-label="Double tempo"
                 className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
               >

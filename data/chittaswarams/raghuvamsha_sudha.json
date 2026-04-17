@@ -1,0 +1,27 @@
+{
+    "name": "Raghuvamsha Sudha",
+    "artists": {
+        "composer": [
+            "Patnam Subrahmanya Iyer"
+        ]
+    },
+    "language": "Sanskrit",
+    "type": "kriti",
+    "url": "https://music.youtube.com/watch?v=PIFWkfJa1-s",
+    "raga_id": "kathanakuthuhalam",
+    "tala": "4-Normal",
+    "tempo": 180,
+    "chittaswarams": [
+        {
+            "name": "chittaswaram_0",
+            "phrases": [
+                {
+                    "notes": "S;RMG;RSR;RMD;DNG;GP>S;>SNDPMGPMGR"
+                },
+                {
+                    "notes": "SRRMMDDNGPP>S>S>R>R>M>M>G>G>R>R>S>SNNDDPPMGRS;;;"
+                }
+            ]
+        }
+    ]
+}

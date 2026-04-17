@@ -1,0 +1,63 @@
+{
+    "name": "Mere Dholna",
+    "artists": {
+        "singer": [
+            "Shreya Ghoshal",
+            "M G Shreekumar"
+        ],
+        "composer": [
+            "Pritam Chakraborty"
+        ],
+        "lyricist": [
+            "Sameer"
+        ]
+    },
+    "language": "Hindi",
+    "type": "song",
+    "url": "https://music.youtube.com/watch?v=n_ABgnlFIcI&si=Fdy8KYLGruBGMm7S",
+    "raga_id": "kambhoji",
+    "tala": "4-Normal",
+    "tempo": 420,
+    "chittaswarams": [
+        {
+            "name": "chittaswaram_1",
+            "phrases": [
+                {
+                    "notes": "N>SN>SN>SN>SDnDnDnDnPDPDPDPDGMPDN>R>S;",
+                    "repeat": 2
+                },
+                {
+                    "notes": "PNN>SPNN>SPNN>SPNN>S",
+                    "repeat": 2
+                },
+                {
+                    "notes": "GMPDnDPDnDPDN>S;;",
+                    "repeat": 2
+                },
+                {
+                    "notes": "GMPDnDPDPMGMGRS<n<D<nSGMGSGMPDPDN>S;",
+                    "repeat": 2
+                },
+                {
+                    "notes": "N;>S;N>S;N>S;N>S;N>S;D;n;Dn;Dn;Dn;Dn;"
+                },
+                {
+                    "notes": "GMPDnDPMGMPDnDPMGMPMGMGRSRS<n<D<nS;"
+                },
+                {
+                    "notes": "<D;<D<n;<nS;SG;GM;G;S;SG;GM;MD;Dn;D;"
+                },
+                {
+                    "notes": "Dn>S>G>SnDn>SnDnDPMGMDn>SDnDMGMGRS<n<D<n"
+                },
+                {
+                    "notes": "SGMDn>SnDPMGMGRS<n",
+                    "repeat": 2
+                },
+                {
+                    "notes": "<D<D<n<nSSGG<n<nSSGGMMSSGGMMDDGGMMDDnnMMDDnn>S>SDDnn>S>S>G;;;;;;;;;"
+                }
+            ]
+        }
+    ]
+}

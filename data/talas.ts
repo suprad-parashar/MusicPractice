@@ -279,12 +279,24 @@ export function getTalaDisplayName(talaName: TalaName, jatiName: JatiName): stri
     return `${JATIS[jatiName].displayName} ${tala.displayName}`;
 }
 
+/** Western-style bar: N equal beats per bar; not a Suladi tala (no Eka / Triputa names). */
+export type ParsedTalaEqualBeats = { kind: 'equal_beats'; beatsPerBar: number };
+
+export type ParsedTalaSuladi = { kind: 'suladi'; talaName: TalaName; jatiName: JatiName };
+
+export type ParsedTala = ParsedTalaEqualBeats | ParsedTalaSuladi;
+
+const EVEN_BAR_KEYWORDS = new Set(['normal', 'simple', 'western', 'even']);
+const EVEN_BAR_BEATS_MAX = 64;
+
 /**
- * Parse tala string like "4-Rupaka", "6-Adi", "Adi" into tala + jati.
- * Format: "jatiValue-TalaName" or "TalaName" (defaults to chatusra).
- * jatiValue: 3=tisra, 4=chatusra, 5=khanda, 7=misra, 9=sankeerna
+ * Parse tala string like "4-Rupaka", "6-Adi", "Adi", or "4-Normal" (Western bar).
+ * - "N-Normal" / "N-Simple" / "N-Western" / "N-Even": N equal beats per bar (Western count).
+ * - "Normal" alone: 4 beats per bar.
+ * - Suladi: "jatiValue-TalaName" or "TalaName" (defaults to chatusra).
+ *   jatiValue: 3=tisra, 4=chatusra, 5=khanda, 7=misra, 9=sankeerna
  */
-export function parseTalaString(talaStr: string): { talaName: TalaName; jatiName: JatiName } | null {
+export function parseTalaString(talaStr: string): ParsedTala | null {
     const normalized = talaStr.trim();
     if (!normalized) return null;
 
@@ -312,19 +324,78 @@ export function parseTalaString(talaStr: string): { talaName: TalaName; jatiName
     const parts = normalized.split(/[\-\s]+/);
     if (parts.length >= 2) {
         const num = parseInt(parts[0], 10);
+        const talaPart = parts.slice(1).join(' ').toLowerCase().trim();
+        if (
+            EVEN_BAR_KEYWORDS.has(talaPart) &&
+            Number.isFinite(num) &&
+            num >= 1 &&
+            num <= EVEN_BAR_BEATS_MAX
+        ) {
+            return { kind: 'equal_beats', beatsPerBar: num };
+        }
         const jatiName = jatiByLaghu[num];
-        const talaPart = parts.slice(1).join(' ').toLowerCase();
         const talaName = talaByDisplay[talaPart] ?? (Object.entries(talaByDisplay).find(([k]) => talaPart.includes(k))?.[1]);
         if (jatiName && talaName) {
-            return { talaName, jatiName };
+            return { kind: 'suladi', talaName, jatiName };
         }
     }
 
     const single = normalized.toLowerCase();
-    if (single === 'adi') return { talaName: 'triputa', jatiName: 'chatusra' };
+    if (single === 'adi') return { kind: 'suladi', talaName: 'triputa', jatiName: 'chatusra' };
+    if (EVEN_BAR_KEYWORDS.has(single)) return { kind: 'equal_beats', beatsPerBar: 4 };
     const talaName = talaByDisplay[single] ?? Object.entries(talaByDisplay).find(([k]) => single.includes(k))?.[1];
-    if (talaName) return { talaName, jatiName: 'chatusra' };
+    if (talaName) return { kind: 'suladi', talaName, jatiName: 'chatusra' };
     return null;
+}
+
+export function patternFromParsedTala(p: ParsedTala): TalaBeat[] {
+    if (p.kind === 'equal_beats') return generateSimplePattern(p.beatsPerBar);
+    return generateTalaPattern(p.talaName, p.jatiName);
+}
+
+export function beatsPerCycleFromParsedTala(p: ParsedTala): number {
+    if (p.kind === 'equal_beats') return p.beatsPerBar;
+    return calculateTotalBeats(p.talaName, p.jatiName);
+}
+
+export function barPositionsFromParsedTala(p: ParsedTala): { barAt: number[]; cycleLength: number } {
+    if (p.kind === 'equal_beats') {
+        return { barAt: [p.beatsPerBar], cycleLength: p.beatsPerBar };
+    }
+    return getTalaAngaBarPositions(p.talaName, p.jatiName);
+}
+
+/** Primary UI title: no Carnatic names for equal beats. */
+export function primaryLabelFromParsedTala(p: ParsedTala): string {
+    if (p.kind === 'equal_beats') {
+        return `${p.beatsPerBar} beats per bar`;
+    }
+    return getTalaDisplayName(p.talaName, p.jatiName);
+}
+
+/** Subtitle under title; omitted for Western bars. */
+export function secondaryLabelFromParsedTala(p: ParsedTala): string | null {
+    if (p.kind === 'equal_beats') return null;
+    return getTalaFullDisplayName(p.talaName, p.jatiName);
+}
+
+/** Anga symbols (I O O) for suladi; beat numbers for equal bars. */
+export function angPatternNotationFromParsedTala(p: ParsedTala): string {
+    if (p.kind === 'equal_beats') {
+        return Array.from({ length: p.beatsPerBar }, (_, i) => String(i + 1)).join(' · ');
+    }
+    return getTalaPatternNotation(p.talaName);
+}
+
+/** One-line summary for compact headers. */
+export function oneLineSummaryFromParsedTala(p: ParsedTala): string {
+    if (p.kind === 'equal_beats') {
+        return `${p.beatsPerBar} beats per bar · ${angPatternNotationFromParsedTala(p)}`;
+    }
+    const display = getTalaDisplayName(p.talaName, p.jatiName);
+    const notation = getTalaPatternNotation(p.talaName);
+    const beats = calculateTotalBeats(p.talaName, p.jatiName);
+    return `${display} · ${notation} · ${beats} beats`;
 }
 
 /**

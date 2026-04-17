@@ -14,9 +14,9 @@ import AuditoryPractice from '@/components/AuditoryPractice';
 import RhythmTraining from '@/components/RhythmTraining';
 import LearnSection from '@/components/LearnSection';
 import LearnSheetMusicSection from '@/components/LearnSheetMusicSection';
-import SongsList from '@/components/SongsList';
-import SongPlayer from '@/components/SongPlayer';
-import { getSong } from '@/data/songs';
+import CompositionsList from '@/components/CompositionsList';
+import CompositionPlayer from '@/components/CompositionPlayer';
+import { getComposition } from '@/data/compositions';
 import type { InstrumentId } from '@/lib/instrumentLoader';
 import type { NotationLanguage } from '@/lib/swaraNotation';
 import { getOctaveMultiplier, TANPURA_PATTERN_ORDER, type Octave, type TanpuraPatternId } from '@/lib/tanpuraTone';
@@ -25,7 +25,7 @@ import { version } from '@/package.json';
 import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
 import { getLocalCalendarDateKey, getRagaOfTheDayForDate, msUntilNextLocalMidnight } from '@/lib/ragaOfTheDay';
 
-type Tab = 'raga' | 'varisai' | 'auditory' | 'learn' | 'rhythm' | 'songs';
+type Tab = 'raga' | 'varisai' | 'auditory' | 'learn' | 'rhythm' | 'compositions';
 type ThemeMode = 'light' | 'light-warm' | 'dark' | 'dark-slate';
 type LearnSubtab = 'carnatic' | 'sheet-music';
 
@@ -59,7 +59,7 @@ type StoredSettings = {
 };
 
 const VALID_KEYS: KeyName[] = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory', 'learn', 'rhythm', 'songs'];
+const VALID_TABS: Tab[] = ['raga', 'varisai', 'auditory', 'learn', 'rhythm', 'compositions'];
 const VALID_SIDEBAR_SECTIONS: SidebarSection[] = ['music'];
 const VALID_INSTRUMENTS: InstrumentId[] = ['sine', 'piano', 'violin', 'flute', 'harmonium', 'sitar'];
 const VALID_NOTATION: NotationLanguage[] = ['english', 'devanagari', 'kannada'];
@@ -98,7 +98,7 @@ const VALID_METRONOME_MODES: MetronomeMode[] = ['simple', 'tala'];
  * Renders the main practice UI with a left settings sidebar and a tabbed practice area.
  *
  * The component hydrates user settings from persistent storage before rendering to avoid flashing defaults,
- * persists setting changes after initial load, and switches between Raga, Practice (varisais / warm-ups), Auditory, and Songs views.
+ * persists setting changes after initial load, and switches between Raga, Practice (varisais / warm-ups), Auditory, Compositions (songs + chittaswarams), and other views.
  *
  * @returns The rendered Home page React element containing the sidebar, tab navigation, active practice content, and footer.
  */
@@ -158,7 +158,7 @@ function HomeContent() {
   const [accentColor, setAccentColor] = useState(DEFAULT_ACCENT);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSection, setSidebarSection] = useState<SidebarSection>('music');
-  const [selectedSongSlug, setSelectedSongSlug] = useState<string | null>(null);
+  const [selectedCompositionSlug, setSelectedCompositionSlug] = useState<string | null>(null);
   const [ragaOfDayDateKey, setRagaOfDayDateKey] = useState(() => getLocalCalendarDateKey());
   const [ragaOpenRequest, setRagaOpenRequest] = useState<{ ragaId: string; nonce: number } | null>(null);
   const hasLoadedRef = useRef(false);
@@ -194,12 +194,15 @@ function HomeContent() {
   const [metronomeTempo, setMetronomeTempo] = useState(DEFAULT_PRACTICE_BPM);
   const [metronomeVolume, setMetronomeVolume] = useState(0.7);
 
-  // Handle ?song=slug deep link
+  // Handle ?composition=, ?song=, ?chitta= slugs (legacy query names still work)
   useEffect(() => {
+    const composition = searchParams.get('composition');
     const song = searchParams.get('song');
-    if (song) {
-      setActiveTab('songs');
-      setSelectedSongSlug(song);
+    const chitta = searchParams.get('chitta');
+    const slug = composition ?? song ?? chitta;
+    if (slug) {
+      setActiveTab('compositions');
+      setSelectedCompositionSlug(slug);
     }
   }, [searchParams]);
 
@@ -218,6 +221,8 @@ function HomeContent() {
       // Migrate legacy "Voice training" tab (Patterns now live under Practice)
       setActiveTab('varisai');
       setStored('practiceSection', { subTab: 'patterns' });
+    } else if (stored.activeTab === 'songs' || stored.activeTab === 'chittaswarams') {
+      setActiveTab('compositions');
     } else if (stored.activeTab && VALID_TABS.includes(stored.activeTab as Tab)) {
       setActiveTab(stored.activeTab as Tab);
     }
@@ -523,17 +528,17 @@ function HomeContent() {
                   Rhythm
                 </button>
                 <button
-                  onClick={() => setActiveTab('songs')}
+                  onClick={() => setActiveTab('compositions')}
                   className={`
                     shrink-0 px-3 sm:px-6 py-2.5 sm:py-3 rounded-t-lg
                     transition-all duration-200 text-xs sm:text-sm font-medium
-                    ${activeTab === 'songs'
+                    ${activeTab === 'compositions'
                       ? 'bg-[var(--card-bg)] text-accent border-b-2 border-accent'
                       : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--card-bg)]/50'
                     }
                   `}
                 >
-                  Songs
+                  Compositions
                 </button>
               </div>
             </div>
@@ -775,18 +780,18 @@ function HomeContent() {
                 </div>
               ) : activeTab === 'rhythm' ? (
                 <RhythmTraining />
-              ) : activeTab === 'songs' ? (
-                selectedSongSlug && getSong(selectedSongSlug) ? (
-                  <SongPlayer
-                    song={getSong(selectedSongSlug)!}
+              ) : activeTab === 'compositions' ? (
+                selectedCompositionSlug && getComposition(selectedCompositionSlug) ? (
+                  <CompositionPlayer
+                    composition={getComposition(selectedCompositionSlug)!}
                     baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)}
                     instrumentId={instrumentId}
                     volume={voiceVolume}
                     notationLanguage={notationLanguage}
-                    onBack={() => setSelectedSongSlug(null)}
+                    onBack={() => setSelectedCompositionSlug(null)}
                   />
                 ) : (
-                  <SongsList onSelectSong={setSelectedSongSlug} />
+                  <CompositionsList onSelect={setSelectedCompositionSlug} />
                 )
               ) : (
                 <AuditoryPractice baseFreq={baseFreq * getOctaveMultiplier(voiceOctave)} instrumentId={instrumentId} volume={voiceVolume} />

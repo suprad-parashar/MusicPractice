@@ -7,6 +7,7 @@
 
 import * as Tone from 'tone';
 import type { TalaBeat, BeatEmphasis } from '@/data/talas';
+import { PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 
 // Audio settings for different beat emphases (softer, more musical tones)
 const EMPHASIS_SETTINGS: Record<BeatEmphasis, { freq: number; duration: string; velocity: number }> = {
@@ -110,7 +111,7 @@ export async function startMetronome(
 
     currentPattern = pattern;
     currentBeatIndex = 0;
-    tempo = bpm;
+    tempo = Math.max(30, Math.min(PRACTICE_TEMPO_MAX_BPM, bpm));
     onBeatCallback = onBeat ?? null;
 
     initAudioChain();
@@ -153,10 +154,10 @@ export function stopMetronome(): void {
 /**
  * Update the metronome tempo.
  * 
- * @param bpm - New tempo in beats per minute (clamped to 30-300)
+ * @param bpm - New tempo in beats per minute (clamped to the practice range, 30 BPM minimum)
  */
 export function setMetronomeTempo(bpm: number): void {
-    tempo = Math.max(30, Math.min(300, bpm));
+    tempo = Math.max(30, Math.min(PRACTICE_TEMPO_MAX_BPM, bpm));
 
     if (!isStarted || !loop) return;
 

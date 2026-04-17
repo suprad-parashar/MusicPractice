@@ -5,23 +5,26 @@ import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { Raga, getSwarafrequency } from '@/data/ragas';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { type NotationLanguage } from '@/lib/swaraNotation';
-import { SwaraGlyph } from '@/components/SwaraGlyph';
+import { SwaraGlyph, SwaraInNoteChip } from '@/components/SwaraGlyph';
 import { parseSongNotes } from '@/lib/songNotation';
+import { resolveSwaraTokenForRaga } from '@/lib/ragaSwara';
 import { getStored, setStored } from '@/lib/storage';
-import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
+import { DEFAULT_PRACTICE_BPM, PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 import {
   parseTalaString,
-  getTalaDisplayName,
-  getTalaFullDisplayName,
-  getTalaAngaBarPositions,
-  generateTalaPattern,
-  getTalaPatternNotation,
-  calculateTotalBeats,
+  patternFromParsedTala,
+  beatsPerCycleFromParsedTala,
+  barPositionsFromParsedTala,
+  primaryLabelFromParsedTala,
+  secondaryLabelFromParsedTala,
+  angPatternNotationFromParsedTala,
+  oneLineSummaryFromParsedTala,
   formatTalaBeatsPerAngaLine,
   type TalaBeat,
 } from '@/data/talas';
 import * as metronome from '@/lib/metronome';
 import { resolveStanzaRaga, type Song } from '@/data/songs';
+import { humanizeStanzaHeading } from '@/data/compositions';
 
 interface PlayableNote {
   swara: string;
@@ -96,28 +99,24 @@ function flattenSongToNotes(song: Song): PlayableNote[] {
   return result;
 }
 
-/** Build 7-note scale (S,R,G,M,P,D,N) from raga, merging arohana + avarohana for janya ragas. */
-function buildRagaScale(raga: Raga): Record<string, string> {
-  const map: Record<string, string> = {};
-  const add = (note: string) => {
-    const p = parseVarisaiNote(note);
-    const base = p.swara.charAt(0);
-    if (!map[base]) map[base] = p.swara;
-  };
-  [...raga.arohana, ...raga.avarohana].forEach(add);
-  const defaults: Record<string, string> = {
-    S: 'S', R: 'R1', G: 'G3', M: 'M1', P: 'P', D: 'D1', N: 'N3',
-  };
-  return { ...defaults, ...map };
+const RAGA_NOTES_PER_ROW = 8;
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) rows.push(arr.slice(i, i + size));
+  return rows;
 }
 
-function convertNoteToRaga(swara: string, raga: Raga): string {
-  const parsed = parseVarisaiNote(swara);
-  const scale = buildRagaScale(raga);
-  const baseSwara = scale[parsed.swara] || parsed.swara;
-  if (parsed.octave === 'higher') return `>${baseSwara}`;
-  if (parsed.octave === 'lower') return `<${baseSwara}`;
-  return baseSwara;
+/** 8 equal columns; chips scale with width (no horizontal scroll). */
+const RAGA_SCALE_ROW_CLASS = 'grid w-full grid-cols-8 gap-0.5 sm:gap-1';
+
+function ragaScaleChipClass(isHighlighted: boolean): string {
+  return [
+    'inline-flex aspect-square w-full min-w-0 flex-col items-center justify-center rounded-md border p-px sm:rounded-lg sm:p-0.5 text-[10px] font-medium transition-colors sm:text-xs',
+    isHighlighted
+      ? 'bg-amber-500 text-slate-900 border-amber-600 shadow-sm'
+      : 'bg-slate-800/60 text-slate-200 border-slate-600/50',
+  ].join(' ');
 }
 
 type SongPlayerProps = {
@@ -157,8 +156,8 @@ export default function SongPlayer({
   const SONG_STORAGE_KEY = 'songSettings';
   useLayoutEffect(() => {
     const stored = getStored<{ baseBPM?: number }>(SONG_STORAGE_KEY, {});
-    const stanzaHasTempo = songTempo != null && songTempo >= 30 && songTempo <= 300;
-    const storedValid = typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= 300;
+    const stanzaHasTempo = songTempo != null && songTempo >= 30 && songTempo <= PRACTICE_TEMPO_MAX_BPM;
+    const storedValid = typeof stored.baseBPM === 'number' && stored.baseBPM >= 30 && stored.baseBPM <= PRACTICE_TEMPO_MAX_BPM;
     const bpm = stanzaHasTempo ? songTempo! : (storedValid ? stored.baseBPM! : DEFAULT_PRACTICE_BPM);
     setBaseBPM(bpm);
     setTempoInputValue(String(bpm));
@@ -185,7 +184,7 @@ export default function SongPlayer({
 
   const getTempoForStanza = (si: number) => {
     const st = song.stanzas[si];
-    return st?.tempo != null && st.tempo >= 30 && st.tempo <= 300 ? st.tempo : baseBPM;
+    return st?.tempo != null && st.tempo >= 30 && st.tempo <= PRACTICE_TEMPO_MAX_BPM ? st.tempo : baseBPM;
   };
 
   useEffect(() => {
@@ -196,7 +195,7 @@ export default function SongPlayer({
     if (talaPlayingStanzaIdx === null) return;
     const st = song.stanzas[talaPlayingStanzaIdx];
     const t =
-      st?.tempo != null && st.tempo >= 30 && st.tempo <= 300 ? st.tempo : baseBPM;
+      st?.tempo != null && st.tempo >= 30 && st.tempo <= PRACTICE_TEMPO_MAX_BPM ? st.tempo : baseBPM;
     metronome.setMetronomeTempo(t);
   }, [baseBPM, talaPlayingStanzaIdx, song.stanzas]);
 
@@ -241,7 +240,7 @@ export default function SongPlayer({
     if (!audioContextRef.current || !masterGainRef.current) return null;
     const ragaForNote =
       stanzaIdx !== undefined && song.stanzas[stanzaIdx] ? resolveStanzaRaga(song.stanzas[stanzaIdx]) : raga;
-    const ragaSwara = convertNoteToRaga(swara, ragaForNote);
+    const ragaSwara = resolveSwaraTokenForRaga(swara, ragaForNote);
     const parsed = parseVarisaiNote(ragaSwara);
     let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
     if (parsed.octave === 'higher') freq *= 2;
@@ -303,7 +302,7 @@ export default function SongPlayer({
 
   const getTempoForIndex = (idx: number) => {
     const stanza = song.stanzas[playableNotes[idx]?.stanzaIdx];
-    return (stanza?.tempo != null && stanza.tempo >= 30 && stanza.tempo <= 300)
+    return (stanza?.tempo != null && stanza.tempo >= 30 && stanza.tempo <= PRACTICE_TEMPO_MAX_BPM)
       ? stanza.tempo
       : baseBPMRef.current;
   };
@@ -503,7 +502,7 @@ export default function SongPlayer({
 
     const playNoteForRaga = (swara: string) => {
       if (!audioContextRef.current || !masterGainRef.current) return;
-      const ragaSwara = convertNoteToRaga(swara, stanzaRaga);
+      const ragaSwara = resolveSwaraTokenForRaga(swara, stanzaRaga);
       const parsed = parseVarisaiNote(ragaSwara);
       let freq = getSwarafrequency(baseFreqRef.current, parsed.swara);
       if (parsed.octave === 'higher') freq *= 2;
@@ -566,7 +565,7 @@ export default function SongPlayer({
     stopTalaPlayback();
     setTalaPlayingStanzaIdx(si);
     setCurrentTalaBeat(-1);
-    const pattern = generateTalaPattern(parsed.talaName, parsed.jatiName);
+    const pattern = patternFromParsedTala(parsed);
     const bpm = getTempoForStanza(si);
     try {
       await metronome.startMetronome(pattern, bpm, (beatIndex) => {
@@ -632,46 +631,49 @@ export default function SongPlayer({
     song.stanzas.length > 1 &&
     song.stanzas.some((s) => resolveStanzaRaga(s).ragaId !== headerRaga.ragaId);
   const headerParsedTala = headerFirstStanza ? parseTalaString(headerFirstStanza.tala) : null;
-  const headerTalaNotation = headerParsedTala ? getTalaPatternNotation(headerParsedTala.talaName) : null;
-  const headerTalaBeats = headerParsedTala
-    ? calculateTotalBeats(headerParsedTala.talaName, headerParsedTala.jatiName)
-    : null;
+  const headerTalaSubline = headerParsedTala ? secondaryLabelFromParsedTala(headerParsedTala) : null;
   const headerTalaLine = headerParsedTala
-    ? `${getTalaDisplayName(headerParsedTala.talaName, headerParsedTala.jatiName)} · ${headerTalaNotation ?? ''} · ${headerTalaBeats ?? ''} beats`
+    ? oneLineSummaryFromParsedTala(headerParsedTala)
     : headerFirstStanza?.tala ?? '';
-  const headerTalaFullName = headerParsedTala
-    ? getTalaFullDisplayName(headerParsedTala.talaName, headerParsedTala.jatiName)
-    : null;
-  const headerTalaPattern = headerParsedTala
-    ? generateTalaPattern(headerParsedTala.talaName, headerParsedTala.jatiName)
-    : [];
+  const headerTalaPattern = headerParsedTala ? patternFromParsedTala(headerParsedTala) : [];
   const talaVariesByStanza =
     song.stanzas.length > 1 && song.stanzas.some((s) => s.tala !== song.stanzas[0].tala);
   const headerMarkedTempo =
-    headerFirstStanza?.tempo != null && headerFirstStanza.tempo >= 30 && headerFirstStanza.tempo <= 300
+    headerFirstStanza?.tempo != null && headerFirstStanza.tempo >= 30 && headerFirstStanza.tempo <= PRACTICE_TEMPO_MAX_BPM
       ? headerFirstStanza.tempo
       : null;
+
+  const isHeaderRagaPlaying = !ragaVariesByStanza && ragaPlayingStanzaIdx === 0;
+  const isHeaderTalaPlaying = talaPlayingStanzaIdx === 0;
+  const headerArohana = headerRaga.arohana;
+  const headerAvarohana = headerRaga.avarohana;
+
+  const refBtn =
+    'inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs font-medium transition-colors min-h-[2.25rem] px-3 sm:text-sm';
+  const refIdle = 'border-slate-600/70 bg-slate-800/40 text-slate-200 hover:bg-slate-700/50 hover:border-slate-500';
+  const refActive = 'border-amber-500/80 bg-amber-500/15 text-amber-100 shadow-sm shadow-amber-900/20';
 
   return (
     <div className="w-full max-w-4xl mx-auto min-w-0 px-3 sm:px-4 md:px-0">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl sm:rounded-3xl px-5 py-6 sm:px-8 sm:py-8 md:px-10 md:py-10 shadow-2xl border border-slate-700/50">
         {/* Hero: title + primary playback */}
         <header className="border-b border-slate-700/40 pb-8 mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 lg:gap-10">
-            <div className="min-w-0 flex-1 space-y-6">
-              {onBack && (
-                <button
-                  type="button"
-                  onClick={onBack}
-                  className="flex items-center gap-2 text-sm text-slate-500 hover:text-[var(--accent)] transition-colors -ml-0.5"
-                >
-                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back to songs
-                </button>
-              )}
-              <div className="space-y-2">
+          <div className="flex flex-col gap-6">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex w-fit items-center gap-2 text-sm text-slate-500 hover:text-[var(--accent)] transition-colors -ml-0.5"
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to compositions
+              </button>
+            )}
+
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+              <div className="min-w-0 flex-1 space-y-2">
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight text-slate-50 break-words">
                   {song.name}
                 </h1>
@@ -684,67 +686,12 @@ export default function SongPlayer({
                 </p>
               </div>
 
-              <div className="flex min-h-[5.5rem] flex-col overflow-hidden rounded-xl border border-slate-700/45 bg-slate-900/40">
-                <div
-                  className="flex flex-col"
-                  style={{
-                    padding: '1.25rem 1.5rem',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <div className="flex flex-col" style={{ paddingBottom: '0.75rem' }}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 mb-2">
-                      Raga
-                    </p>
-                    <p className="text-base font-medium leading-snug text-slate-100">{headerRaga.name}</p>
-                    {ragaVariesByStanza && (
-                      <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                        Raga changes by section — details under each part below.
-                      </p>
-                    )}
-                  </div>
-                  <div
-                    className="flex flex-col border-t border-slate-700/40"
-                    style={{ paddingTop: '0.75rem' }}
-                  >
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 mb-2">
-                      Tala
-                    </p>
-                    <p className="text-base font-medium leading-snug text-slate-100">{headerTalaLine}</p>
-                    {headerTalaFullName && (
-                      <p className="mt-1.5 text-xs leading-snug text-slate-400">{headerTalaFullName}</p>
-                    )}
-                    {headerTalaPattern.length > 0 && (
-                      <p
-                        className="mt-2.5 font-mono text-xs text-slate-300 tracking-wide break-all"
-                        title="Beat numbers within each anga; | separates angas"
-                      >
-                        {formatTalaBeatsPerAngaLine(headerTalaPattern)}
-                      </p>
-                    )}
-                    {talaVariesByStanza && (
-                      <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                        Rhythm differs by section — see each part below.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {headerMarkedTempo != null && (
-                <p className="text-xs text-slate-500">
-                  Marked tempo in score:{' '}
-                  <span className="font-medium tabular-nums text-slate-400">{headerMarkedTempo} BPM</span>
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col items-center shrink-0 lg:pt-1">
-              <button
-                type="button"
-                onClick={isPlaying ? stopPlaying : startPlaying}
-                aria-pressed={isPlaying}
-                className={`
+              <div className="flex flex-col items-center shrink-0 sm:-mt-2 sm:self-start">
+                <button
+                  type="button"
+                  onClick={isPlaying ? stopPlaying : startPlaying}
+                  aria-pressed={isPlaying}
+                  className={`
                   relative w-28 h-28 sm:w-32 sm:h-32 rounded-full border-2 border-[var(--border)]
                   transition-all duration-300 ease-out flex items-center justify-center group
                   ${isPlaying
@@ -752,20 +699,235 @@ export default function SongPlayer({
                     : 'bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700'
                   }
                 `}
-              >
-                <svg
-                  className={`w-11 h-11 sm:w-12 sm:h-12 transition-transform duration-300 ${isPlaying ? 'scale-105' : 'scale-100 group-hover:scale-105'}`}
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
                 >
-                  {isPlaying ? <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /> : <path d="M8 5v14l11-7z" />}
-                </svg>
-              </button>
-              <p className="mt-3 text-center text-xs text-slate-500 tabular-nums">
-                {isPlaying ? `Playing · ${baseBPM} BPM` : 'Song'}
-              </p>
+                  <svg
+                    className={`w-11 h-11 sm:w-12 sm:h-12 transition-transform duration-300 ${isPlaying ? 'scale-105' : 'scale-100 group-hover:scale-105'}`}
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    {isPlaying ? <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /> : <path d="M8 5v14l11-7z" />}
+                  </svg>
+                </button>
+                <p className="mt-3 text-center text-xs text-slate-500 tabular-nums">
+                  {isPlaying ? `Playing · ${baseBPM} BPM` : 'Song'}
+                </p>
+              </div>
             </div>
+
+            {/* Full width: equal halves — Raga | Tala */}
+            <div className="grid w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 md:items-stretch">
+                {/* Raga — full scale here when one raga; ragamalika uses per-stanza cards below */}
+                <div
+                  className="flex min-w-0 flex-col rounded-xl border border-slate-700/45 bg-slate-900/40"
+                  style={{ padding: '1.25rem 1.5rem', boxSizing: 'border-box' }}
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 mb-2">
+                    Raga
+                  </p>
+                  {ragaVariesByStanza ? (
+                    <>
+                      <p className="text-base font-medium leading-snug text-slate-100">{headerRaga.name}</p>
+                      <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                        Ragamalika — each part below lists its own raga, tala, and scale.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-lg font-medium text-slate-100 tracking-tight">{headerRaga.name}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePlayRaga(0, headerRaga)}
+                          className={`${refBtn} shrink-0 ${isHeaderRagaPlaying ? refActive : refIdle}`}
+                          title="Hear arohana and avarohana"
+                        >
+                          {isHeaderRagaPlaying ? (
+                            <>
+                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <rect x="6" y="4" width="4" height="16" />
+                                <rect x="14" y="4" width="4" height="16" />
+                              </svg>{' '}
+                              Stop scale
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <path d="M8 5v14l11-7z" />
+                              </svg>{' '}
+                              Scale
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <div className="mt-5 flex flex-col space-y-4 border-t border-slate-700/40 pt-4">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2.5">
+                            Arohana
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            {chunkArray(headerArohana, RAGA_NOTES_PER_ROW).map((row, ri) => (
+                              <div key={ri} className={RAGA_SCALE_ROW_CLASS}>
+                                {row.map((note, j) => {
+                                  const i = ri * RAGA_NOTES_PER_ROW + j;
+                                  const p = parseVarisaiNote(note);
+                                  const isHighlighted = isHeaderRagaPlaying && currentRagaNoteIndex === i;
+                                  return (
+                                    <span key={i} className={ragaScaleChipClass(isHighlighted)}>
+                                      <span className="flex h-1.5 w-full shrink-0 items-end justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                        {p.octave === 'higher' ? '•' : null}
+                                      </span>
+                                      <SwaraGlyph swara={p.swara} language={notationLanguage} className="leading-none" />
+                                      <span className="flex h-1.5 w-full shrink-0 items-start justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                        {p.octave === 'lower' ? '•' : null}
+                                      </span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2.5">
+                            Avarohana
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            {chunkArray(headerAvarohana, RAGA_NOTES_PER_ROW).map((row, ri) => (
+                              <div key={ri} className={RAGA_SCALE_ROW_CLASS}>
+                                {row.map((note, j) => {
+                                  const i = ri * RAGA_NOTES_PER_ROW + j;
+                                  const p = parseVarisaiNote(note);
+                                  const isHighlighted =
+                                    isHeaderRagaPlaying &&
+                                    currentRagaNoteIndex === headerArohana.length + i;
+                                  return (
+                                    <span key={headerArohana.length + i} className={ragaScaleChipClass(isHighlighted)}>
+                                      <span className="flex h-1.5 w-full shrink-0 items-end justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                        {p.octave === 'higher' ? '•' : null}
+                                      </span>
+                                      <SwaraGlyph swara={p.swara} language={notationLanguage} className="leading-none" />
+                                      <span className="flex h-1.5 w-full shrink-0 items-start justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                        {p.octave === 'lower' ? '•' : null}
+                                      </span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Tala — same controls as under each part */}
+                <div
+                  className="flex min-h-[12rem] min-w-0 flex-col rounded-xl border border-slate-700/45 bg-slate-900/40 md:min-h-0"
+                  style={{ padding: '1.25rem 1.5rem', boxSizing: 'border-box' }}
+                >
+                  <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div className="min-w-0 space-y-1.5 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Tala</p>
+                      <p className="text-base font-medium leading-snug text-slate-100">{headerTalaLine}</p>
+                      {headerTalaSubline && (
+                        <p className="text-xs leading-snug text-slate-400">{headerTalaSubline}</p>
+                      )}
+                      {headerTalaPattern.length > 0 && (
+                        <p
+                          className="mt-2.5 font-mono text-xs text-slate-300 tracking-wide break-all"
+                          title="Beat numbers within each anga; | separates angas"
+                        >
+                          {formatTalaBeatsPerAngaLine(headerTalaPattern)}
+                        </p>
+                      )}
+                      {headerParsedTala ? (
+                        <p className="text-xs font-mono text-slate-400">
+                          {angPatternNotationFromParsedTala(headerParsedTala)}
+                          <span className="text-slate-600 mx-1.5">·</span>
+                          {beatsPerCycleFromParsedTala(headerParsedTala)} beats per cycle
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500">{headerFirstStanza?.tala}</p>
+                      )}
+                      {talaVariesByStanza && (
+                        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                          {ragaVariesByStanza
+                            ? "Rhythm differs by section — use Tala under each part for that section's pattern."
+                            : "Rhythm differs by section — bar lines follow each part's tala; the metronome above uses the first section's tala."}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handlePlayTala(0)}
+                      disabled={!headerParsedTala}
+                      className={`${refBtn} shrink-0 self-start sm:self-auto ${
+                        !headerParsedTala
+                          ? 'opacity-40 cursor-not-allowed border-slate-700 text-slate-500'
+                          : isHeaderTalaPlaying
+                            ? refActive
+                            : refIdle
+                      }`}
+                      title={
+                        headerParsedTala
+                          ? talaVariesByStanza
+                            ? 'Play tala for the first part (see each part for other talas)'
+                            : headerParsedTala.kind === 'equal_beats'
+                              ? 'Hear bar beats (beat 1 accented)'
+                              : 'Hear tala beats (sam / anga)'
+                          : 'Unknown tala format'
+                      }
+                    >
+                      {isHeaderTalaPlaying ? (
+                        <>
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                            <rect x="6" y="4" width="4" height="16" />
+                            <rect x="14" y="4" width="4" height="16" />
+                          </svg>{' '}
+                          Stop tala
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                            <path d="M8 5v14l11-7z" />
+                          </svg>{' '}
+                          Tala
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {headerParsedTala && headerTalaPattern.length > 0 && (
+                    <div className="mt-auto space-y-2 border-t border-slate-700/40 pt-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                        Beats in cycle
+                      </p>
+                      <TalaBeatPlaybackStrip
+                        beats={headerTalaPattern}
+                        currentBeatIndex={isHeaderTalaPlaying ? currentTalaBeat : null}
+                      />
+                      <p className="text-[10px] text-slate-500">
+                        Larger square = main beat · smaller circle = sub-beat · bar = anga boundary
+                      </p>
+                      {isHeaderTalaPlaying && (
+                        <p className="text-[10px] text-slate-500 tabular-nums">
+                          Now: beat {currentTalaBeat + 1} of {headerTalaPattern.length}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            {headerMarkedTempo != null && (
+              <p className="text-xs text-slate-500">
+                Marked tempo in score:{' '}
+                <span className="font-medium tabular-nums text-slate-400">{headerMarkedTempo} BPM</span>
+              </p>
+            )}
           </div>
         </header>
 
@@ -805,7 +967,7 @@ export default function SongPlayer({
                   onBlur={() => {
                     let n = parseInt(tempoInputValue, 10);
                     if (isNaN(n) || n < 30) n = 30;
-                    if (n > 300) n = 300;
+                    if (n > PRACTICE_TEMPO_MAX_BPM) n = PRACTICE_TEMPO_MAX_BPM;
                     n = Math.round(n / 5) * 5;
                     handleBaseBPMChange(n);
                     setTempoInputValue(String(n));
@@ -816,8 +978,8 @@ export default function SongPlayer({
               </div>
               <button
                 type="button"
-                onClick={() => { const v = Math.min(300, baseBPM + 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
-                disabled={baseBPM >= 300}
+                onClick={() => { const v = Math.min(PRACTICE_TEMPO_MAX_BPM, baseBPM + 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                 aria-label="Increase tempo"
                 className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-lg leading-none text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
               >
@@ -825,8 +987,8 @@ export default function SongPlayer({
               </button>
               <button
                 type="button"
-                onClick={() => { const v = Math.min(300, Math.round((baseBPM * 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
-                disabled={baseBPM >= 300}
+                onClick={() => { const v = Math.min(PRACTICE_TEMPO_MAX_BPM, Math.round((baseBPM * 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                 aria-label="Double tempo"
                 className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
               >
@@ -843,28 +1005,25 @@ export default function SongPlayer({
             const arohana = stanzaRaga.arohana;
             const avarohana = stanzaRaga.avarohana;
             const parsedTala = parseTalaString(stanza.tala);
-            const talaDisplayShort = parsedTala
-              ? getTalaDisplayName(parsedTala.talaName, parsedTala.jatiName)
-              : stanza.tala;
-            const talaBarInfo = parsedTala ? getTalaAngaBarPositions(parsedTala.talaName, parsedTala.jatiName) : null;
-            const talaPattern = parsedTala
-              ? generateTalaPattern(parsedTala.talaName, parsedTala.jatiName)
-              : [];
+            const talaDisplayShort = parsedTala ? primaryLabelFromParsedTala(parsedTala) : stanza.tala;
+            const talaSubline = parsedTala ? secondaryLabelFromParsedTala(parsedTala) : null;
+            const talaBarInfo = parsedTala ? barPositionsFromParsedTala(parsedTala) : null;
+            const talaPattern = parsedTala ? patternFromParsedTala(parsedTala) : [];
             const isRagaPlaying = ragaPlayingStanzaIdx === si;
             const isTalaPlaying = talaPlayingStanzaIdx === si;
-            const refBtn =
-              'inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs font-medium transition-colors min-h-[2.25rem] px-3 sm:text-sm';
-            const refIdle = 'border-slate-600/70 bg-slate-800/40 text-slate-200 hover:bg-slate-700/50 hover:border-slate-500';
-            const refActive = 'border-amber-500/80 bg-amber-500/15 text-amber-100 shadow-sm shadow-amber-900/20';
+            const stanzaHeading =
+              stanza.section_name != null && stanza.section_name !== ''
+                ? humanizeStanzaHeading(stanza.section_name)
+                : `Part ${si + 1}`;
 
             return (
             <section key={si} className="rounded-2xl border border-slate-700/50 bg-slate-950/25 overflow-hidden shadow-sm">
-              {/* Reference: left = scale, right = tala + beat row */}
-              <div className="p-6">
+              {ragaVariesByStanza && (
+              <div className="flex flex-col gap-6 p-6">
                 {song.stanzas.length > 1 && (
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 mb-5">
-                    Part {si + 1}
-                  </p>
+                  <div className="py-5">
+                    <p className="text-sm font-medium text-slate-300 tracking-tight">{stanzaHeading}</p>
+                  </div>
                 )}
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8 md:items-stretch">
                   {/* Scale (raga + arohana / avarohana) */}
@@ -890,44 +1049,53 @@ export default function SongPlayer({
                     <div className="mt-5 flex min-h-0 flex-1 flex-col space-y-4 border-t border-slate-700/40 pt-4">
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2.5">Arohana</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {arohana.map((note, i) => {
-                            const p = parseVarisaiNote(note);
-                            const isHighlighted = isRagaPlaying && currentRagaNoteIndex === i;
-                            return (
-                              <span
-                                key={i}
-                                className={`inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-md text-sm font-medium relative transition-colors border ${
-                                  isHighlighted ? 'bg-amber-500 text-slate-900 border-amber-600 shadow-sm' : 'bg-slate-800/60 text-slate-200 border-slate-600/50'
-                                }`}
-                              >
-                                <SwaraGlyph swara={p.swara} language={notationLanguage} />
-                                {p.octave === 'higher' && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
-                                {p.octave === 'lower' && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
-                              </span>
-                            );
-                          })}
+                        <div className="flex flex-col gap-2">
+                          {chunkArray(arohana, RAGA_NOTES_PER_ROW).map((row, ri) => (
+                            <div key={ri} className={RAGA_SCALE_ROW_CLASS}>
+                              {row.map((note, j) => {
+                                const i = ri * RAGA_NOTES_PER_ROW + j;
+                                const p = parseVarisaiNote(note);
+                                const isHighlighted = isRagaPlaying && currentRagaNoteIndex === i;
+                                return (
+                                  <span key={i} className={ragaScaleChipClass(isHighlighted)}>
+                                    <span className="flex h-1.5 w-full shrink-0 items-end justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                      {p.octave === 'higher' ? '•' : null}
+                                    </span>
+                                    <SwaraGlyph swara={p.swara} language={notationLanguage} className="leading-none" />
+                                    <span className="flex h-1.5 w-full shrink-0 items-start justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                      {p.octave === 'lower' ? '•' : null}
+                                    </span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ))}
                         </div>
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2.5">Avarohana</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {avarohana.map((note, i) => {
-                            const p = parseVarisaiNote(note);
-                            const isHighlighted = isRagaPlaying && currentRagaNoteIndex === arohana.length + i;
-                            return (
-                              <span
-                                key={i}
-                                className={`inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-md text-sm font-medium relative transition-colors border ${
-                                  isHighlighted ? 'bg-amber-500 text-slate-900 border-amber-600 shadow-sm' : 'bg-slate-800/60 text-slate-200 border-slate-600/50'
-                                }`}
-                              >
-                                <SwaraGlyph swara={p.swara} language={notationLanguage} />
-                                {p.octave === 'higher' && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
-                                {p.octave === 'lower' && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px]">•</span>}
-                              </span>
-                            );
-                          })}
+                        <div className="flex flex-col gap-2">
+                          {chunkArray(avarohana, RAGA_NOTES_PER_ROW).map((row, ri) => (
+                            <div key={ri} className={RAGA_SCALE_ROW_CLASS}>
+                              {row.map((note, j) => {
+                                const i = ri * RAGA_NOTES_PER_ROW + j;
+                                const p = parseVarisaiNote(note);
+                                const isHighlighted =
+                                  isRagaPlaying && currentRagaNoteIndex === arohana.length + i;
+                                return (
+                                  <span key={arohana.length + i} className={ragaScaleChipClass(isHighlighted)}>
+                                    <span className="flex h-1.5 w-full shrink-0 items-end justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                      {p.octave === 'higher' ? '•' : null}
+                                    </span>
+                                    <SwaraGlyph swara={p.swara} language={notationLanguage} className="leading-none" />
+                                    <span className="flex h-1.5 w-full shrink-0 items-start justify-center text-[7px] leading-none sm:h-2 sm:text-[8px]">
+                                      {p.octave === 'lower' ? '•' : null}
+                                    </span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -939,14 +1107,14 @@ export default function SongPlayer({
                       <div className="min-w-0 space-y-1.5">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Tala</p>
                         <p className="text-base text-slate-100 font-medium leading-snug">{talaDisplayShort}</p>
-                        {parsedTala && (
-                          <p className="text-xs leading-snug text-slate-400">{getTalaFullDisplayName(parsedTala.talaName, parsedTala.jatiName)}</p>
+                        {talaSubline && (
+                          <p className="text-xs leading-snug text-slate-400">{talaSubline}</p>
                         )}
                         {parsedTala ? (
                           <p className="text-xs font-mono text-slate-400">
-                            {getTalaPatternNotation(parsedTala.talaName)}
+                            {angPatternNotationFromParsedTala(parsedTala)}
                             <span className="text-slate-600 mx-1.5">·</span>
-                            {calculateTotalBeats(parsedTala.talaName, parsedTala.jatiName)} beats per cycle
+                            {beatsPerCycleFromParsedTala(parsedTala)} beats per cycle
                           </p>
                         ) : (
                           <p className="text-xs text-slate-500">{stanza.tala}</p>
@@ -962,7 +1130,13 @@ export default function SongPlayer({
                         onClick={() => void handlePlayTala(si)}
                         disabled={!parsedTala}
                         className={`${refBtn} shrink-0 self-start sm:self-auto ${!parsedTala ? 'opacity-40 cursor-not-allowed border-slate-700 text-slate-500' : isTalaPlaying ? refActive : refIdle}`}
-                        title={parsedTala ? 'Hear tala beats (sam / anga)' : 'Unknown tala format'}
+                        title={
+                          parsedTala
+                            ? parsedTala.kind === 'equal_beats'
+                              ? 'Hear bar beats (beat 1 accented)'
+                              : 'Hear tala beats (sam / anga)'
+                            : 'Unknown tala format'
+                        }
                       >
                         {isTalaPlaying ? (
                           <><svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg> Stop tala</>
@@ -991,6 +1165,13 @@ export default function SongPlayer({
                   </div>
                 </div>
               </div>
+              )}
+
+              {!ragaVariesByStanza && song.stanzas.length > 1 && (
+                <div className="px-6 py-5">
+                  <p className="text-sm font-medium text-slate-300 tracking-tight">{stanzaHeading}</p>
+                </div>
+              )}
 
               {/* Notation + lyrics */}
               <div className="border-t border-slate-700/45 bg-slate-900/35 px-6 py-6">
@@ -1043,15 +1224,15 @@ export default function SongPlayer({
                               </button>
                             );
                           }
-                          const parsed = parseVarisaiNote(t);
+                          const disp = parseVarisaiNote(resolveSwaraTokenForRaga(t, stanzaRaga));
                           return (
                             <button
                               key={ii}
                               type="button"
                               onClick={() => seekToNote(globalIdx)}
                               className={`
-                                w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
-                                transition-all cursor-pointer hover:scale-105
+                                w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center py-px rounded-lg text-sm sm:text-lg font-semibold
+                                transition-all cursor-pointer hover:scale-105 min-w-0
                                 ${isCurrent
                                   ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
                                   : globalIdx < currentNoteIndex && isPlaying
@@ -1060,13 +1241,7 @@ export default function SongPlayer({
                                 }
                               `}
                             >
-                              <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                              {parsed.octave === 'higher' && (
-                                <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">•</span>
-                              )}
-                              {parsed.octave === 'lower' && (
-                                <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[6px] text-[10px] leading-none">•</span>
-                              )}
+                              <SwaraInNoteChip swara={disp.swara} language={notationLanguage} octave={disp.octave} />
                             </button>
                           );
                         })}

@@ -9,10 +9,10 @@ import { getSwarafrequency } from '@/data/ragas';
 import { MELAKARTA_RAGAS, MelakartaRaga } from '@/data/ragas';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { type NotationLanguage } from '@/lib/swaraNotation';
-import { SwaraGlyph } from '@/components/SwaraGlyph';
+import { SwaraGlyph, SwaraInNoteChip } from '@/components/SwaraGlyph';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
 import { getStored, setStored } from '@/lib/storage';
-import { DEFAULT_PRACTICE_BPM } from '@/lib/defaultTempo';
+import { DEFAULT_PRACTICE_BPM, PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 
 type VarisaiType = 'sarali' | 'janta' | 'melasthayi' | 'mandarasthayi';
 
@@ -1129,7 +1129,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                     onBlur={() => {
                       let num = parseInt(tempoInputValue, 10);
                       if (isNaN(num) || num < 30) num = 30;
-                      if (num > 300) num = 300;
+                      if (num > PRACTICE_TEMPO_MAX_BPM) num = PRACTICE_TEMPO_MAX_BPM;
                       num = Math.round(num / 5) * 5;
                       handleBaseBPMChange(num);
                       setTempoInputValue(String(num));
@@ -1140,8 +1140,8 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                 </div>
                 <button
                   type="button"
-                  onClick={() => { const v = Math.min(300, baseBPM + 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
-                  disabled={baseBPM >= 300}
+                  onClick={() => { const v = Math.min(PRACTICE_TEMPO_MAX_BPM, baseBPM + 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                  disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                   aria-label="Increase tempo"
                   className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-lg leading-none text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
                 >
@@ -1149,8 +1149,8 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                 </button>
                 <button
                   type="button"
-                  onClick={() => { const v = Math.min(300, Math.round((baseBPM * 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
-                  disabled={baseBPM >= 300}
+                  onClick={() => { const v = Math.min(PRACTICE_TEMPO_MAX_BPM, Math.round((baseBPM * 2) / 5) * 5); handleBaseBPMChange(v); setTempoInputValue(String(v)); }}
+                  disabled={baseBPM >= PRACTICE_TEMPO_MAX_BPM}
                   aria-label="Double tempo"
                   className="flex h-10 min-w-[2.5rem] flex-1 items-center justify-center text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:text-slate-500"
                 >
@@ -1194,8 +1194,8 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                     key={index}
                     onClick={() => seekToNote(index)}
                     className={`
-                      w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
-                      transition-all duration-200 ${!practiceMode && !singAlongMode ? 'cursor-pointer hover:scale-105' : ''}
+                      w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center py-px rounded-lg text-sm sm:text-lg font-semibold
+                      transition-all duration-200 min-w-0 ${!practiceMode && !singAlongMode ? 'cursor-pointer hover:scale-105' : ''}
                       ${isPlaying && index === currentNoteIndex
                         ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
                         : isPlaying && index < currentNoteIndex
@@ -1204,13 +1204,7 @@ export default function VarisaiPlayer({ baseFreq, instrumentId = 'piano', volume
                       }
                     `}
                   >
-                    <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                    {parsed.octave === 'higher' && (
-                      <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">•</span>
-                    )}
-                    {parsed.octave === 'lower' && (
-                      <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[-6px] text-[10px] leading-none">•</span>
-                    )}
+                    <SwaraInNoteChip swara={parsed.swara} language={notationLanguage} octave={parsed.octave} />
                   </div>
                 );
               })}

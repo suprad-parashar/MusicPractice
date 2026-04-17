@@ -13210,10 +13210,10 @@
       "G3",
       "R2",
       "S",
-      "(N3",
-      "P",
-      "D2",
-      "S)"
+      "<N3",
+      "<P",
+      "<D2",
+      "S"
     ],
     "raga_type": "shadava-sampurna",
     "is_vakra": false,

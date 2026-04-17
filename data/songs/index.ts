@@ -1,21 +1,23 @@
-import type { Song, SongSummary } from './types';
+import type { Song } from './types';
+import type { SongSummary } from './types';
+import {
+  COMPOSITIONS,
+  getComposition,
+  compositionToSongCatalogOrder,
+} from '@/data/compositions';
 
-// Import song data (add new songs here when you add JSON files)
-import sriGananathaEn from './sri_gananatha[en].json';
-
-const SONGS_DATA: Record<string, Song> = {
-  'sri_gananatha_en': sriGananathaEn as Song,
-};
-
-export const SONGS: SongSummary[] = Object.entries(SONGS_DATA).map(([slug, song]) => ({
-  slug,
-  name: song.name,
-  composer: song.composer,
-  language: song.language,
+/** @deprecated Use COMPOSITIONS from @/data/compositions — kept for static routes and legacy imports */
+export const SONGS: SongSummary[] = COMPOSITIONS.map((c) => ({
+  slug: c.slug,
+  name: c.name,
+  composer: c.composer,
+  language: c.language,
 }));
 
 export function getSong(slug: string): Song | null {
-  return SONGS_DATA[slug] ?? null;
+  const c = getComposition(slug);
+  if (!c) return null;
+  return compositionToSongCatalogOrder(c);
 }
 
 export type { Song, SongSummary, SongLine, SongStanza } from './types';

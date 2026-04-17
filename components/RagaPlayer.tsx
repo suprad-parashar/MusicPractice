@@ -5,7 +5,7 @@ import { ALL_RAGAS, Raga, getMelakartaByNumber, getRagaById, getRagaByIdOrName, 
 import { parseVarisaiNote } from '@/data/saraliVarisai';
 import { getInstrument, freqToNoteNameForInstrument, isSineInstrument, type InstrumentId } from '@/lib/instrumentLoader';
 import { type NotationLanguage } from '@/lib/swaraNotation';
-import { SwaraGlyph } from '@/components/SwaraGlyph';
+import { SwaraInNoteChip } from '@/components/SwaraGlyph';
 import RagaPianoKeyboard from '@/components/RagaPianoKeyboard';
 import { midiKeyFrequency } from '@/lib/ragaPianoKeyboard';
 import { filterAndSortRagasBySearch } from '@/lib/ragaSearch';
@@ -966,7 +966,8 @@ export default function RagaPlayer({
                       key={`arohana-${index}`}
                       onClick={() => seekToNote(globalIndex)}
                       className={`
-                        px-4 py-2 rounded-lg text-lg font-semibold relative
+                        px-4 py-2 rounded-lg text-lg font-semibold
+                        flex items-center justify-center min-w-[2.75rem]
                         cursor-pointer hover:scale-105
                         ${isPlaying && globalIndex === currentNoteIndex
                           ? 'bg-amber-500 text-neutral-950 scale-110 shadow-lg ring-1 ring-black/20'
@@ -976,13 +977,12 @@ export default function RagaPlayer({
                         }
                       `}
                     >
-                      <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                      {parsed.octave === 'higher' && (
-                        <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">•</span>
-                      )}
-                      {parsed.octave === 'lower' && (
-                        <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[6px] text-[10px] leading-none">•</span>
-                      )}
+                      <SwaraInNoteChip
+                        swara={parsed.swara}
+                        language={notationLanguage}
+                        octave={parsed.octave}
+                        density="comfortable"
+                      />
                     </div>
                   );
                 })}
@@ -1001,7 +1001,8 @@ export default function RagaPlayer({
                       key={`avarohana-${index}`}
                       onClick={() => seekToNote(globalIndex)}
                       className={`
-                        px-4 py-2 rounded-lg text-lg font-semibold relative
+                        px-4 py-2 rounded-lg text-lg font-semibold
+                        flex items-center justify-center min-w-[2.75rem]
                         cursor-pointer hover:scale-105
                         ${isPlaying && globalIndex === currentNoteIndex
                           ? 'bg-amber-500 text-neutral-950 scale-110 shadow-lg ring-1 ring-black/20'
@@ -1011,13 +1012,12 @@ export default function RagaPlayer({
                         }
                       `}
                     >
-                      <SwaraGlyph swara={parsed.swara} language={notationLanguage} />
-                      {parsed.octave === 'higher' && (
-                        <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[-6px] text-[10px] leading-none">•</span>
-                      )}
-                      {parsed.octave === 'lower' && (
-                        <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-[6px] text-[10px] leading-none">•</span>
-                      )}
+                      <SwaraInNoteChip
+                        swara={parsed.swara}
+                        language={notationLanguage}
+                        octave={parsed.octave}
+                        density="comfortable"
+                      />
                     </div>
                   );
                 })}

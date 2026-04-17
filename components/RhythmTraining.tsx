@@ -17,7 +17,7 @@ import {
   SIXTEENTHS_PER_ROW,
 } from '@/lib/rhythmTraining';
 import { getStored, setStored } from '@/lib/storage';
-import { RHYTHM_DEFAULT_BPM } from '@/lib/defaultTempo';
+import { RHYTHM_DEFAULT_BPM, PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 
 const STORAGE_KEY = 'rhythmTraining';
 type Stored = { level?: RhythmLevel; bpm?: number; seed?: number };
@@ -86,7 +86,7 @@ export default function RhythmTraining() {
   useLayoutEffect(() => {
     const s = getStored<Stored>(STORAGE_KEY, {});
     if (s.level && LEVELS.includes(s.level)) setLevel(s.level);
-    if (typeof s.bpm === 'number' && s.bpm >= 30 && s.bpm <= 300) setBpm(s.bpm);
+    if (typeof s.bpm === 'number' && s.bpm >= 30 && s.bpm <= PRACTICE_TEMPO_MAX_BPM) setBpm(s.bpm);
     if (typeof s.seed === 'number') setSeed(s.seed);
     setReady(true);
   }, []);

@@ -1,23 +1,20 @@
 {
     "name": "Sri Gananatha",
-    "composer": "Purandara Dasa",
-    "language": "Kannada",
+    "artists": {
+        "composer": [
+            "Purandara Dasa"
+        ]
+    },
+    "language": "Sanskrit",
+    "type": "geetam",
+    "url": "https://music.youtube.com/watch?v=tVPLv2V2Ys8",
+    "raga_id": "malahari",
+    "tala": "4-Rupaka",
+    "tempo": 120,
     "stanzas": [
         {
-            "raga_id": "malahari",
-            "tala": "4-Rupaka",
-            "tempo": 120,
-            "lines": [
-                {
-                    "notes": "MPD>S>S>R>R>SDPMP",
-                    "lyrics": "Sri GaNanAtha, sindhUrA varNa",
-                    "translation": "Oh leader of the pramada ganas, you are the colour of vermillion."
-                },
-                {
-                    "notes": "RMPDMPDPMGRS",
-                    "lyrics": "karuNa sAgara, kari vadanA",
-                    "translation": "You are the the ocean of compassion and you have the visage of the mighty elephant."
-                },
+            "name": "pallavi",
+            "phrases": [
                 {
                     "notes": "SRM;GRSRGRS;",
                     "lyrics": "lambOdara, lakumikara.",
@@ -30,9 +27,29 @@
                 },
                 {
                     "notes": "SRM;GRSRGRS;",
-                    "lyrics": "lambOdara, lakumikara",
+                    "lyrics": "lambOdara, lakumikara.",
                     "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
+                }
+            ]
+        },
+        {
+            "name": "charanam_0",
+            "lines": [
+                {
+                    "notes": "MPD>S>S>R>R>SDPMP",
+                    "lyrics": "Sri GaNanAtha, sindhUrA varNa",
+                    "translation": "Oh leader of the pramada ganas, you are the colour of vermillion."
                 },
+                {
+                    "notes": "RMPDMPDPMGRS",
+                    "lyrics": "karuNa sAgara, kari vadanA",
+                    "translation": "You are the the ocean of compassion and you have the visage of the mighty elephant."
+                }
+            ]
+        },
+        {
+            "name": "charanam_1",
+            "lines": [
                 {
                     "notes": "MPD>S>S>R>R>SDPMP",
                     "lyrics": "sidhdha cAraNa, gaNasEvita",
@@ -42,22 +59,12 @@
                     "notes": "RMPDMPDPMGRS",
                     "lyrics": "sidhdhi vinAyaka, tE namO namO",
                     "translation": "You grant your devotees all their wishes, and I bow to you!"
-                },
-                {
-                    "notes": "SRM;GRSRGRS;",
-                    "lyrics": "lambOdara, lakumikara",
-                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
-                },
-                {
-                    "notes": "RMPDMPDPMGRS",
-                    "lyrics": "ambAsuta, Amaravinuta",
-                    "translation": "You have all the holy men at your feet, and you are worshipped by the pramadha ganas who are the followers of lord Shiva!"
-                },
-                {
-                    "notes": "SRM;GRSRGRS;",
-                    "lyrics": "lambOdara, lakumikara",
-                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
-                },
+                }
+            ]
+        },
+        {
+            "name": "charanam_2",
+            "lines": [
                 {
                     "notes": "MPD>S>S>R>R>SDPMP",
                     "lyrics": "sakala vidyAdi pUjita",
@@ -67,23 +74,16 @@
                     "notes": "RMPDMPDPMGRS",
                     "lyrics": "sarvOttama, tE namO namO",
                     "translation": "You are the supreme one, and I bow to you!"
-                },
-                {
-                    "notes": "SRM;GRSRGRS;",
-                    "lyrics": "lambOdara, lakumikara",
-                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
-                },
-                {
-                    "notes": "RMPDMPDPMGRS",
-                    "lyrics": "ambAsuta, Amaravinuta",
-                    "translation": "You have all the holy men at your feet, and you are worshipped by the pramadha ganas who are the followers of lord Shiva!"
-                },
-                {
-                    "notes": "SRM;GRSRGRS;",
-                    "lyrics": "lambOdara, lakumikara",
-                    "translation": "You have a protruding belly. You hold goddess Lakshmi in your hand."
                 }
             ]
         }
+    ],
+    "performance": [
+        "charanam_0",
+        "pallavi",
+        "charanam_1",
+        "pallavi",
+        "charanam_2",
+        "pallavi"
     ]
 }
