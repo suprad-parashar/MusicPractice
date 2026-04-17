@@ -20,6 +20,8 @@ import {
   angPatternNotationFromParsedTala,
   oneLineSummaryFromParsedTala,
   formatTalaBeatsPerAngaLine,
+  metronomeBpmForParsedTala,
+  type ParsedTala,
   type TalaBeat,
 } from '@/data/talas';
 import * as metronome from '@/lib/metronome';
@@ -182,11 +184,6 @@ export default function SongPlayer({
   baseFreqRef.current = baseFreq;
   baseBPMRef.current = baseBPM;
 
-  const getTempoForStanza = (si: number) => {
-    const st = song.stanzas[si];
-    return st?.tempo != null && st.tempo >= 30 && st.tempo <= PRACTICE_TEMPO_MAX_BPM ? st.tempo : baseBPM;
-  };
-
   useEffect(() => {
     metronome.setMetronomeVolume(volume);
   }, [volume]);
@@ -194,9 +191,10 @@ export default function SongPlayer({
   useEffect(() => {
     if (talaPlayingStanzaIdx === null) return;
     const st = song.stanzas[talaPlayingStanzaIdx];
-    const t =
-      st?.tempo != null && st.tempo >= 30 && st.tempo <= PRACTICE_TEMPO_MAX_BPM ? st.tempo : baseBPM;
-    metronome.setMetronomeTempo(t);
+    const quarterBpm = baseBPM;
+    const parsed = parseTalaString(st?.tala ?? '');
+    const metroBpm = parsed ? metronomeBpmForParsedTala(parsed, quarterBpm) : quarterBpm;
+    metronome.setMetronomeTempo(metroBpm);
   }, [baseBPM, talaPlayingStanzaIdx, song.stanzas]);
 
   const stopTalaPlayback = () => {
@@ -300,16 +298,10 @@ export default function SongPlayer({
     notePlayer.stopTime = newStop;
   };
 
-  const getTempoForIndex = (idx: number) => {
-    const stanza = song.stanzas[playableNotes[idx]?.stanzaIdx];
-    return (stanza?.tempo != null && stanza.tempo >= 30 && stanza.tempo <= PRACTICE_TEMPO_MAX_BPM)
-      ? stanza.tempo
-      : baseBPMRef.current;
-  };
-
   const playFromIndex = (index: number) => {
     if (!isPlayingRef.current || index >= playableNotes.length) return;
-    const bpm = getTempoForIndex(index);
+    /** Practice tempo control always drives playback; stanza `tempo` is only the initial default & display. */
+    const bpm = baseBPMRef.current;
     const noteDurationMs = (60 / bpm) * 1000;
     const { swara } = playableNotes[index];
     let lastNotePlayer: NotePlayer | null = null;
@@ -566,9 +558,10 @@ export default function SongPlayer({
     setTalaPlayingStanzaIdx(si);
     setCurrentTalaBeat(-1);
     const pattern = patternFromParsedTala(parsed);
-    const bpm = getTempoForStanza(si);
+    const quarterBpm = baseBPMRef.current;
+    const metroBpm = metronomeBpmForParsedTala(parsed, quarterBpm);
     try {
-      await metronome.startMetronome(pattern, bpm, (beatIndex) => {
+      await metronome.startMetronome(pattern, metroBpm, (beatIndex) => {
         setCurrentTalaBeat(beatIndex);
       });
       metronome.setMetronomeVolume(volume);
@@ -612,6 +605,21 @@ export default function SongPlayer({
       result.push({ t, tokenIdx: startIdx + i });
     });
     return result;
+  }
+
+  /** Match one tala cycle per row on large screens (e.g. 8 columns for Adi / chatusra Triputa). */
+  function songNotationContainerClass(parsedTala: ParsedTala | null): string {
+    if (!parsedTala || parsedTala.kind === 'tuplet_even') {
+      return 'flex flex-wrap items-center gap-1';
+    }
+    const cycle = beatsPerCycleFromParsedTala(parsedTala);
+    if (cycle >= 8) {
+      return 'grid w-full grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1 sm:gap-2 justify-items-center';
+    }
+    if (cycle === 6) {
+      return 'grid w-full grid-cols-3 md:grid-cols-6 gap-1 sm:gap-2 justify-items-center';
+    }
+    return 'grid w-full grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 justify-items-center';
   }
 
   // Build a flat list for display with note indices per line
@@ -678,7 +686,7 @@ export default function SongPlayer({
                   {song.name}
                 </h1>
                 <p className="text-sm text-slate-400 leading-relaxed">
-                  <span className="text-slate-300">{song.composer}</span>
+                  <span className="text-slate-300">{song.artistLine ?? song.composer}</span>
                   <span className="text-slate-600 mx-2" aria-hidden>
                     ·
                   </span>
@@ -878,7 +886,9 @@ export default function SongPlayer({
                             ? 'Play tala for the first part (see each part for other talas)'
                             : headerParsedTala.kind === 'equal_beats'
                               ? 'Hear bar beats (beat 1 accented)'
-                              : 'Hear tala beats (sam / anga)'
+                              : headerParsedTala.kind === 'tuplet_even'
+                                ? 'Hear sextuplet subdivisions (beat 1 accented)'
+                                : 'Hear tala beats (sam / anga)'
                           : 'Unknown tala format'
                       }
                     >
@@ -1009,6 +1019,8 @@ export default function SongPlayer({
             const talaSubline = parsedTala ? secondaryLabelFromParsedTala(parsedTala) : null;
             const talaBarInfo = parsedTala ? barPositionsFromParsedTala(parsedTala) : null;
             const talaPattern = parsedTala ? patternFromParsedTala(parsedTala) : [];
+            const notationContainerClass = songNotationContainerClass(parsedTala);
+            const useTalaNotationGrid = notationContainerClass.startsWith('grid');
             const isRagaPlaying = ragaPlayingStanzaIdx === si;
             const isTalaPlaying = talaPlayingStanzaIdx === si;
             const stanzaHeading =
@@ -1134,7 +1146,9 @@ export default function SongPlayer({
                           parsedTala
                             ? parsedTala.kind === 'equal_beats'
                               ? 'Hear bar beats (beat 1 accented)'
-                              : 'Hear tala beats (sam / anga)'
+                              : parsedTala.kind === 'tuplet_even'
+                                ? 'Hear sextuplet subdivisions (beat 1 accented)'
+                                : 'Hear tala beats (sam / anga)'
                             : 'Unknown tala format'
                         }
                       >
@@ -1189,8 +1203,54 @@ export default function SongPlayer({
                       key={li}
                       className="flex flex-col gap-2 py-4 first:pt-0"
                     >
-                      <div className="flex flex-wrap items-center gap-1">
-                        {items.map((item, ii) => {
+                      <div className={notationContainerClass}>
+                        {useTalaNotationGrid
+                          ? tokens.map((t, ii) => {
+                              const globalIdx = startIdx + ii;
+                              const isCurrent = isPlaying && globalIdx === currentNoteIndex;
+                              if (t === ';') {
+                                return (
+                                  <button
+                                    key={ii}
+                                    type="button"
+                                    onClick={() => seekToNote(globalIdx)}
+                                    className={`
+                                      shrink-0 w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold
+                                      transition-all cursor-pointer hover:scale-105
+                                      ${isCurrent
+                                        ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
+                                        : globalIdx < currentNoteIndex && isPlaying
+                                          ? 'bg-slate-700/30 text-slate-500'
+                                          : 'bg-slate-700/50 text-slate-200 hover:bg-slate-600'
+                                      }
+                                    `}
+                                  >
+                                    —
+                                  </button>
+                                );
+                              }
+                              const disp = parseVarisaiNote(resolveSwaraTokenForRaga(t, stanzaRaga));
+                              return (
+                                <button
+                                  key={ii}
+                                  type="button"
+                                  onClick={() => seekToNote(globalIdx)}
+                                  className={`
+                                    shrink-0 w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center py-px rounded-lg text-sm sm:text-lg font-semibold
+                                    transition-all cursor-pointer hover:scale-105 min-w-0
+                                    ${isCurrent
+                                      ? 'bg-amber-500 text-slate-900 scale-110 shadow-lg'
+                                      : globalIdx < currentNoteIndex && isPlaying
+                                        ? 'bg-slate-700/30 text-slate-500'
+                                        : 'bg-slate-700/50 text-slate-200 hover:bg-slate-600'
+                                    }
+                                  `}
+                                >
+                                  <SwaraInNoteChip swara={disp.swara} language={notationLanguage} octave={disp.octave} />
+                                </button>
+                              );
+                            })
+                          : items.map((item, ii) => {
                           if ('bar' in item) {
                             return (
                               <span

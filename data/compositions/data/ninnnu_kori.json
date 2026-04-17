@@ -1,0 +1,111 @@
+{
+    "name": "Ninnu Kori",
+    "artists": {
+        "composer": [
+            "Ramnad Sreenivasa Iyengar"
+        ]
+    },
+    "language": "Telugu",
+    "type": "varnam",
+    "url": "https://www.youtube.com/shorts/2QExWW7go98",
+    "raga_id": "mohanam",
+    "tala": "4-Triputa",
+    "tempo": 120,
+    "stanzas": [
+        {
+            "name": "pallavi",
+            "phrases": [
+                {
+                    "notes": "G;G;R;R;SSRRGGRRSRGRSRS<DSRGPGRSR",
+                    "lyrics": "Ninnu kori Yunnanura",
+                    "translation": "I am subsisting because of the yearning I have for you."
+                },
+                {
+                    "notes": "GPGGRSRGRRS<DSRGRGPGPDPD>SDDPGDPGR",
+                    "lyrics": "Nikila Lokanayaka",
+                    "translation": "Oh leader of the entire universe!"
+                }
+            ]
+        },
+        {
+            "name": "anupallavi",
+            "phrases": [
+                {
+                    "notes": "G;G;P;;;GGPPDDP;D>SDDPGDPDGDPGRSR",
+                    "lyrics": "Nannu Palimpa",
+                    "translation": "This is the occasion to take charge of me"
+                },
+                {
+                    "notes": "GGPPDPD>SD>S>R>S>G>R;>SD>S>R>S;DPD>SD;PGRSR",
+                    "lyrics": "Nameetha krupa judara",
+                    "translation": "Kindly show mercy upon me."
+                }
+            ]
+        },
+        {
+            "name": "charanam",
+            "phrases": [
+                {
+                    "notes": "G;G;GPGRRGPGP;;;GGDDP;GGDPGPGRSR",
+                    "lyrics": "Sannuthanga Srinivasa",
+                    "translation": "Oh Srinivasa! I pray to your existence in the discernible form!"
+                }
+            ]
+        },
+        {
+            "name": "ending_ga",
+            "phrases": [
+                {
+                    "notes": "G;;;;;;;"
+                }
+            ]
+        }
+    ],
+    "chittaswarams": [
+        {
+            "name": "mukthayi_swaram",
+            "phrases": [
+                {
+                    "notes": "G;RGRSR;SRSGRGSRS<DSRGRGPGPD;P;;;GPDPD>S>R>G>R>;>G>S;>RD;>SP;D>S>R>G>S;Dp;GRSR"
+                }
+            ]
+        },
+        {
+            "name": "chittaswaram_1",
+            "phrases": [
+                {
+                    "notes": "G;GRGRSRG;G<P<D<DSRG;GGDPGRG;G>SDPGR"
+                }
+            ]
+        },
+        {
+            "name": "chittaswaram_2",
+            "phrases": [
+                {
+                    "notes": "P;DDP;GRS;RGR;S<DS;RGP;D;>S>S;DP;GR"
+                }
+            ]
+        },
+        {
+            "name": "chittaswaram_3",
+            "phrases": [
+                {
+                    "notes": ">S;>R>G>R>S>R>SD>SDPGRSRS;;;;;SSRRGGPPDD>S>R>G>R>G>RD>S.R>S>R>SPD>SD>SDGPDPDP>R>SDPGRSR"
+                }
+            ]
+        }
+    ],
+    "performance": [
+        "pallavi",
+        "anupallavi",
+        "mukthayi_swaram",
+        "charanam",
+        "chittaswaram_1",
+        "charanam",
+        "chittaswaram_2",
+        "charanam",
+        "chittaswaram_3",
+        "charanam",
+        "ending_ga"
+    ]
+}

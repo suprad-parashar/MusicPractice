@@ -1,7 +1,5 @@
 import type { Artists, Composition, CompositionSection, CompositionSummary } from './types';
-import mereDholna from '../chittaswarams/mere_dholna.json';
-import raghuvamsha from '../chittaswarams/raghuvamsha_sudha.json';
-import sriGananatha from '../songs/sri_gananatha[en].json';
+import { COMPOSITION_REGISTRY } from './registry.generated';
 import type { SongLine } from '@/data/songs/types';
 
 function mapPhrases(arr: unknown[]): CompositionSection['phrases'] {
@@ -12,6 +10,11 @@ function mapPhrases(arr: unknown[]): CompositionSection['phrases'] {
       repeat: typeof o.repeat === 'number' ? o.repeat : undefined,
       lyrics: o.lyrics as string | undefined,
       translation: o.translation as string | undefined,
+      tala: o.tala !== undefined && o.tala !== null ? String(o.tala) : undefined,
+      tempo_multiplier:
+        typeof o.tempo_multiplier === 'number' && Number.isFinite(o.tempo_multiplier)
+          ? o.tempo_multiplier
+          : undefined,
     };
   });
 }
@@ -66,11 +69,11 @@ function normalizeComposition(slug: string, raw: unknown): Composition {
   };
 }
 
-const COMPOSITIONS_DATA: Record<string, Composition> = {
-  mere_dholna: normalizeComposition('mere_dholna', mereDholna),
-  raghuvamsha_sudha: normalizeComposition('raghuvamsha_sudha', raghuvamsha),
-  sri_gananatha_en: normalizeComposition('sri_gananatha_en', sriGananatha),
-};
+const compositionEntries = COMPOSITION_REGISTRY.map(({ slug, raw }) => {
+  const c = normalizeComposition(slug, raw);
+  return [slug, c] as const;
+});
+const COMPOSITIONS_DATA: Record<string, Composition> = Object.fromEntries(compositionEntries);
 
 function summaryFromComposition(slug: string, c: Composition): CompositionSummary {
   const composers = c.artists?.composer ?? [];
@@ -86,8 +89,8 @@ function summaryFromComposition(slug: string, c: Composition): CompositionSummar
   };
 }
 
-export const COMPOSITIONS: CompositionSummary[] = Object.entries(COMPOSITIONS_DATA).map(([slug, c]) =>
-  summaryFromComposition(slug, c)
+export const COMPOSITIONS: CompositionSummary[] = compositionEntries.map(([slug, c]) =>
+  summaryFromComposition(slug, c),
 );
 
 export function getComposition(slug: string): Composition | null {
@@ -97,6 +100,7 @@ export function getComposition(slug: string): Composition | null {
 export type { Composition, CompositionSummary, CompositionSection, Artists, PhraseBlock } from './types';
 export {
   formatComposer,
+  formatCompositionArtistLine,
   formatTypeLabel,
   humanizeCompositionType,
   humanizeSectionTabLabel,

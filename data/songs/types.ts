@@ -19,6 +19,8 @@ export interface SongStanza {
 export interface Song {
   name: string;
   composer: string;
+  /** Full credit line (composer, vocals, lyrics) when provided by the catalog */
+  artistLine?: string;
   language: string;
   stanzas: SongStanza[];
 }

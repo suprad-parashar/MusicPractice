@@ -3,6 +3,9 @@
   "version": "4.0.0",
   "private": true,
   "scripts": {
+    "generate:compositions": "node scripts/generate-composition-registry.mjs",
+    "predev": "npm run generate:compositions",
+    "prebuild": "npm run generate:compositions",
     "dev": "next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",

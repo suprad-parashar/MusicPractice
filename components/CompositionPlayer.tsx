@@ -5,7 +5,7 @@ import {
   buildCompositionSubtabs,
   compositionToSongPerformance,
   compositionToSongCatalogOrder,
-  formatComposer,
+  formatCompositionArtistLine,
   formatTypeLabel,
   humanizeSectionTabLabel,
   sectionToChittaswaramModel,
@@ -63,6 +63,7 @@ export default function CompositionPlayer({
     () => compositionToSongCatalogOrder(composition),
     [composition]
   );
+  const artistLine = formatCompositionArtistLine(composition);
 
   return (
     <div className="w-full max-w-4xl mx-auto min-w-0 px-3 sm:px-4 md:px-0">
@@ -85,9 +86,7 @@ export default function CompositionPlayer({
             <span className="inline-flex items-center rounded-md border border-slate-600/70 bg-slate-800/50 px-2 py-0.5 text-xs font-medium text-slate-300 mr-2">
               {formatTypeLabel(composition)}
             </span>
-            {formatComposer(composition) && (
-              <span>{formatComposer(composition)}</span>
-            )}
+            {artistLine && <span>{artistLine}</span>}
             {composition.language && (
               <>
                 <span className="text-slate-600 mx-1.5" aria-hidden>

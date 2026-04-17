@@ -284,7 +284,17 @@ export type ParsedTalaEqualBeats = { kind: 'equal_beats'; beatsPerBar: number };
 
 export type ParsedTalaSuladi = { kind: 'suladi'; talaName: TalaName; jatiName: JatiName };
 
-export type ParsedTala = ParsedTalaEqualBeats | ParsedTalaSuladi;
+/**
+ * Western tuplet: `tupletSlots` equal notes in the time of `beatsSpanned` quarter-note beats at the piece BPM.
+ * Example: Sextuplet-4 → six notes in four beats (each note ⅔ of a beat long).
+ */
+export type ParsedTalaTupletEven = {
+  kind: 'tuplet_even';
+  tupletSlots: number;
+  beatsSpanned: number;
+};
+
+export type ParsedTala = ParsedTalaEqualBeats | ParsedTalaSuladi | ParsedTalaTupletEven;
 
 const EVEN_BAR_KEYWORDS = new Set(['normal', 'simple', 'western', 'even']);
 const EVEN_BAR_BEATS_MAX = 64;
@@ -293,12 +303,22 @@ const EVEN_BAR_BEATS_MAX = 64;
  * Parse tala string like "4-Rupaka", "6-Adi", "Adi", or "4-Normal" (Western bar).
  * - "N-Normal" / "N-Simple" / "N-Western" / "N-Even": N equal beats per bar (Western count).
  * - "Normal" alone: 4 beats per bar.
+ * - "Sextuplet-N" (spaces optional): six equal slots in the time of N quarter-note beats (e.g. Sextuplet-4).
  * - Suladi: "jatiValue-TalaName" or "TalaName" (defaults to chatusra).
  *   jatiValue: 3=tisra, 4=chatusra, 5=khanda, 7=misra, 9=sankeerna
  */
 export function parseTalaString(talaStr: string): ParsedTala | null {
     const normalized = talaStr.trim();
     if (!normalized) return null;
+
+    const compact = normalized.replace(/\s+/g, '');
+    const sextuplet = /^sextuplet-(\d+)$/i.exec(compact);
+    if (sextuplet) {
+        const beatsSpanned = parseInt(sextuplet[1], 10);
+        if (Number.isFinite(beatsSpanned) && beatsSpanned >= 1 && beatsSpanned <= EVEN_BAR_BEATS_MAX) {
+            return { kind: 'tuplet_even', tupletSlots: 6, beatsSpanned };
+        }
+    }
 
     const jatiByLaghu: Record<number, JatiName> = {
         3: 'tisra',
@@ -350,17 +370,22 @@ export function parseTalaString(talaStr: string): ParsedTala | null {
 
 export function patternFromParsedTala(p: ParsedTala): TalaBeat[] {
     if (p.kind === 'equal_beats') return generateSimplePattern(p.beatsPerBar);
+    if (p.kind === 'tuplet_even') return generateSimplePattern(p.tupletSlots);
     return generateTalaPattern(p.talaName, p.jatiName);
 }
 
 export function beatsPerCycleFromParsedTala(p: ParsedTala): number {
     if (p.kind === 'equal_beats') return p.beatsPerBar;
+    if (p.kind === 'tuplet_even') return p.tupletSlots;
     return calculateTotalBeats(p.talaName, p.jatiName);
 }
 
 export function barPositionsFromParsedTala(p: ParsedTala): { barAt: number[]; cycleLength: number } {
     if (p.kind === 'equal_beats') {
         return { barAt: [p.beatsPerBar], cycleLength: p.beatsPerBar };
+    }
+    if (p.kind === 'tuplet_even') {
+        return { barAt: [p.tupletSlots], cycleLength: p.tupletSlots };
     }
     return getTalaAngaBarPositions(p.talaName, p.jatiName);
 }
@@ -370,12 +395,18 @@ export function primaryLabelFromParsedTala(p: ParsedTala): string {
     if (p.kind === 'equal_beats') {
         return `${p.beatsPerBar} beats per bar`;
     }
+    if (p.kind === 'tuplet_even') {
+        return `Sextuplet in ${p.beatsSpanned} beat${p.beatsSpanned === 1 ? '' : 's'}`;
+    }
     return getTalaDisplayName(p.talaName, p.jatiName);
 }
 
 /** Subtitle under title; omitted for Western bars. */
 export function secondaryLabelFromParsedTala(p: ParsedTala): string | null {
     if (p.kind === 'equal_beats') return null;
+    if (p.kind === 'tuplet_even') {
+        return `Six notes fit into the same length as ${p.beatsSpanned} main beat${p.beatsSpanned === 1 ? '' : 's'} at this practice tempo (each note ${p.beatsSpanned}/6 of a beat)`;
+    }
     return getTalaFullDisplayName(p.talaName, p.jatiName);
 }
 
@@ -383,6 +414,9 @@ export function secondaryLabelFromParsedTala(p: ParsedTala): string | null {
 export function angPatternNotationFromParsedTala(p: ParsedTala): string {
     if (p.kind === 'equal_beats') {
         return Array.from({ length: p.beatsPerBar }, (_, i) => String(i + 1)).join(' · ');
+    }
+    if (p.kind === 'tuplet_even') {
+        return Array.from({ length: p.tupletSlots }, (_, i) => String(i + 1)).join(' · ');
     }
     return getTalaPatternNotation(p.talaName);
 }
@@ -392,10 +426,24 @@ export function oneLineSummaryFromParsedTala(p: ParsedTala): string {
     if (p.kind === 'equal_beats') {
         return `${p.beatsPerBar} beats per bar · ${angPatternNotationFromParsedTala(p)}`;
     }
+    if (p.kind === 'tuplet_even') {
+        return `${primaryLabelFromParsedTala(p)} · ${angPatternNotationFromParsedTala(p)}`;
+    }
     const display = getTalaDisplayName(p.talaName, p.jatiName);
     const notation = getTalaPatternNotation(p.talaName);
     const beats = calculateTotalBeats(p.talaName, p.jatiName);
     return `${display} · ${notation} · ${beats} beats`;
+}
+
+/**
+ * Metronome step interval is 60/BPM seconds. Scale BPM for tuplets so each of `tupletSlots`
+ * steps fits in `beatsSpanned` quarter-note beats at `quarterNoteBpm`.
+ */
+export function metronomeBpmForParsedTala(p: ParsedTala, quarterNoteBpm: number): number {
+    if (p.kind === 'tuplet_even') {
+        return quarterNoteBpm * (p.tupletSlots / p.beatsSpanned);
+    }
+    return quarterNoteBpm;
 }
 
 /**

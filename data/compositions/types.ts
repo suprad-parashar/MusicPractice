@@ -11,6 +11,10 @@ export interface PhraseBlock {
   repeat?: number;
   lyrics?: string;
   translation?: string;
+  /** Overrides section / piece tala for this phrase only (e.g. Sextuplet-4) */
+  tala?: string;
+  /** Scales phrase tempo vs practice BPM: 1 = default, 0.5 = half speed (longer notes), 2 = double speed */
+  tempo_multiplier?: number;
 }
 
 /** A stanza, charanam, chittaswaram block, etc. — either `lines` (notation + lyrics) or `phrases` (compact notation). */

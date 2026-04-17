@@ -24,6 +24,19 @@ export function formatComposer(c: Composition): string {
   return '';
 }
 
+/** Composer(s), then vocals and lyrics when present — for headers and player subtitles. */
+export function formatCompositionArtistLine(c: Composition): string {
+  const a = c.artists;
+  const composers = a?.composer?.filter((x) => x.trim() !== '') ?? [];
+  const singers = a?.singer?.filter((x) => x.trim() !== '') ?? [];
+  const lyricists = a?.lyricist?.filter((x) => x.trim() !== '') ?? [];
+  const segments: string[] = [];
+  if (composers.length) segments.push(composers.join(', '));
+  if (singers.length) segments.push(`Vocals: ${singers.join(', ')}`);
+  if (lyricists.length) segments.push(`Lyrics: ${lyricists.join(', ')}`);
+  return segments.join(' · ');
+}
+
 export function humanizeCompositionType(type: string): string {
   const lower = type.toLowerCase();
   const map: Record<string, string> = {
@@ -109,6 +122,7 @@ export function compositionToSongCatalogOrder(c: Composition): Song | null {
   return {
     name: c.name,
     composer: formatComposer(c),
+    artistLine: formatCompositionArtistLine(c) || undefined,
     language: c.language ?? '',
     stanzas: c.stanzas.map((s) => sectionToSongStanza(s, c)),
   };
@@ -126,6 +140,7 @@ export function compositionToSongPerformance(c: Composition): Song | null {
   return {
     name: c.name,
     composer: formatComposer(c),
+    artistLine: formatCompositionArtistLine(c) || undefined,
     language: c.language ?? '',
     stanzas,
   };
@@ -135,11 +150,13 @@ export function sectionToChittaswaramModel(c: Composition, section: CompositionS
   const phrases: ChittaswaramPhrase[] = (section.phrases ?? []).map((p) => ({
     notes: p.notes ?? '',
     repeat: p.repeat ?? 1,
+    tala: p.tala,
+    tempo_multiplier: p.tempo_multiplier,
   }));
   const m = mergedStanzaFields(section, c);
   return {
     name: `${c.name} — ${humanizeSectionTabLabel(section.name)}`,
-    source: formatComposer(c) || '—',
+    source: formatCompositionArtistLine(c) || formatComposer(c) || '—',
     tempo: m.tempo != null ? m.tempo : 120,
     raga_id: m.raga_id,
     tala: m.tala,

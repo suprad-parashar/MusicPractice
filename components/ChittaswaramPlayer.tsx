@@ -19,6 +19,7 @@ import {
   oneLineSummaryFromParsedTala,
   primaryLabelFromParsedTala,
   formatTalaBeatsPerAngaLine,
+  metronomeBpmForParsedTala,
   type TalaBeat,
 } from '@/data/talas';
 import * as metronome from '@/lib/metronome';
@@ -176,6 +177,38 @@ export default function ChittaswaramPlayer({
     });
   }, [expandedPieces]);
 
+  const phraseIndexForGlobalSlot = useCallback(
+    (si: number) => {
+      for (let i = phraseSlotBlocks.length - 1; i >= 0; i--) {
+        if (si >= phraseSlotBlocks[i]!.startIdx) return i;
+      }
+      return 0;
+    },
+    [phraseSlotBlocks]
+  );
+
+  const getSlotMsForIndex = useCallback(
+    (si: number) => {
+      const pIdx = phraseIndexForGlobalSlot(si);
+      const phrase = phrases[pIdx];
+      const talaStr = (phrase?.tala?.trim() || chittaswaram.tala || '').trim();
+      const parsed = talaStr ? parseTalaString(talaStr) : null;
+      const quarterMs = (60 / baseBPMRef.current) * 1000;
+      let slotMs = quarterMs;
+      if (parsed?.kind === 'tuplet_even') {
+        /** Six notes in the time of `beatsSpanned` quarter-note beats (same wall time as that many main beats). */
+        slotMs = quarterMs * (parsed.beatsSpanned / parsed.tupletSlots);
+      }
+      const mult = phrase?.tempo_multiplier;
+      if (typeof mult === 'number' && Number.isFinite(mult) && mult > 0) {
+        const clamped = Math.min(100, Math.max(0.01, mult));
+        slotMs /= clamped;
+      }
+      return slotMs;
+    },
+    [phraseIndexForGlobalSlot, phrases, chittaswaram.tala]
+  );
+
   const uniqueSwaraCount = useMemo(() => slots.filter(s => s.type === 'swara').length, [slots]);
 
   /* ── Tala info ── */
@@ -255,8 +288,9 @@ export default function ChittaswaramPlayer({
 
   useEffect(() => {
     if (!isTalaPlaying) return;
-    metronome.setMetronomeTempo(baseBPM);
-  }, [baseBPM, isTalaPlaying]);
+    const metroBpm = parsedTala ? metronomeBpmForParsedTala(parsedTala, baseBPM) : baseBPM;
+    metronome.setMetronomeTempo(metroBpm);
+  }, [baseBPM, isTalaPlaying, parsedTala]);
 
   useEffect(() => {
     if (masterGainRef.current) masterGainRef.current.gain.value = Math.pow(volume, 3);
@@ -272,8 +306,6 @@ export default function ChittaswaramPlayer({
 
   const linearToLogGain = (v: number) => v === 0 ? 0 : Math.pow(v, 3);
   const handleBaseBPMChange = (v: number) => { baseBPMRef.current = v; setBaseBPM(v); };
-  /** One notation slot = one beat at `baseBPM` (same ms-per-note as SongPlayer). */
-  const getSlotMs = () => (60 / baseBPMRef.current) * 1000;
 
   const ensureAudioContext = async () => {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
@@ -338,7 +370,7 @@ export default function ChittaswaramPlayer({
     }
 
     const slot = slots[si];
-    const slotMs = getSlotMs();
+    const slotMs = getSlotMsForIndex(si);
 
     if (slot.type === 'tie') {
       setCurrentSlotIdx(si);
@@ -362,7 +394,7 @@ export default function ChittaswaramPlayer({
     }
 
     timeoutRef.current = setTimeout(() => playFromSlot(si + 1 + tieCount), totalDurMs);
-  }, [slots, instrumentId, raga]);
+  }, [slots, instrumentId, raga, getSlotMsForIndex]);
 
   const startPlaying = async () => {
     stopTalaPlayback();
@@ -482,7 +514,8 @@ export default function ChittaswaramPlayer({
     setIsTalaPlaying(true);
     setCurrentTalaBeat(-1);
     try {
-      await metronome.startMetronome(talaPattern, baseBPM, (beatIndex) => {
+      const metroBpm = metronomeBpmForParsedTala(parsedTala, baseBPM);
+      await metronome.startMetronome(talaPattern, metroBpm, (beatIndex) => {
         setCurrentTalaBeat(beatIndex);
       });
       metronome.setMetronomeVolume(volume);
@@ -695,7 +728,9 @@ export default function ChittaswaramPlayer({
                       title={
                         parsedTala.kind === 'equal_beats'
                           ? 'Hear bar beats (beat 1 accented)'
-                          : 'Hear tala beats (sam / anga)'
+                          : parsedTala.kind === 'tuplet_even'
+                            ? 'Hear sextuplet subdivisions (beat 1 accented)'
+                            : 'Hear tala beats (sam / anga)'
                       }
                     >
                       {isTalaPlaying ? (
@@ -757,10 +792,41 @@ export default function ChittaswaramPlayer({
         <div className="mt-8">
           <p className="text-center text-slate-400 text-sm mb-6">Exercise Notes</p>
           <div className="flex max-w-2xl mx-auto flex-col gap-10 px-1 sm:px-2">
-            {phraseSlotBlocks.map((block, pi) => (
+            {phraseSlotBlocks.map((block, pi) => {
+              const phraseTalaRaw = phrases[pi]?.tala?.trim() ?? '';
+              const phraseParsed = phraseTalaRaw ? parseTalaString(phraseTalaRaw) : null;
+              const phraseTalaSub = phraseParsed ? secondaryLabelFromParsedTala(phraseParsed) : null;
+              const rawMult = phrases[pi]?.tempo_multiplier;
+              const hasMult =
+                typeof rawMult === 'number' && Number.isFinite(rawMult) && rawMult > 0 && rawMult !== 1;
+              const isTupletEven = phraseParsed?.kind === 'tuplet_even';
+              return (
+              <div key={pi} className="flex flex-col gap-2">
+                {(phraseParsed || hasMult) && (
+                  <p className={`text-xs text-slate-500 ${isTupletEven ? 'text-left' : 'text-center'}`}>
+                    {phraseParsed && (
+                      <>
+                        <span className="font-medium text-slate-400">{oneLineSummaryFromParsedTala(phraseParsed)}</span>
+                        {phraseTalaSub && (
+                          <span className="block mt-0.5 text-[11px] text-slate-500">
+                            {phraseTalaSub}
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {hasMult && (
+                      <span className={`block mt-0.5 text-[11px] text-amber-200/90 ${phraseParsed ? 'pt-0.5' : ''}`}>
+                        Phrase tempo ×{rawMult} relative to practice BPM
+                      </span>
+                    )}
+                  </p>
+                )}
               <div
-                key={pi}
-                className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2 justify-items-center"
+                className={
+                  isTupletEven
+                    ? 'box-border flex w-full flex-row flex-wrap justify-between gap-y-2 px-[max(0px,calc(((100%-1.125rem)/4-2.25rem)/2))] sm:px-[max(0px,calc(((100%-1.5rem)/4-3rem)/2))] md:px-[max(0px,calc(((100%-2.5rem)/6-3rem)/2))] lg:px-[max(0px,calc(((100%-3.5rem)/8-3rem)/2))]'
+                    : 'grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-2 justify-items-center'
+                }
               >
                 {block.slots.map((slot, li) => {
                   const gsi = block.startIdx + li;
@@ -779,7 +845,7 @@ export default function ChittaswaramPlayer({
                         type="button"
                         onClick={() => seekToSlot(gsi)}
                         className={`
-                          w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
+                          shrink-0 w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center rounded-lg text-sm sm:text-lg font-semibold relative
                           transition-all duration-200 cursor-pointer hover:scale-105
                           ${isCurrent ? cellActive : cellIdle}
                         `}
@@ -797,7 +863,7 @@ export default function ChittaswaramPlayer({
                       type="button"
                       onClick={() => seekToSlot(gsi)}
                       className={`
-                        w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center py-px rounded-lg text-sm sm:text-lg font-semibold
+                        shrink-0 w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center py-px rounded-lg text-sm sm:text-lg font-semibold
                         transition-all duration-200 cursor-pointer hover:scale-105 min-w-0
                         ${isCurrent ? cellActive : cellIdle}
                       `}
@@ -807,7 +873,9 @@ export default function ChittaswaramPlayer({
                   );
                 })}
               </div>
-            ))}
+              </div>
+            );
+            })}
           </div>
         </div>
       </div>

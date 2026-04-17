@@ -1,0 +1,61 @@
+{
+    "name": "Mere Dholna 3.0",
+    "artists": {
+        "singer": [
+            "Sonu Nigam"
+        ],
+        "composer": [
+            "Pritam Chakraborty",
+            "Amaal Malik"
+        ],
+        "lyricist": [
+            "Sameer"
+        ]
+    },
+    "language": "Hindi",
+    "type": "song",
+    "url": "https://music.youtube.com/watch?v=rC4sTBtbjEc&si=Lkr-_Oo8AIjHWGlf",
+    "raga_id": "kamavardhani",
+    "tala": "4-Normal",
+    "tempo": 420,
+    "chittaswarams": [
+        {
+            "name": "chittaswaram_1",
+            "phrases": [
+                {
+                    "notes": "N>SN>SN>SN>SDNNDNNDNMDDMDDMDGMPDN>R>S;N>S;>S;>SN>SDN;N;NDNMD;D;DMDGMPDN>R>S;"
+                },
+                {
+                    "notes": "S;;S;SGMG;;G;GPMG;;G;GMDNNDMG<NSGM;;M;MDND;;D;DDN>S;;>S;>S;>G>G>R>SNDMDN>SNDMGS<N<D<NSGMDN>SN"
+                },
+                {
+                    "notes": ">S;;N;;D;;MGSGMD>SN;;D;;M;;MG<NRGMND;;M;;G;"
+                },
+                {
+                    "notes": "SGMGMD",
+                    "tala": "Sextuplet-4",
+                    "tempo_multiplier": 0.5
+                },
+                {
+                    "notes": "N;>S;N>S;N>S;N>S;N>S;D;n;Dn;Dn;Dn;Dn;"
+                },
+                {
+                    "notes": "GMPDnDPMGMPDnDPMGMPMGMGRGRS<n<D<nS;"
+                },
+                {
+                    "notes": "<D;<D<n;<nS;SG;GM;G;S;SG;GM;MD;Dn;D;"
+                },
+                {
+                    "notes": ">SN>S>G>G>R>SN>SN>SNDPMGGMDNNDMGGMGRS<N<D<N"
+                },
+                {
+                    "notes": "SMGPMNDMPMGMGRS<N",
+                    "repeat": 2
+                },
+                {
+                    "notes": "<D<D<n<nSSGG<n<nSSGGMMSSGGMMDDGGMMDDnnMMDDnn>S>SNDnn>S>S>G;;;;;;;;;"
+                }
+            ]
+        }
+    ]
+}

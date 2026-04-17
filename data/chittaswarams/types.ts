@@ -2,6 +2,9 @@
 export interface ChittaswaramPhrase {
   notes: string;
   repeat?: number;
+  tala?: string;
+  /** 1 = default; 0.25 = quarter speed (4× longer notes) relative to practice BPM */
+  tempo_multiplier?: number;
 }
 
 export interface Chittaswaram {
