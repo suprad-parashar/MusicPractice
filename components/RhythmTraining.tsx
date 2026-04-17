@@ -20,7 +20,17 @@ import { getStored, setStored } from '@/lib/storage';
 import { RHYTHM_DEFAULT_BPM, PRACTICE_TEMPO_MAX_BPM } from '@/lib/defaultTempo';
 
 const STORAGE_KEY = 'rhythmTraining';
-type Stored = { level?: RhythmLevel; bpm?: number; seed?: number };
+type Stored = {
+  level?: RhythmLevel;
+  bpm?: number;
+  seed?: number;
+  shakerEnabled?: boolean;
+  /** @deprecated migrated to shakerEnabled */
+  shakerVolume?: number;
+};
+
+/** Linear bus gain when the shaker toggle is on (5%). */
+const SHAKER_ON_GAIN = 0.05;
 
 const LEVELS: RhythmLevel[] = [1, 2, 3, 4, 5];
 const COUNT_IN_BEATS = 4;
@@ -67,6 +77,7 @@ export default function RhythmTraining() {
   const [level, setLevel] = useState<RhythmLevel>(1);
   const [bpm, setBpm] = useState(RHYTHM_DEFAULT_BPM);
   const [seed, setSeed] = useState(nextSeed);
+  const [shakerEnabled, setShakerEnabled] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [beatDot, setBeatDot] = useState(0);
   /** [rowIndex, segmentIndex] of the segment currently sounding — null when idle. */
@@ -88,13 +99,32 @@ export default function RhythmTraining() {
     if (s.level && LEVELS.includes(s.level)) setLevel(s.level);
     if (typeof s.bpm === 'number' && s.bpm >= 30 && s.bpm <= PRACTICE_TEMPO_MAX_BPM) setBpm(s.bpm);
     if (typeof s.seed === 'number') setSeed(s.seed);
+    if (typeof s.shakerEnabled === 'boolean') {
+      setShakerEnabled(s.shakerEnabled);
+    } else if (
+      typeof s.shakerVolume === 'number' &&
+      s.shakerVolume >= 0 &&
+      s.shakerVolume <= 1
+    ) {
+      setShakerEnabled(s.shakerVolume > 0);
+    }
     setReady(true);
   }, []);
 
   useEffect(() => {
     if (!ready) return;
-    setStored(STORAGE_KEY, { level, bpm, seed });
-  }, [level, bpm, seed, ready]);
+    setStored(STORAGE_KEY, { level, bpm, seed, shakerEnabled });
+  }, [level, bpm, seed, shakerEnabled, ready]);
+
+  const shakerGain = shakerEnabled ? SHAKER_ON_GAIN : 0;
+
+  useEffect(() => {
+    const g = shakerOutRef.current?.gain;
+    if (!g) return;
+    const t = Tone.now();
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(shakerGain, t);
+  }, [shakerGain]);
 
   const drill = useMemo(() => generateDrill(level, seed), [level, seed]);
 
@@ -128,7 +158,7 @@ export default function RhythmTraining() {
       volume: Tone.gainToDb(1),
     });
     shaker.connect(shakerFilter);
-    const shakerOut = new Tone.Gain(1);
+    const shakerOut = new Tone.Gain(shakerEnabled ? SHAKER_ON_GAIN : 0);
     shakerFilter.connect(shakerOut);
     shakerOut.connect(bus);
 
@@ -138,7 +168,7 @@ export default function RhythmTraining() {
     shakerRef.current = shaker;
     shakerFilterRef.current = shakerFilter;
     shakerOutRef.current = shakerOut;
-  }, []);
+  }, [shakerEnabled]);
 
   useEffect(() => {
     const master = new Tone.Gain(0).toDestination();
@@ -316,8 +346,6 @@ export default function RhythmTraining() {
     setSeed(nextSeed());
   };
 
-  const drillIndex = ((seed % 997) + 997) % 997 + 1;
-
   if (!ready) {
     return (
       <div className="w-full max-w-lg mx-auto flex items-center justify-center min-h-[200px]">
@@ -356,10 +384,27 @@ export default function RhythmTraining() {
         <TempoControl value={bpm} onChange={setBpm} disabled={playing} />
       </div>
 
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-4 sm:p-5 shadow-[0_1px_0_0_color-mix(in_srgb,var(--text-primary)_5%,transparent),0_12px_40px_-12px_rgba(0,0,0,0.35)]">
-        <p className="mb-4 text-center text-sm font-medium text-[var(--text-primary)]">Drill {drillIndex}</p>
+      <div className="mb-6 flex justify-center px-1">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={shakerEnabled}
+          aria-label="Shaker accompaniment"
+          onClick={() => setShakerEnabled((v) => !v)}
+          className={`
+            px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+            ${shakerEnabled
+              ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/30'
+              : 'bg-[var(--input-bg)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--border)]/40'
+            }
+          `}
+        >
+          Shaker: {shakerEnabled ? 'On' : 'Off'}
+        </button>
+      </div>
 
-        <p className="text-center text-[11px] text-[var(--text-muted)] mb-2">Kick count-in (4 beats), then snare on each note</p>
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--card-bg)] p-4 sm:p-5 shadow-[0_1px_0_0_color-mix(in_srgb,var(--text-primary)_5%,transparent),0_12px_40px_-12px_rgba(0,0,0,0.35)]">
+        <p className="text-center text-[11px] text-[var(--text-muted)] mb-4">Kick count-in (4 beats), then snare on each note</p>
 
         <div className="flex justify-center gap-3 sm:gap-3.5 mb-5" aria-label="Beats in the measure">
           {[0, 1, 2, 3].map((i) => (
