@@ -1,6 +1,6 @@
 {
   "name": "carnaticpractice",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "private": true,
   "scripts": {
     "generate:compositions": "node scripts/generate-composition-registry.mjs",
