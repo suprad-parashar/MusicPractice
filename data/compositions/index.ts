@@ -97,7 +97,13 @@ export function getComposition(slug: string): Composition | null {
   return COMPOSITIONS_DATA[slug] ?? null;
 }
 
-export type { Composition, CompositionSummary, CompositionSection, Artists, PhraseBlock } from './types';
+export type {
+  Composition,
+  CompositionSummary,
+  CompositionSection,
+  Artists,
+  PhraseBlock,
+} from './types';
 export {
   formatComposer,
   formatCompositionArtistLine,

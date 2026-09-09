@@ -1,0 +1,80 @@
+/* Semantic colors are shared by Tailwind utilities, notation, and the studio shell. */
+:root {
+  --accent: #a34e35;
+  --accent-rgb: 163 78 53;
+  --accent-foreground: #fff;
+  --background: var(--page-bg);
+  --foreground: var(--text-primary);
+  --page-bg: rgb(var(--page-rgb));
+  --card-bg: rgb(var(--surface-rgb));
+  --input-bg: rgb(var(--subtle-rgb));
+  --text-primary: rgb(var(--ink-rgb));
+  --text-muted: rgb(var(--muted-rgb));
+  --border: rgb(var(--line-rgb));
+  --sidebar-bg: var(--input-bg);
+  --header-bg: var(--page-bg);
+  --accent-soft: color-mix(in srgb, var(--accent) 9%, var(--card-bg));
+  --accent-text: color-mix(in srgb, var(--accent) 78%, var(--text-primary));
+  --accent-complement: #566344;
+  --accent-complement-foreground: #fff;
+  --nav-bg: #27322c;
+  --nav-text: #eef0e7;
+  --nav-muted: #b2bbae;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --shadow: 0 4px 20px rgb(30 40 25 / 4%);
+}
+
+:root,
+html[data-theme='light-warm'] {
+  color-scheme: light;
+  --page-rgb: 247 246 242;
+  --surface-rgb: 255 254 251;
+  --subtle-rgb: 242 241 235;
+  --ink-rgb: 43 48 40;
+  --muted-rgb: 106 110 100;
+  --line-rgb: 224 225 216;
+  --hero-bg: #eeeee3;
+  --hero-ink: #546048;
+  --positive: #37644b;
+  --negative: #b23f3b;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --page-rgb: 244 247 249;
+  --surface-rgb: 255 255 255;
+  --subtle-rgb: 236 241 244;
+  --ink-rgb: 37 48 58;
+  --muted-rgb: 99 114 125;
+  --line-rgb: 216 225 231;
+  --hero-bg: #e7eeed;
+  --hero-ink: #446764;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --page-rgb: 29 33 29;
+  --surface-rgb: 37 43 37;
+  --subtle-rgb: 46 53 45;
+  --ink-rgb: 234 236 226;
+  --muted-rgb: 174 181 166;
+  --line-rgb: 65 73 60;
+  --hero-bg: #343d2e;
+  --hero-ink: #c1caae;
+  --positive: #9dcea7;
+  --negative: #f0a39b;
+}
+
+html[data-theme='dark-slate'] {
+  color-scheme: dark;
+  --page-rgb: 25 33 43;
+  --surface-rgb: 33 44 55;
+  --subtle-rgb: 41 55 67;
+  --ink-rgb: 229 236 241;
+  --muted-rgb: 168 186 198;
+  --line-rgb: 62 80 95;
+  --hero-bg: #2b4043;
+  --hero-ink: #b8d6cb;
+  --positive: #9dcea7;
+  --negative: #f0a39b;
+}

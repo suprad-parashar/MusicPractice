@@ -58,9 +58,7 @@ export function formatTypeLabel(c: Composition): string {
 export function humanizeSectionTabLabel(sectionName: string): string {
   const m = /^chittaswaram_(\d+)$/i.exec(sectionName);
   if (m) return `Chittaswaram ${m[1]}`;
-  return sectionName
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+  return sectionName.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
 
 /** UI label for a stanza `name` from JSON: `pallavi` → Pallavi, `charanam_0` → Charanam 1. */
@@ -71,12 +69,13 @@ export function humanizeStanzaHeading(sectionName: string): string {
   if (charanam) return `Charanam ${parseInt(charanam[1], 10) + 1}`;
   const chitta = /^chittaswaram_(\d+)$/i.exec(raw);
   if (chitta) return `Chittaswaram ${chitta[1]}`;
-  return raw
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
 
-export function sectionToSongStanza(section: CompositionSection, composition: Composition): SongStanza {
+export function sectionToSongStanza(
+  section: CompositionSection,
+  composition: Composition,
+): SongStanza {
   const m = mergedStanzaFields(section, composition);
   if (section.lines?.length) {
     return {
@@ -146,7 +145,10 @@ export function compositionToSongPerformance(c: Composition): Song | null {
   };
 }
 
-export function sectionToChittaswaramModel(c: Composition, section: CompositionSection): Chittaswaram {
+export function sectionToChittaswaramModel(
+  c: Composition,
+  section: CompositionSection,
+): Chittaswaram {
   const phrases: ChittaswaramPhrase[] = (section.phrases ?? []).map((p) => ({
     notes: p.notes ?? '',
     repeat: p.repeat ?? 1,
@@ -167,9 +169,7 @@ export function sectionToChittaswaramModel(c: Composition, section: CompositionS
 }
 
 export type CompositionSubtab =
-  | { kind: 'performance' }
-  | { kind: 'stanzas' }
-  | { kind: 'chitta'; section: CompositionSection };
+  { kind: 'performance' } | { kind: 'stanzas' } | { kind: 'chitta'; section: CompositionSection };
 
 export function buildCompositionSubtabs(c: Composition): CompositionSubtab[] {
   const out: CompositionSubtab[] = [];

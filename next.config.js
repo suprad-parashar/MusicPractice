@@ -12,6 +12,6 @@ const nextConfig = {
   // Set basePath for GitHub Pages; use '' in dev so localhost:3000 works
   basePath: process.env.NODE_ENV === 'production' ? '/MusicPractice' : '',
   trailingSlash: true,
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
