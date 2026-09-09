@@ -1,0 +1,530 @@
+/**
+ * Tanpura drone - browser-lehra style.
+ * Uses a single pluck sample + playback rate for pitch (authentic timbre).
+ * 4 strings plucked; pattern sets per-string pitch ratios (e.g. P Ṡ Ṡ S or M P P S).
+ *
+ * See: https://github.com/svkale/browser-lehra
+ */
+
+import * as Tone from 'tone';
+
+// Sample paths (browser-lehra tanpura-d.wav first; add tanpura-pluck.wav for alternatives)
+// Use basePath for GitHub Pages deployment where the app is served at /MusicPractice/
+const basePath = process.env.NODE_ENV === 'production' ? '/MusicPractice' : '';
+const PLUCK_SAMPLE_PATHS = [
+  `${basePath}/sounds/tanpura-d.wav`,
+  `${basePath}/sounds/tanpura-pluck.wav`,
+];
+const PLUCK_SAMPLE_BASE_FREQ = 293.66; // D4 - matches tanpura-d.wav from browser-lehra
+
+import {
+  TANPURA_PATTERNS,
+  getOctaveMultiplier,
+  type TanpuraPattern,
+  type TanpuraPatternId,
+  type Octave,
+} from '@/lib/music/tanpura';
+export { TANPURA_PATTERNS, TANPURA_PATTERN_ORDER, getOctaveMultiplier } from '@/lib/music/tanpura';
+export type { TanpuraPattern, TanpuraPatternId, Octave } from '@/lib/music/tanpura';
+
+const PITCH_OCTAVE_DOWN = 0.5; // One octave lower (medium)
+const VOLUME_ATTENUATION_DB = -12; // Tanpura sits quieter in the mix
+
+const DEFAULT_PLUCK_DELAY_SEC = 1.4; // Delay between each pluck (P, High S, High S, S)
+const DEFAULT_NOTE_LENGTH_SEC = 5; // How long each pluck resonates (synth) / reverb tail (sample)
+const TRANSITION_DURATION_SEC = 0.5; // Duration for smooth pitch/octave transitions
+
+let volumeNode: Tone.Volume | null = null;
+let pluckPlayers: Tone.Player[] = [];
+let pluckReverb: Tone.Reverb | null = null;
+let pluckLoop: Tone.Loop | null = null;
+let polySynth: Tone.PolySynth | null = null;
+let baseFreqRef = 261.63;
+let targetBaseFreq = 261.63; // Target frequency for smooth transitions
+
+let currentOctaveMultiplier = 1; // Current interpolated octave multiplier
+let targetOctaveMultiplier = 1; // Target octave multiplier
+
+let pluckDelaySecRef = DEFAULT_PLUCK_DELAY_SEC;
+let noteLengthSecRef = DEFAULT_NOTE_LENGTH_SEC;
+let currentPatternRef: TanpuraPattern = TANPURA_PATTERNS[0];
+let useSample = false;
+let sampleBaseFreq = PLUCK_SAMPLE_BASE_FREQ;
+let isStarted = false;
+let transitionAnimationId: number | null = null;
+
+/**
+ * Convert a linear amplitude value to decibels.
+ *
+ * @param linear - Linear amplitude (typically 0..1, where 1 is unity gain)
+ * @returns The decibel equivalent of `linear`; returns `-100` if `linear` is less than or equal to 0
+ */
+function linearToDb(linear: number): number {
+  if (linear <= 0) return -100;
+  return 20 * Math.log10(Math.max(0.01, linear));
+}
+
+/**
+ * Map a 0–1 UI slider value to a perceptually tuned linear gain.
+ *
+ * @param slider - Slider position from 0 (min) to 1 (max)
+ * @returns Gain value between 0 and 1 adjusted for perceptual response; returns `0` when `slider` is `0` or negative
+ */
+function sliderToGain(slider: number): number {
+  if (slider <= 0) return 0;
+  return Math.pow(slider, 2); // Square curve: clearer changes in typical range
+}
+
+/**
+ * Attempts to find and load a pluck sample from predefined paths and returns its URL and reference frequency.
+ *
+ * Tries each candidate sample URL in order (only when running in a browser) and returns the first successfully loaded sample.
+ *
+ * @returns An object with `url` (the loaded sample URL) and `baseFreq` (293.66 Hz if the URL contains `tanpura-d`, otherwise 261.63), or `null` if not running in a browser or no sample could be loaded.
+ */
+async function tryLoadPluckSample(): Promise<{ url: string; baseFreq: number } | null> {
+  if (typeof window === 'undefined') return null;
+  for (const url of PLUCK_SAMPLE_PATHS) {
+    try {
+      const p = new Tone.Player({ url, loop: false }).toDestination();
+      await p.load(url);
+      p.dispose();
+      const baseFreq = url.includes('tanpura-d') ? 293.66 : 261.63;
+      return { url, baseFreq };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+/**
+ * Create and initialize a sample-based pluck audio chain: a volume node, reverb, and four loaded sample players.
+ *
+ * This sets up a Tone.Volume (connected to destination) and a Tone.Reverb (with decay based on current note length),
+ * generates the reverb impulse, creates four Tone.Player instances loaded with `sampleUrl`, and stores them for use
+ * by the scheduling code.
+ *
+ * @param volumeLinear - Slider-style linear volume in the range 0..1 used to compute the chain's output level
+ * @param sampleUrl - URL of the pluck sample to load into each player
+ * @param sampleBase - Base frequency in Hz that the sample represents (used to compute playbackRate for pitch)
+ * @returns An object containing `volume` (the created Tone.Volume) and `players` (an array of four loaded Tone.Player instances)
+ */
+async function createPluckSampleChain(volumeLinear: number, sampleUrl: string, sampleBase: number) {
+  const volume = new Tone.Volume(
+    linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB,
+  ).toDestination();
+  const reverb = new Tone.Reverb({
+    decay: noteLengthSecRef,
+    wet: 0.42,
+  }).connect(volume);
+  await reverb.generate();
+  pluckReverb = reverb;
+
+  // Always create 4 players (max pattern length) to support pattern switching
+  const MAX_STRINGS = 4;
+  const players: Tone.Player[] = [];
+  for (let i = 0; i < MAX_STRINGS; i++) {
+    const p = new Tone.Player({ url: sampleUrl, loop: false }).connect(reverb);
+    await p.load(sampleUrl);
+    players.push(p);
+  }
+
+  volumeNode = volume;
+  pluckPlayers = players;
+  sampleBaseFreq = sampleBase;
+  return { volume, players };
+}
+
+/**
+ * Schedules a single cycle of four sample-based plucks (one per string) to play in sequence.
+ *
+ * Each pluck is scheduled with a small lookahead; pitches are derived from the current base
+ * frequency, octave setting (using the interpolated multiplier for smooth transitions),
+ * and the string-specific pitch ratios by adjusting each player's playback rate before starting it.
+ */
+function schedulePluckCycle(_time?: number): void {
+  const ratios = currentPatternRef.ratios;
+  if (pluckPlayers.length < ratios.length) return;
+  const baseTime = Tone.now() + 0.02; // AudioContext time, small lookahead
+  const base = baseFreqRef * PITCH_OCTAVE_DOWN * currentOctaveMultiplier;
+  const delayPerPluck = pluckDelaySecRef;
+
+  ratios.forEach((ratio: number, i: number) => {
+    const freq = base * ratio;
+    const playbackRate = freq / sampleBaseFreq;
+    const pluckTime = baseTime + i * delayPerPluck;
+    pluckPlayers[i].playbackRate = playbackRate;
+    pluckPlayers[i].start(pluckTime);
+  });
+}
+
+/**
+ * Create and wire a plucked-string synth chain (PolySynth of PluckSynth) routed through reverb and a volume node.
+ *
+ * Sets module-level `volumeNode` and `polySynth` to the created nodes so the rest of the module can control them.
+ *
+ * @param _baseFreqHz - Unused placeholder kept for API symmetry; this function does not depend on the provided frequency.
+ * @returns An object with `volume` (the output Volume node) and `poly` (the created PolySynth)
+ */
+function createSynthPluckChain(_baseFreqHz: number) {
+  const volume = new Tone.Volume(0).toDestination();
+  const rev = new Tone.Reverb({ decay: 6, wet: 0.45 }).connect(volume);
+
+  // PluckSynth doesn't extend Monophonic in Tone.js types; cast to satisfy PolySynth generic
+  const poly = new Tone.PolySynth(
+    Tone.PluckSynth as any,
+    {
+      volume: -8,
+      resonance: 0.98,
+      release: noteLengthSecRef,
+    } as any,
+  ).connect(rev);
+
+  volumeNode = volume;
+  polySynth = poly;
+  return { volume, poly };
+}
+
+/**
+ * Schedule four plucked notes on the synth, one per tanpura string, starting at the given transport time.
+ *
+ * Each pluck uses the current base frequency, the interpolated octave multiplier for smooth transitions,
+ * and string-specific ratio; successive plucks are spaced by the configured pluck delay and use the configured note length for release.
+ *
+ * @param time - Transport time (in seconds) at which the first string's pluck should occur
+ */
+function scheduleSynthPluckCycle(time: number): void {
+  if (!polySynth) return;
+  const base = baseFreqRef * PITCH_OCTAVE_DOWN * currentOctaveMultiplier;
+  const delayPerPluck = pluckDelaySecRef;
+  const ratios = currentPatternRef.ratios;
+
+  ratios.forEach((ratio: number, i: number) => {
+    const freq = base * ratio;
+    const pluckTime = time + i * delayPerPluck;
+    polySynth!.triggerAttackRelease(freq, noteLengthSecRef, pluckTime);
+  });
+}
+
+/**
+ * Starts the Tanpura drone using the provided tuning and playback settings.
+ *
+ * Initializes audio, loads either a sample-based pluck chain or a synthesized pluck chain,
+ * schedules a repeating four-string pluck loop, and starts the Tone.js Transport.
+ * No-op when not running in a browser environment.
+ *
+ * @param baseFreqHz - Base frequency in hertz used as the reference pitch for the four-string cycle
+ * @param volumeLinear - Linear volume (0.0–1.0) for the Tanpura output
+ * @param pluckDelaySec - Delay in seconds between successive string plucks; will be clamped to the range 0.8–2.5
+ * @param noteLengthSec - Note/reverb tail length in seconds; will be clamped to the range 2–8
+ * @param octave - Octave selection ('low' | 'medium' | 'high') that adjusts the effective pitch multiplier
+ */
+export async function startTanpura(
+  baseFreqHz: number,
+  volumeLinear: number,
+  pluckDelaySec: number = DEFAULT_PLUCK_DELAY_SEC,
+  noteLengthSec: number = DEFAULT_NOTE_LENGTH_SEC,
+  octave: Octave = 'medium',
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  await Tone.start();
+
+  // Initialize both current and target values for smooth transitions
+  baseFreqRef = baseFreqHz;
+  targetBaseFreq = baseFreqHz;
+
+  currentOctaveMultiplier = getOctaveMultiplier(octave);
+  targetOctaveMultiplier = getOctaveMultiplier(octave);
+
+  pluckDelaySecRef = Math.max(0.8, Math.min(2.5, pluckDelaySec));
+  noteLengthSecRef = Math.max(2, Math.min(8, noteLengthSec));
+
+  const sampleInfo = await tryLoadPluckSample();
+  if (sampleInfo) {
+    const { volume } = await createPluckSampleChain(
+      volumeLinear,
+      sampleInfo.url,
+      sampleInfo.baseFreq,
+    );
+    volume.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
+
+    const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
+    pluckLoop = new Tone.Loop((time) => schedulePluckCycle(time), periodSec).start(0);
+    pluckLoop.humanize = 0.02;
+
+    Tone.getTransport().start();
+    useSample = true;
+  } else {
+    const { volume } = createSynthPluckChain(baseFreqHz);
+    volume.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
+
+    const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
+    pluckLoop = new Tone.Loop((time) => scheduleSynthPluckCycle(time), periodSec).start(0);
+    pluckLoop.humanize = 0.02;
+
+    Tone.getTransport().start();
+    useSample = false;
+  }
+
+  isStarted = true;
+}
+
+/**
+ * Stops the running Tanpura: halts scheduled plucks, silences active sound sources, without interrupting other accompaniment.
+ *
+ * If the Tanpura is not started this function does nothing. When active, it stops and disposes the pluck loop, stops sample players or releases the synth voices, and updates internal state to indicate the Tanpura is no longer started.
+ */
+export function stopTanpura(): void {
+  if (!isStarted) return;
+
+  if (pluckLoop) {
+    pluckLoop.stop();
+    pluckLoop.dispose();
+    pluckLoop = null;
+  }
+
+  if (useSample && pluckPlayers.length > 0) {
+    pluckPlayers.forEach((p) => {
+      try {
+        p.stop();
+      } catch (_) {}
+    });
+  } else if (polySynth) {
+    try {
+      polySynth.releaseAll();
+    } catch (_) {}
+  }
+
+  isStarted = false;
+}
+
+/**
+ * Sets the Tanpura's output level using a UI slider value.
+ *
+ * Converts `volumeLinear` to a perceptual gain, maps that to decibels, applies the module's attenuation, and updates the internal output volume.
+ *
+ * @param volumeLinear - Slider value in the range 0..1 representing perceived loudness (0 = silent, 1 = maximum)
+ */
+export function setTanpuraVolume(volumeLinear: number): void {
+  if (volumeNode)
+    volumeNode.volume.value = linearToDb(sliderToGain(volumeLinear)) + VOLUME_ATTENUATION_DB;
+}
+
+/**
+ * Starts a smooth transition animation for frequency and/or octave changes.
+ * Uses requestAnimationFrame to interpolate values over TRANSITION_DURATION_SEC.
+ */
+function startTransitionAnimation(): void {
+  if (transitionAnimationId !== null) return; // Already animating
+
+  const startTime = performance.now();
+  const startFreq = baseFreqRef;
+  const startOctaveMult = currentOctaveMultiplier;
+  const endFreq = targetBaseFreq;
+  const endOctaveMult = targetOctaveMultiplier;
+  const durationMs = TRANSITION_DURATION_SEC * 1000;
+
+  function animate(currentTime: number) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / durationMs, 1);
+
+    // Use ease-out cubic for smooth deceleration
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    // Interpolate frequency (logarithmic interpolation for pitch)
+    const logStart = Math.log(startFreq);
+    const logEnd = Math.log(endFreq);
+    baseFreqRef = Math.exp(logStart + (logEnd - logStart) * eased);
+
+    // Interpolate octave multiplier (also logarithmic for pitch)
+    const logOctStart = Math.log(startOctaveMult);
+    const logOctEnd = Math.log(endOctaveMult);
+    currentOctaveMultiplier = Math.exp(logOctStart + (logOctEnd - logOctStart) * eased);
+
+    if (progress < 1) {
+      transitionAnimationId = requestAnimationFrame(animate);
+    } else {
+      // Ensure we land exactly on target values
+      baseFreqRef = targetBaseFreq;
+      currentOctaveMultiplier = targetOctaveMultiplier;
+
+      transitionAnimationId = null;
+    }
+  }
+
+  transitionAnimationId = requestAnimationFrame(animate);
+}
+
+/**
+ * Update the Tanpura's base pitch used to compute per-string frequencies.
+ * Smoothly transitions to the new frequency over TRANSITION_DURATION_SEC.
+ *
+ * @param baseFreqHz - Base frequency in hertz for the tanpura cycle
+ */
+export function setTanpuraFrequency(baseFreqHz: number): void {
+  targetBaseFreq = baseFreqHz;
+
+  if (!isStarted) {
+    // If not playing, just set immediately
+    baseFreqRef = baseFreqHz;
+    return;
+  }
+
+  // Start smooth transition
+  startTransitionAnimation();
+}
+
+/**
+ * Set the tanpura's octave for subsequent pluck cycles.
+ * Smoothly transitions to the new octave over TRANSITION_DURATION_SEC.
+ *
+ * @param octave - The target octave: `'low'`, `'medium'`, or `'high'`
+ */
+export function setTanpuraOctave(octave: Octave): void {
+  targetOctaveMultiplier = getOctaveMultiplier(octave);
+
+  if (!isStarted) {
+    // If not playing, just set immediately
+
+    currentOctaveMultiplier = targetOctaveMultiplier;
+    return;
+  }
+
+  // Start smooth transition
+  startTransitionAnimation();
+}
+
+/**
+ * Update the delay between successive string plucks and, if running, apply it immediately.
+ *
+ * Clamps `seconds` to the range 0.8–2.5 and stores it as the per-string pluck delay; when the Tanpura is started,
+ * recreates the transport loop with a new period equal to `pluckDelay * 4`, sets a slight humanization, and triggers
+ * an immediate pluck cycle so the tempo change is audible right away. If the Tanpura is not started, only the delay
+ * value is updated and no scheduling occurs.
+ *
+ * @param seconds - Desired per-string delay in seconds (will be clamped to 0.8–2.5)
+ */
+export function setTanpuraPluckDelay(seconds: number): void {
+  pluckDelaySecRef = Math.max(0.8, Math.min(2.5, seconds));
+  if (!isStarted) return;
+  // Recreate loop with new period and fire immediately
+  if (pluckLoop) {
+    pluckLoop.stop();
+    pluckLoop.dispose();
+    pluckLoop = null;
+  }
+  const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
+  const now = Tone.getTransport().seconds;
+  pluckLoop = useSample
+    ? new Tone.Loop((time) => schedulePluckCycle(time), periodSec).start(now)
+    : new Tone.Loop((time) => scheduleSynthPluckCycle(time), periodSec).start(now);
+  pluckLoop.humanize = 0.02;
+  // Fire immediately so new tempo is heard right away
+  if (useSample) schedulePluckCycle(now);
+  else scheduleSynthPluckCycle(now);
+}
+
+/**
+ * Set the Tanpura note (resonant tail) length.
+ *
+ * When running, updates the pluck reverb decay and the synth release immediately.
+ *
+ * @param seconds - Desired note length in seconds; value is clamped to the range 2–8
+ */
+export function setTanpuraNoteLength(seconds: number): void {
+  noteLengthSecRef = Math.max(2, Math.min(8, seconds));
+  if (!isStarted) return;
+  if (pluckReverb) pluckReverb.decay = noteLengthSecRef;
+  if (polySynth) polySynth.set({ release: noteLengthSecRef } as any);
+}
+
+/**
+ * Set the tanpura plucking pattern.
+ *
+ * When running, recreates the pluck loop with the new pattern's timing and
+ * fires an immediate cycle so the change is audible right away.
+ *
+ * @param patternId - The pattern ID to switch to (e.g., 'p-hs-hs-s', 's-p-hs')
+ */
+export function setTanpuraPattern(patternId: TanpuraPatternId): void {
+  const newPattern = TANPURA_PATTERNS.find((p) => p.id === patternId);
+  if (!newPattern) return;
+
+  currentPatternRef = newPattern;
+
+  if (!isStarted) return;
+
+  // Stop currently playing sounds so they don't bleed into the new pattern
+  if (useSample && pluckPlayers.length > 0) {
+    pluckPlayers.forEach((p) => {
+      try {
+        p.stop();
+      } catch (_) {}
+    });
+  } else if (polySynth) {
+    try {
+      polySynth.releaseAll();
+    } catch (_) {}
+  }
+
+  // Recreate loop with new period and fire immediately
+  if (pluckLoop) {
+    pluckLoop.stop();
+    pluckLoop.dispose();
+    pluckLoop = null;
+  }
+
+  const periodSec = pluckDelaySecRef * currentPatternRef.ratios.length;
+  const now = Tone.getTransport().seconds;
+  pluckLoop = useSample
+    ? new Tone.Loop((time) => schedulePluckCycle(time), periodSec).start(now)
+    : new Tone.Loop((time) => scheduleSynthPluckCycle(time), periodSec).start(now);
+  pluckLoop.humanize = 0.02;
+
+  // Fire immediately so new pattern is heard right away
+  if (useSample) schedulePluckCycle(now);
+  else scheduleSynthPluckCycle(now);
+}
+
+/**
+ * Stops playback, disposes all Tanpura audio nodes and schedules, and resets internal state.
+ *
+ * Stops any active pluck loop, players, and synth voices, disposes volume/reverb/players/synth resources, clears internal references, and marks
+ * the Tanpura as not started so it can be safely reinitialized.
+ */
+export function disposeTanpura(): void {
+  // Cancel any ongoing transition animation
+  if (transitionAnimationId !== null) {
+    cancelAnimationFrame(transitionAnimationId);
+    transitionAnimationId = null;
+  }
+
+  try {
+    if (pluckLoop) {
+      pluckLoop.stop();
+      pluckLoop.dispose();
+    }
+    pluckPlayers.forEach((p) => {
+      try {
+        p.stop();
+      } catch (_) {}
+    });
+    if (polySynth) polySynth.releaseAll();
+  } catch (_) {}
+
+  try {
+    volumeNode?.dispose();
+    pluckReverb?.dispose();
+    pluckPlayers.forEach((p) => p.dispose());
+    polySynth?.dispose();
+  } catch (_) {}
+
+  volumeNode = null;
+  pluckReverb = null;
+  pluckPlayers = [];
+  polySynth = null;
+  pluckLoop = null;
+  useSample = false;
+  isStarted = false;
+}

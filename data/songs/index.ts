@@ -1,10 +1,6 @@
 import type { Song } from './types';
 import type { SongSummary } from './types';
-import {
-  COMPOSITIONS,
-  getComposition,
-  compositionToSongCatalogOrder,
-} from '@/data/compositions';
+import { COMPOSITIONS, getComposition, compositionToSongCatalogOrder } from '@/data/compositions';
 
 /** @deprecated Use COMPOSITIONS from @/data/compositions — kept for static routes and legacy imports */
 export const SONGS: SongSummary[] = COMPOSITIONS.map((c) => ({

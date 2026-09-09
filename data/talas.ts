@@ -1,8 +1,8 @@
 /**
  * Carnatic Suladi Sapta Tala System
- * 
+ *
  * 7 Talas × 5 Jatis = 35 possible talas
- * 
+ *
  * Angas (rhythmic units):
  * - Laghu (I): clap + finger counts, length = jati value
  * - Dhrutam (O): clap + wave = 2 beats
@@ -13,17 +13,17 @@
 export type JatiName = 'tisra' | 'chatusra' | 'khanda' | 'misra' | 'sankeerna';
 
 export interface Jati {
-    name: JatiName;
-    displayName: string;
-    laghuBeats: number;
+  name: JatiName;
+  displayName: string;
+  laghuBeats: number;
 }
 
 export const JATIS: Record<JatiName, Jati> = {
-    tisra: { name: 'tisra', displayName: 'Tisra', laghuBeats: 3 },
-    chatusra: { name: 'chatusra', displayName: 'Chatusra', laghuBeats: 4 },
-    khanda: { name: 'khanda', displayName: 'Khanda', laghuBeats: 5 },
-    misra: { name: 'misra', displayName: 'Misra', laghuBeats: 7 },
-    sankeerna: { name: 'sankeerna', displayName: 'Sankeerna', laghuBeats: 9 },
+  tisra: { name: 'tisra', displayName: 'Tisra', laghuBeats: 3 },
+  chatusra: { name: 'chatusra', displayName: 'Chatusra', laghuBeats: 4 },
+  khanda: { name: 'khanda', displayName: 'Khanda', laghuBeats: 5 },
+  misra: { name: 'misra', displayName: 'Misra', laghuBeats: 7 },
+  sankeerna: { name: 'sankeerna', displayName: 'Sankeerna', laghuBeats: 9 },
 };
 
 export const JATI_ORDER: JatiName[] = ['tisra', 'chatusra', 'khanda', 'misra', 'sankeerna'];
@@ -33,112 +33,129 @@ export type AngaType = 'laghu' | 'dhrutam' | 'anudhrutam';
 
 // Symbols used for display: I = Laghu, O = Dhrutam, U = Anudhrutam
 export const ANGA_SYMBOLS: Record<AngaType, string> = {
-    laghu: 'I',
-    dhrutam: 'O',
-    anudhrutam: 'U',
+  laghu: 'I',
+  dhrutam: 'O',
+  anudhrutam: 'U',
 };
 
 export const ANGA_FIXED_BEATS: Record<AngaType, number | null> = {
-    laghu: null, // Variable - depends on jati
-    dhrutam: 2,
-    anudhrutam: 1,
+  laghu: null, // Variable - depends on jati
+  dhrutam: 2,
+  anudhrutam: 1,
 };
 
 // Chapu grouping - fixed beat counts for Chapu talas
-export type ChapuGrouping = number[];  // Array of beat counts per group
+export type ChapuGrouping = number[]; // Array of beat counts per group
 
 // The 7 Sapta Talas + Chapu Talas
-export type TalaName = 'eka' | 'rupaka' | 'jhampa' | 'triputa' | 'matya' | 'dhruva' | 'ata' | 'misra_chapu' | 'khanda_chapu';
+export type TalaName =
+  | 'eka'
+  | 'rupaka'
+  | 'jhampa'
+  | 'triputa'
+  | 'matya'
+  | 'dhruva'
+  | 'ata'
+  | 'misra_chapu'
+  | 'khanda_chapu';
 
 export interface Tala {
-    name: TalaName;
-    displayName: string;
-    pattern: AngaType[];
-    description: string;
-    chapuGrouping?: ChapuGrouping;  // For Chapu talas: fixed beat groupings
+  name: TalaName;
+  displayName: string;
+  pattern: AngaType[];
+  description: string;
+  chapuGrouping?: ChapuGrouping; // For Chapu talas: fixed beat groupings
 }
 
 export const TALAS: Record<TalaName, Tala> = {
-    eka: {
-        name: 'eka',
-        displayName: 'Eka',
-        pattern: ['laghu'],
-        description: 'Single laghu',
-    },
-    rupaka: {
-        name: 'rupaka',
-        displayName: 'Rupaka',
-        pattern: ['dhrutam', 'laghu'],
-        description: 'Clap-wave, then laghu',
-    },
-    jhampa: {
-        name: 'jhampa',
-        displayName: 'Jhampa',
-        pattern: ['laghu', 'anudhrutam', 'dhrutam'],
-        description: 'Laghu, clap, clap-wave',
-    },
-    triputa: {
-        name: 'triputa',
-        displayName: 'Triputa',
-        pattern: ['laghu', 'dhrutam', 'dhrutam'],
-        description: 'Laghu, two dhrutams (Chatusra Jati = Adi Tala)',
-    },
-    matya: {
-        name: 'matya',
-        displayName: 'Matya',
-        pattern: ['laghu', 'dhrutam', 'laghu'],
-        description: 'Laghu, dhrutam, laghu',
-    },
-    dhruva: {
-        name: 'dhruva',
-        displayName: 'Dhruva',
-        pattern: ['laghu', 'dhrutam', 'laghu', 'laghu'],
-        description: 'Laghu, dhrutam, two laghus',
-    },
-    ata: {
-        name: 'ata',
-        displayName: 'Ata',
-        pattern: ['laghu', 'laghu', 'dhrutam', 'dhrutam'],
-        description: 'Two laghus, two dhrutams',
-    },
-    misra_chapu: {
-        name: 'misra_chapu',
-        displayName: 'Misra Chapu',
-        pattern: [],  // Chapu talas don't use standard angas
-        description: '7 beats (3+2+2)',
-        chapuGrouping: [3, 2, 2],
-    },
-    khanda_chapu: {
-        name: 'khanda_chapu',
-        displayName: 'Khanda Chapu',
-        pattern: [],  // Chapu talas don't use standard angas
-        description: '5 beats (2+3)',
-        chapuGrouping: [2, 3],
-    },
+  eka: {
+    name: 'eka',
+    displayName: 'Eka',
+    pattern: ['laghu'],
+    description: 'Single laghu',
+  },
+  rupaka: {
+    name: 'rupaka',
+    displayName: 'Rupaka',
+    pattern: ['dhrutam', 'laghu'],
+    description: 'Clap-wave, then laghu',
+  },
+  jhampa: {
+    name: 'jhampa',
+    displayName: 'Jhampa',
+    pattern: ['laghu', 'anudhrutam', 'dhrutam'],
+    description: 'Laghu, clap, clap-wave',
+  },
+  triputa: {
+    name: 'triputa',
+    displayName: 'Triputa',
+    pattern: ['laghu', 'dhrutam', 'dhrutam'],
+    description: 'Laghu, two dhrutams (Chatusra Jati = Adi Tala)',
+  },
+  matya: {
+    name: 'matya',
+    displayName: 'Matya',
+    pattern: ['laghu', 'dhrutam', 'laghu'],
+    description: 'Laghu, dhrutam, laghu',
+  },
+  dhruva: {
+    name: 'dhruva',
+    displayName: 'Dhruva',
+    pattern: ['laghu', 'dhrutam', 'laghu', 'laghu'],
+    description: 'Laghu, dhrutam, two laghus',
+  },
+  ata: {
+    name: 'ata',
+    displayName: 'Ata',
+    pattern: ['laghu', 'laghu', 'dhrutam', 'dhrutam'],
+    description: 'Two laghus, two dhrutams',
+  },
+  misra_chapu: {
+    name: 'misra_chapu',
+    displayName: 'Misra Chapu',
+    pattern: [], // Chapu talas don't use standard angas
+    description: '7 beats (3+2+2)',
+    chapuGrouping: [3, 2, 2],
+  },
+  khanda_chapu: {
+    name: 'khanda_chapu',
+    displayName: 'Khanda Chapu',
+    pattern: [], // Chapu talas don't use standard angas
+    description: '5 beats (2+3)',
+    chapuGrouping: [2, 3],
+  },
 };
 
 // Order for UI display (Sapta Talas, then Chapu Talas)
-export const TALA_ORDER: TalaName[] = ['eka', 'rupaka', 'jhampa', 'triputa', 'matya', 'dhruva', 'ata'];
+export const TALA_ORDER: TalaName[] = [
+  'eka',
+  'rupaka',
+  'jhampa',
+  'triputa',
+  'matya',
+  'dhruva',
+  'ata',
+];
 
 /**
  * Calculate total beats for a tala with a given jati.
  * For Chapu talas, jati is ignored (fixed beat count).
  */
 export function calculateTotalBeats(talaName: TalaName, jatiName: JatiName): number {
-    const tala = TALAS[talaName];
+  const tala = TALAS[talaName];
 
-    // Chapu talas have fixed beat counts
-    if (tala.chapuGrouping) {
-        return tala.chapuGrouping.reduce((a, b) => a + b, 0);
+  // Chapu talas have fixed beat counts
+  if (tala.chapuGrouping) {
+    return tala.chapuGrouping.reduce((a, b) => a + b, 0);
+  }
+
+  const jati = JATIS[jatiName];
+  return tala.pattern.reduce((total, anga) => {
+    if (anga === 'laghu') {
+      return total + jati.laghuBeats;
     }
-
-    const jati = JATIS[jatiName];
-    return tala.pattern.reduce((total, anga) => {
-        if (anga === 'laghu') {
-            return total + jati.laghuBeats;
-        }
-        return total + (ANGA_FIXED_BEATS[anga] ?? 0);
-    }, 0);
+    return total + (ANGA_FIXED_BEATS[anga] ?? 0);
+  }, 0);
 }
 
 /**
@@ -150,11 +167,11 @@ export function calculateTotalBeats(talaName: TalaName, jatiName: JatiName): num
 export type BeatEmphasis = 'sam' | 'anga' | 'beat';
 
 export interface TalaBeat {
-    position: number;      // 0-indexed position in the tala
-    emphasis: BeatEmphasis;
-    angaIndex: number;     // Which anga this beat belongs to
-    angaType: AngaType;    // Type of the anga
-    beatInAnga: number;    // 0-indexed position within the anga
+  position: number; // 0-indexed position in the tala
+  emphasis: BeatEmphasis;
+  angaIndex: number; // Which anga this beat belongs to
+  angaType: AngaType; // Type of the anga
+  beatInAnga: number; // 0-indexed position within the anga
 }
 
 /**
@@ -163,67 +180,67 @@ export interface TalaBeat {
  * Returns an array of beat information for audio/visual feedback.
  */
 export function generateTalaPattern(talaName: TalaName, jatiName: JatiName): TalaBeat[] {
-    const tala = TALAS[talaName];
-    const beats: TalaBeat[] = [];
-    let position = 0;
+  const tala = TALAS[talaName];
+  const beats: TalaBeat[] = [];
+  let position = 0;
 
-    // Handle Chapu talas with fixed groupings
-    if (tala.chapuGrouping) {
-        tala.chapuGrouping.forEach((groupBeats, groupIndex) => {
-            for (let beatInGroup = 0; beatInGroup < groupBeats; beatInGroup++) {
-                let emphasis: BeatEmphasis;
+  // Handle Chapu talas with fixed groupings
+  if (tala.chapuGrouping) {
+    tala.chapuGrouping.forEach((groupBeats, groupIndex) => {
+      for (let beatInGroup = 0; beatInGroup < groupBeats; beatInGroup++) {
+        let emphasis: BeatEmphasis;
 
-                if (position === 0) {
-                    emphasis = 'sam';
-                } else if (beatInGroup === 0) {
-                    emphasis = 'anga';  // First beat of each group
-                } else {
-                    emphasis = 'beat';
-                }
-
-                beats.push({
-                    position,
-                    emphasis,
-                    angaIndex: groupIndex,
-                    angaType: 'laghu',  // Use laghu as placeholder for Chapu
-                    beatInAnga: beatInGroup,
-                });
-
-                position++;
-            }
-        });
-        return beats;
-    }
-
-    // Handle standard Sapta Talas
-    const jati = JATIS[jatiName];
-    tala.pattern.forEach((anga, angaIndex) => {
-        const angaBeats = anga === 'laghu' ? jati.laghuBeats : (ANGA_FIXED_BEATS[anga] ?? 0);
-
-        for (let beatInAnga = 0; beatInAnga < angaBeats; beatInAnga++) {
-            let emphasis: BeatEmphasis;
-
-            if (position === 0) {
-                emphasis = 'sam';
-            } else if (beatInAnga === 0) {
-                emphasis = 'anga';
-            } else {
-                emphasis = 'beat';
-            }
-
-            beats.push({
-                position,
-                emphasis,
-                angaIndex,
-                angaType: anga,
-                beatInAnga,
-            });
-
-            position++;
+        if (position === 0) {
+          emphasis = 'sam';
+        } else if (beatInGroup === 0) {
+          emphasis = 'anga'; // First beat of each group
+        } else {
+          emphasis = 'beat';
         }
-    });
 
+        beats.push({
+          position,
+          emphasis,
+          angaIndex: groupIndex,
+          angaType: 'laghu', // Use laghu as placeholder for Chapu
+          beatInAnga: beatInGroup,
+        });
+
+        position++;
+      }
+    });
     return beats;
+  }
+
+  // Handle standard Sapta Talas
+  const jati = JATIS[jatiName];
+  tala.pattern.forEach((anga, angaIndex) => {
+    const angaBeats = anga === 'laghu' ? jati.laghuBeats : (ANGA_FIXED_BEATS[anga] ?? 0);
+
+    for (let beatInAnga = 0; beatInAnga < angaBeats; beatInAnga++) {
+      let emphasis: BeatEmphasis;
+
+      if (position === 0) {
+        emphasis = 'sam';
+      } else if (beatInAnga === 0) {
+        emphasis = 'anga';
+      } else {
+        emphasis = 'beat';
+      }
+
+      beats.push({
+        position,
+        emphasis,
+        angaIndex,
+        angaType: anga,
+        beatInAnga,
+      });
+
+      position++;
+    }
+  });
+
+  return beats;
 }
 
 /**
@@ -231,52 +248,52 @@ export function generateTalaPattern(talaName: TalaName, jatiName: JatiName): Tal
  * (numbers restart at 1 within each anga; | separates angas).
  */
 export function formatTalaBeatsPerAngaLine(beats: TalaBeat[]): string {
-    if (beats.length === 0) return '';
-    const byAnga = new Map<number, TalaBeat[]>();
-    for (const b of beats) {
-        const arr = byAnga.get(b.angaIndex) ?? [];
-        arr.push(b);
-        byAnga.set(b.angaIndex, arr);
-    }
-    const order = [...byAnga.keys()].sort((a, b) => a - b);
-    return order
-        .map((ix) => {
-            const group = byAnga.get(ix)!;
-            return group.map((_, i) => String(i + 1)).join(' · ');
-        })
-        .join(' | ');
+  if (beats.length === 0) return '';
+  const byAnga = new Map<number, TalaBeat[]>();
+  for (const b of beats) {
+    const arr = byAnga.get(b.angaIndex) ?? [];
+    arr.push(b);
+    byAnga.set(b.angaIndex, arr);
+  }
+  const order = [...byAnga.keys()].sort((a, b) => a - b);
+  return order
+    .map((ix) => {
+      const group = byAnga.get(ix)!;
+      return group.map((_, i) => String(i + 1)).join(' · ');
+    })
+    .join(' | ');
 }
 
 /**
  * Get the pattern notation string (e.g., "I O O" for Triputa, "3+2+2" for Misra Chapu)
  */
 export function getTalaPatternNotation(talaName: TalaName): string {
-    const tala = TALAS[talaName];
-    // Chapu talas show their grouping
-    if (tala.chapuGrouping) {
-        return tala.chapuGrouping.join('+');
-    }
-    return tala.pattern.map(anga => ANGA_SYMBOLS[anga]).join(' ');
+  const tala = TALAS[talaName];
+  // Chapu talas show their grouping
+  if (tala.chapuGrouping) {
+    return tala.chapuGrouping.join('+');
+  }
+  return tala.pattern.map((anga) => ANGA_SYMBOLS[anga]).join(' ');
 }
 
 /**
  * Get a display name including the jati for well-known combinations
  */
 export function getTalaDisplayName(talaName: TalaName, jatiName: JatiName): string {
-    const tala = TALAS[talaName];
-    // Chapu talas just use their display name
-    if (tala.chapuGrouping) {
-        return tala.displayName;
-    }
-    // Chatusra Jati Triputa Tala is commonly known as Adi Tala
-    if (talaName === 'triputa' && jatiName === 'chatusra') {
-        return 'Adi Tala';
-    }
-    // Chatusra Jati Rupaka is often just called Rupaka
-    if (talaName === 'rupaka' && jatiName === 'chatusra') {
-        return 'Rupaka Tala';
-    }
-    return `${JATIS[jatiName].displayName} ${tala.displayName}`;
+  const tala = TALAS[talaName];
+  // Chapu talas just use their display name
+  if (tala.chapuGrouping) {
+    return tala.displayName;
+  }
+  // Chatusra Jati Triputa Tala is commonly known as Adi Tala
+  if (talaName === 'triputa' && jatiName === 'chatusra') {
+    return 'Adi Tala';
+  }
+  // Chatusra Jati Rupaka is often just called Rupaka
+  if (talaName === 'rupaka' && jatiName === 'chatusra') {
+    return 'Rupaka Tala';
+  }
+  return `${JATIS[jatiName].displayName} ${tala.displayName}`;
 }
 
 /** Western-style bar: N equal beats per bar; not a Suladi tala (no Eka / Triputa names). */
@@ -308,131 +325,137 @@ const EVEN_BAR_BEATS_MAX = 64;
  *   jatiValue: 3=tisra, 4=chatusra, 5=khanda, 7=misra, 9=sankeerna
  */
 export function parseTalaString(talaStr: string): ParsedTala | null {
-    const normalized = talaStr.trim();
-    if (!normalized) return null;
+  const normalized = talaStr.trim();
+  if (!normalized) return null;
 
-    const compact = normalized.replace(/\s+/g, '');
-    const sextuplet = /^sextuplet-(\d+)$/i.exec(compact);
-    if (sextuplet) {
-        const beatsSpanned = parseInt(sextuplet[1], 10);
-        if (Number.isFinite(beatsSpanned) && beatsSpanned >= 1 && beatsSpanned <= EVEN_BAR_BEATS_MAX) {
-            return { kind: 'tuplet_even', tupletSlots: 6, beatsSpanned };
-        }
+  const compact = normalized.replace(/\s+/g, '');
+  const sextuplet = /^sextuplet-(\d+)$/i.exec(compact);
+  if (sextuplet) {
+    const beatsSpanned = parseInt(sextuplet[1], 10);
+    if (Number.isFinite(beatsSpanned) && beatsSpanned >= 1 && beatsSpanned <= EVEN_BAR_BEATS_MAX) {
+      return { kind: 'tuplet_even', tupletSlots: 6, beatsSpanned };
     }
+  }
 
-    const jatiByLaghu: Record<number, JatiName> = {
-        3: 'tisra',
-        4: 'chatusra',
-        5: 'khanda',
-        7: 'misra',
-        9: 'sankeerna',
-    };
+  const jatiByLaghu: Record<number, JatiName> = {
+    3: 'tisra',
+    4: 'chatusra',
+    5: 'khanda',
+    7: 'misra',
+    9: 'sankeerna',
+  };
 
-    const talaByDisplay: Record<string, TalaName> = {
-        eka: 'eka',
-        rupaka: 'rupaka',
-        jhampa: 'jhampa',
-        triputa: 'triputa',
-        adi: 'triputa',
-        matya: 'matya',
-        dhruva: 'dhruva',
-        ata: 'ata',
-        'misra chapu': 'misra_chapu',
-        'khanda chapu': 'khanda_chapu',
-    };
+  const talaByDisplay: Record<string, TalaName> = {
+    eka: 'eka',
+    rupaka: 'rupaka',
+    jhampa: 'jhampa',
+    triputa: 'triputa',
+    adi: 'triputa',
+    matya: 'matya',
+    dhruva: 'dhruva',
+    ata: 'ata',
+    'misra chapu': 'misra_chapu',
+    'khanda chapu': 'khanda_chapu',
+  };
 
-    const parts = normalized.split(/[\-\s]+/);
-    if (parts.length >= 2) {
-        const num = parseInt(parts[0], 10);
-        const talaPart = parts.slice(1).join(' ').toLowerCase().trim();
-        if (
-            EVEN_BAR_KEYWORDS.has(talaPart) &&
-            Number.isFinite(num) &&
-            num >= 1 &&
-            num <= EVEN_BAR_BEATS_MAX
-        ) {
-            return { kind: 'equal_beats', beatsPerBar: num };
-        }
-        const jatiName = jatiByLaghu[num];
-        const talaName = talaByDisplay[talaPart] ?? (Object.entries(talaByDisplay).find(([k]) => talaPart.includes(k))?.[1]);
-        if (jatiName && talaName) {
-            return { kind: 'suladi', talaName, jatiName };
-        }
+  const parts = normalized.split(/[\-\s]+/);
+  if (parts.length >= 2) {
+    const num = parseInt(parts[0], 10);
+    const talaPart = parts.slice(1).join(' ').toLowerCase().trim();
+    if (
+      EVEN_BAR_KEYWORDS.has(talaPart) &&
+      Number.isFinite(num) &&
+      num >= 1 &&
+      num <= EVEN_BAR_BEATS_MAX
+    ) {
+      return { kind: 'equal_beats', beatsPerBar: num };
     }
+    const jatiName = jatiByLaghu[num];
+    const talaName =
+      talaByDisplay[talaPart] ??
+      Object.entries(talaByDisplay).find(([k]) => talaPart.includes(k))?.[1];
+    if (jatiName && talaName) {
+      return { kind: 'suladi', talaName, jatiName };
+    }
+  }
 
-    const single = normalized.toLowerCase();
-    if (single === 'adi') return { kind: 'suladi', talaName: 'triputa', jatiName: 'chatusra' };
-    if (EVEN_BAR_KEYWORDS.has(single)) return { kind: 'equal_beats', beatsPerBar: 4 };
-    const talaName = talaByDisplay[single] ?? Object.entries(talaByDisplay).find(([k]) => single.includes(k))?.[1];
-    if (talaName) return { kind: 'suladi', talaName, jatiName: 'chatusra' };
-    return null;
+  const single = normalized.toLowerCase();
+  if (single === 'adi') return { kind: 'suladi', talaName: 'triputa', jatiName: 'chatusra' };
+  if (EVEN_BAR_KEYWORDS.has(single)) return { kind: 'equal_beats', beatsPerBar: 4 };
+  const talaName =
+    talaByDisplay[single] ?? Object.entries(talaByDisplay).find(([k]) => single.includes(k))?.[1];
+  if (talaName) return { kind: 'suladi', talaName, jatiName: 'chatusra' };
+  return null;
 }
 
 export function patternFromParsedTala(p: ParsedTala): TalaBeat[] {
-    if (p.kind === 'equal_beats') return generateSimplePattern(p.beatsPerBar);
-    if (p.kind === 'tuplet_even') return generateSimplePattern(p.tupletSlots);
-    return generateTalaPattern(p.talaName, p.jatiName);
+  if (p.kind === 'equal_beats') return generateSimplePattern(p.beatsPerBar);
+  if (p.kind === 'tuplet_even') return generateSimplePattern(p.tupletSlots);
+  return generateTalaPattern(p.talaName, p.jatiName);
 }
 
 export function beatsPerCycleFromParsedTala(p: ParsedTala): number {
-    if (p.kind === 'equal_beats') return p.beatsPerBar;
-    if (p.kind === 'tuplet_even') return p.tupletSlots;
-    return calculateTotalBeats(p.talaName, p.jatiName);
+  if (p.kind === 'equal_beats') return p.beatsPerBar;
+  if (p.kind === 'tuplet_even') return p.tupletSlots;
+  return calculateTotalBeats(p.talaName, p.jatiName);
 }
 
-export function barPositionsFromParsedTala(p: ParsedTala): { barAt: number[]; cycleLength: number } {
-    if (p.kind === 'equal_beats') {
-        return { barAt: [p.beatsPerBar], cycleLength: p.beatsPerBar };
-    }
-    if (p.kind === 'tuplet_even') {
-        return { barAt: [p.tupletSlots], cycleLength: p.tupletSlots };
-    }
-    return getTalaAngaBarPositions(p.talaName, p.jatiName);
+export function barPositionsFromParsedTala(p: ParsedTala): {
+  barAt: number[];
+  cycleLength: number;
+} {
+  if (p.kind === 'equal_beats') {
+    return { barAt: [p.beatsPerBar], cycleLength: p.beatsPerBar };
+  }
+  if (p.kind === 'tuplet_even') {
+    return { barAt: [p.tupletSlots], cycleLength: p.tupletSlots };
+  }
+  return getTalaAngaBarPositions(p.talaName, p.jatiName);
 }
 
 /** Primary UI title: no Carnatic names for equal beats. */
 export function primaryLabelFromParsedTala(p: ParsedTala): string {
-    if (p.kind === 'equal_beats') {
-        return `${p.beatsPerBar} beats per bar`;
-    }
-    if (p.kind === 'tuplet_even') {
-        return `Sextuplet in ${p.beatsSpanned} beat${p.beatsSpanned === 1 ? '' : 's'}`;
-    }
-    return getTalaDisplayName(p.talaName, p.jatiName);
+  if (p.kind === 'equal_beats') {
+    return `${p.beatsPerBar} beats per bar`;
+  }
+  if (p.kind === 'tuplet_even') {
+    return `Sextuplet in ${p.beatsSpanned} beat${p.beatsSpanned === 1 ? '' : 's'}`;
+  }
+  return getTalaDisplayName(p.talaName, p.jatiName);
 }
 
 /** Subtitle under title; omitted for Western bars. */
 export function secondaryLabelFromParsedTala(p: ParsedTala): string | null {
-    if (p.kind === 'equal_beats') return null;
-    if (p.kind === 'tuplet_even') {
-        return `Six notes fit into the same length as ${p.beatsSpanned} main beat${p.beatsSpanned === 1 ? '' : 's'} at this practice tempo (each note ${p.beatsSpanned}/6 of a beat)`;
-    }
-    return getTalaFullDisplayName(p.talaName, p.jatiName);
+  if (p.kind === 'equal_beats') return null;
+  if (p.kind === 'tuplet_even') {
+    return `Six notes fit into the same length as ${p.beatsSpanned} main beat${p.beatsSpanned === 1 ? '' : 's'} at this practice tempo (each note ${p.beatsSpanned}/6 of a beat)`;
+  }
+  return getTalaFullDisplayName(p.talaName, p.jatiName);
 }
 
 /** Anga symbols (I O O) for suladi; beat numbers for equal bars. */
 export function angPatternNotationFromParsedTala(p: ParsedTala): string {
-    if (p.kind === 'equal_beats') {
-        return Array.from({ length: p.beatsPerBar }, (_, i) => String(i + 1)).join(' · ');
-    }
-    if (p.kind === 'tuplet_even') {
-        return Array.from({ length: p.tupletSlots }, (_, i) => String(i + 1)).join(' · ');
-    }
-    return getTalaPatternNotation(p.talaName);
+  if (p.kind === 'equal_beats') {
+    return Array.from({ length: p.beatsPerBar }, (_, i) => String(i + 1)).join(' · ');
+  }
+  if (p.kind === 'tuplet_even') {
+    return Array.from({ length: p.tupletSlots }, (_, i) => String(i + 1)).join(' · ');
+  }
+  return getTalaPatternNotation(p.talaName);
 }
 
 /** One-line summary for compact headers. */
 export function oneLineSummaryFromParsedTala(p: ParsedTala): string {
-    if (p.kind === 'equal_beats') {
-        return `${p.beatsPerBar} beats per bar · ${angPatternNotationFromParsedTala(p)}`;
-    }
-    if (p.kind === 'tuplet_even') {
-        return `${primaryLabelFromParsedTala(p)} · ${angPatternNotationFromParsedTala(p)}`;
-    }
-    const display = getTalaDisplayName(p.talaName, p.jatiName);
-    const notation = getTalaPatternNotation(p.talaName);
-    const beats = calculateTotalBeats(p.talaName, p.jatiName);
-    return `${display} · ${notation} · ${beats} beats`;
+  if (p.kind === 'equal_beats') {
+    return `${p.beatsPerBar} beats per bar · ${angPatternNotationFromParsedTala(p)}`;
+  }
+  if (p.kind === 'tuplet_even') {
+    return `${primaryLabelFromParsedTala(p)} · ${angPatternNotationFromParsedTala(p)}`;
+  }
+  const display = getTalaDisplayName(p.talaName, p.jatiName);
+  const notation = getTalaPatternNotation(p.talaName);
+  const beats = calculateTotalBeats(p.talaName, p.jatiName);
+  return `${display} · ${notation} · ${beats} beats`;
 }
 
 /**
@@ -440,20 +463,20 @@ export function oneLineSummaryFromParsedTala(p: ParsedTala): string {
  * steps fits in `beatsSpanned` quarter-note beats at `quarterNoteBpm`.
  */
 export function metronomeBpmForParsedTala(p: ParsedTala, quarterNoteBpm: number): number {
-    if (p.kind === 'tuplet_even') {
-        return quarterNoteBpm * (p.tupletSlots / p.beatsSpanned);
-    }
-    return quarterNoteBpm;
+  if (p.kind === 'tuplet_even') {
+    return quarterNoteBpm * (p.tupletSlots / p.beatsSpanned);
+  }
+  return quarterNoteBpm;
 }
 
 /**
  * Full formal display name, e.g. "Chatusra Jati Rupaka Tala"
  */
 export function getTalaFullDisplayName(talaName: TalaName, jatiName: JatiName): string {
-    const tala = TALAS[talaName];
-    if (tala.chapuGrouping) return `${tala.displayName} Tala`;
-    const jati = JATIS[jatiName];
-    return `${jati.displayName} Jati ${tala.displayName} Tala`;
+  const tala = TALAS[talaName];
+  if (tala.chapuGrouping) return `${tala.displayName} Tala`;
+  const jati = JATIS[jatiName];
+  return `${jati.displayName} Jati ${tala.displayName} Tala`;
 }
 
 /**
@@ -461,10 +484,10 @@ export function getTalaFullDisplayName(talaName: TalaName, jatiName: JatiName): 
  * e.g. "Rupaka Tala (Chatusra Jati Rupaka Tala)" or "Adi Tala (Chatusra Jati Triputa Tala)"
  */
 export function getTalaDisplayWithFullName(talaName: TalaName, jatiName: JatiName): string {
-    const common = getTalaDisplayName(talaName, jatiName);
-    const full = getTalaFullDisplayName(talaName, jatiName);
-    if (common === full) return common;
-    return `${common} (${full})`;
+  const common = getTalaDisplayName(talaName, jatiName);
+  const full = getTalaFullDisplayName(talaName, jatiName);
+  if (common === full) return common;
+  return `${common} (${full})`;
 }
 
 /**
@@ -472,38 +495,41 @@ export function getTalaDisplayWithFullName(talaName: TalaName, jatiName: JatiNam
  * For Rupaka chatusra (dhrutam 2 + laghu 4): [2, 6] — bar after 2 beats, bar after 6.
  * These repeat each cycle.
  */
-export function getTalaAngaBarPositions(talaName: TalaName, jatiName: JatiName): { barAt: number[]; cycleLength: number } {
-    const tala = TALAS[talaName];
-    if (tala.chapuGrouping) {
-        const cycleLength = tala.chapuGrouping.reduce((a, b) => a + b, 0);
-        const barAt: number[] = [];
-        let cum = 0;
-        for (let i = 0; i < tala.chapuGrouping.length; i++) {
-            cum += tala.chapuGrouping[i];
-            barAt.push(cum);
-        }
-        return { barAt, cycleLength };
-    }
-    const jati = JATIS[jatiName];
+export function getTalaAngaBarPositions(
+  talaName: TalaName,
+  jatiName: JatiName,
+): { barAt: number[]; cycleLength: number } {
+  const tala = TALAS[talaName];
+  if (tala.chapuGrouping) {
+    const cycleLength = tala.chapuGrouping.reduce((a, b) => a + b, 0);
     const barAt: number[] = [];
     let cum = 0;
-    for (const anga of tala.pattern) {
-        const beats = anga === 'laghu' ? jati.laghuBeats : (ANGA_FIXED_BEATS[anga] ?? 0);
-        cum += beats;
-        barAt.push(cum);
+    for (let i = 0; i < tala.chapuGrouping.length; i++) {
+      cum += tala.chapuGrouping[i];
+      barAt.push(cum);
     }
-    return { barAt, cycleLength: cum };
+    return { barAt, cycleLength };
+  }
+  const jati = JATIS[jatiName];
+  const barAt: number[] = [];
+  let cum = 0;
+  for (const anga of tala.pattern) {
+    const beats = anga === 'laghu' ? jati.laghuBeats : (ANGA_FIXED_BEATS[anga] ?? 0);
+    cum += beats;
+    barAt.push(cum);
+  }
+  return { barAt, cycleLength: cum };
 }
 
 /**
  * Generate simple beat pattern (no tala, just equal beats)
  */
 export function generateSimplePattern(beats: number): TalaBeat[] {
-    return Array.from({ length: beats }, (_, i) => ({
-        position: i,
-        emphasis: i === 0 ? 'sam' : 'beat',
-        angaIndex: 0,
-        angaType: 'laghu' as AngaType,
-        beatInAnga: i,
-    }));
+  return Array.from({ length: beats }, (_, i) => ({
+    position: i,
+    emphasis: i === 0 ? 'sam' : 'beat',
+    angaIndex: 0,
+    angaType: 'laghu' as AngaType,
+    beatInAnga: i,
+  }));
 }

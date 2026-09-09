@@ -1,0 +1,406 @@
+/* Raga explorer: selection, playable notation, and supporting reference material. */
+.raga-explorer {
+  min-width: 0;
+}
+.explorer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.explorer-toolbar h2 {
+  font-size: 12px;
+  font-weight: 600;
+}
+.catalog-count {
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.raga-search {
+  position: relative;
+  min-width: 0;
+  width: min(260px, 55%);
+  z-index: 5;
+}
+.raga-search.raga-search--wide {
+  width: 100%;
+}
+.raga-search-shell:has(input:disabled) {
+  opacity: 0.6;
+}
+.raga-search-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  padding: 0 12px;
+  color: var(--text-muted);
+}
+.raga-search-shell:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.raga-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  padding-block: 11px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+.raga-search input::placeholder {
+  color: var(--text-muted);
+}
+.raga-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max(100%, 290px);
+  max-width: calc(100vw - 36px);
+  max-height: 310px;
+  overflow: auto;
+  padding: 5px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  box-shadow: 0 12px 35px rgb(24 30 20 / 12%);
+}
+.raga-results button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  width: 100%;
+  border-radius: 5px;
+  text-align: left;
+  font-size: 11px;
+}
+.raga-results button small {
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.raga-results button.is-highlighted,
+.raga-results button:hover {
+  background: var(--input-bg);
+}
+.raga-results button[aria-selected='true'] {
+  color: var(--accent-text);
+}
+.raga-results > p {
+  font-size: 12px;
+  padding: 18px 12px;
+  color: var(--text-muted);
+}
+.raga-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.raga-card-heading {
+  padding: 25px 26px 19px;
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  justify-content: space-between;
+}
+.raga-card-heading h3 {
+  font: 500 35px/1.15 var(--font-display);
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.raga-card-heading > div {
+  min-width: 0;
+}
+.raga-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.raga-badge {
+  padding: 4px 7px;
+  border-radius: 4px;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  font-size: 9px;
+  font-weight: 500;
+}
+.raga-number {
+  width: 43px;
+  height: 43px;
+  min-width: 43px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 500 24px/1 var(--font-display);
+  color: var(--text-muted);
+}
+.raga-mood {
+  padding: 0 26px 20px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--text-muted);
+}
+.raga-notes {
+  padding: 23px 26px 25px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--input-bg) 42%, var(--card-bg));
+}
+.swara-row + .swara-row {
+  margin-top: 23px;
+}
+.swara-row-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 11px;
+}
+.swara-row-heading h4 {
+  font-size: 11px;
+  font-weight: 500;
+}
+.swara-row-heading span {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+.swara-row-heading h4 > span {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--accent-text);
+}
+.swara-chips {
+  display: grid;
+  grid-template-columns: repeat(var(--note-count), minmax(0, 1fr));
+  gap: 7px;
+}
+.swara-chip {
+  min-width: 0;
+  min-height: 57px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-primary);
+  font-size: 20px;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.swara-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.swara-chip.is-active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--accent);
+}
+.swara-chip.is-past {
+  color: var(--text-muted);
+}
+.raga-playback {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-top: 1px solid var(--border);
+  padding: 19px 26px;
+}
+.raga-playback .tempo-control {
+  margin-left: auto;
+  width: 200px;
+}
+.raga-loop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: var(--text-muted);
+}
+.raga-loop[aria-pressed='true'] {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.raga-loop:hover {
+  background: var(--input-bg);
+}
+.raga-playback > .playback-button {
+  margin-top: 17px;
+}
+.raga-playback > .raga-loop {
+  margin-top: 17px;
+}
+.raga-hint {
+  color: var(--text-muted);
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 13px;
+}
+.raga-keyboard {
+  padding: 0 26px 5px;
+}
+.raga-reference {
+  margin-top: 26px;
+}
+.raga-reference > h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+.reference-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.reference-facts > div {
+  padding: 15px;
+  border-right: 1px solid var(--border);
+}
+.reference-facts > div:last-child {
+  border-right: 0;
+}
+.reference-facts dt {
+  color: var(--text-muted);
+  font-size: 9px;
+  margin-bottom: 6px;
+}
+.reference-facts dd {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.raga-reference .disclosure {
+  padding-inline: 2px;
+}
+.raga-reference .disclosure summary {
+  font-size: 11px;
+}
+.raga-reference .disclosure-content {
+  font-size: 12px;
+}
+.related-ragas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.related-ragas button {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 11px;
+}
+.related-ragas button:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.reference-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 18px;
+}
+.reference-links a {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.reference-links a:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .explorer-toolbar {
+    gap: 10px;
+  }
+  .explorer-toolbar h2 {
+    font-size: 11px;
+  }
+  .catalog-count {
+    font-size: 8px;
+  }
+  .raga-search {
+    width: 52%;
+  }
+  .raga-search-shell {
+    padding-inline: 9px;
+    gap: 6px;
+  }
+  .raga-search input {
+    font-size: 10px;
+  }
+  .raga-card-heading {
+    padding: 21px 18px 16px;
+  }
+  .raga-card-heading h3 {
+    font-size: 29px;
+  }
+  .raga-mood {
+    padding-inline: 18px;
+  }
+  .raga-number {
+    width: 35px;
+    height: 35px;
+    min-width: 35px;
+    font-size: 21px;
+  }
+  .raga-notes {
+    padding: 20px 16px;
+  }
+  .swara-chips {
+    gap: 4px;
+  }
+  .swara-chip {
+    min-height: 44px;
+    font-size: 17px;
+    border-radius: 5px;
+  }
+  .raga-playback {
+    padding: 16px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .raga-playback .tempo-control {
+    width: 100%;
+    max-width: none;
+    order: -1;
+    margin-bottom: 6px;
+  }
+  .raga-playback > .playback-button,
+  .raga-playback > .raga-loop {
+    margin-top: 0;
+  }
+  .raga-playback > .playback-button {
+    flex: 1;
+  }
+  .raga-keyboard {
+    padding-inline: 16px;
+  }
+  .reference-facts > div {
+    padding: 12px 10px;
+  }
+  .reference-facts dd {
+    font-size: 10px;
+  }
+}

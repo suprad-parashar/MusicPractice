@@ -1,0 +1,10 @@
+.context
+.next
+out
+node_modules
+playwright-report
+test-results
+package-lock.json
+data/all_ragas.json
+data/compositions/data
+data/compositions/registry.generated.ts

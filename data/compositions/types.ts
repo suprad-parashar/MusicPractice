@@ -1,4 +1,4 @@
-import type { SongLine, SongStanza } from '@/data/songs/types';
+import type { SongLine } from '@/data/songs/types';
 
 export interface Artists {
   singer?: string[];

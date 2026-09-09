@@ -1,243 +1,76 @@
-# 🎵 Carnatic Practice
+# Carnatic Practice
 
-A comprehensive web application for practicing Carnatic music with digital tanpura, raga practice, varisai exercises, and auditory training.
+A personal music studio for exploring ragas, practicing swaras, and building listening and rhythm skills.
 
-![Carnatic Practice](https://img.shields.io/badge/Carnatic-Music-orange)
-![Next.js](https://img.shields.io/badge/Next.js-16.1-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
+- **Raga explorer:** 72 melakarta and 78 janya ragas, searchable by name or alternate spelling, with playable scales, a piano, and reference notes.
+- **Exercises:** varisais, warm-ups, and voice patterns with adjustable tempo and guided practice modes.
+- **Ear training and rhythm:** note identification, timed challenges, and generated rhythm drills.
+- **Compositions:** a searchable library of songs, geetams, varnas, kritis, and chittaswarams.
+- **Learn:** Carnatic foundations, pitch matching, vocal range, and interactive sheet music lessons.
+- **Practice tools:** reference key, six playback instruments, tanpura, and a metronome with tala support.
 
-## ✨ Features
+## Development
 
-### 🎹 Digital Tanpura
-- **Realistic Tanpura Sound**: Synthesized tanpura with proper harmonics and jawari effect
-- **12-Key Support**: Play in any key from C to B (including sharps)
-- **Volume Control**: Logarithmic volume control for natural sound adjustment
-- **Continuous Playback**: Play/pause functionality with smooth transitions
+Use Node.js 22 or later.
 
-### 🎼 Raga Practice
-- **72 Melakarta Ragas**: Complete collection of all 72 melakarta ragas
-- **Arohana & Avarohana**: Practice both ascending and descending scales
-- **Flexible Tempo**: Adjustable BPM (30-120) and notes per beat (1-5)
-- **Visual Note Display**: See notes highlighted as they play
-- **Loop Mode**: Continuous playback for extended practice
-- **Volume Control**: Independent volume control with logarithmic scaling
+```sh
+npm ci
+npm run dev
+```
 
-### 📚 Varisai Practice
-- **Multiple Varisai Types**:
-  - Sarali Varisai
-  - Janta Varisai
-  - Melasthayi Varisai
-  - Mandarasthayi Varisai
-- **Raga-Specific Practice**: Convert exercises to any melakarta raga
-- **Practice Mode**: Play all exercises twice (with sound, then silent) for self-practice
-- **Speed Control**: Adjustable BPM and notes per beat
-- **Visual Feedback**: See current note highlighted during playback
-- **Volume Control**: Logarithmic volume control
+Open [localhost:3000](http://localhost:3000). Preferences are saved in this browser, including notation language and the four appearance themes. Microphone lessons request access when started.
 
-### 🎯 Auditory Practice
-- **Ear Training**: Test your ability to identify notes by ear
-- **Two Practice Modes**:
-  - **Untimed**: Practice with a stopwatch
-  - **Timed**: Set a timer (1-30 minutes)
-- **Multiple Difficulty Levels**: Practice with 1, 2, or 3 note sequences
-- **Flexible Input Formats**: Accepts various notation styles:
-  - `S`, `SR`, `SRG` (no spaces)
-  - `S R G` (with spaces)
-  - `Sa Re Ga` (full names)
-  - `S -> R -> G` (with arrows)
-  - `R1`, `G2`, `M1` (with numbers)
-- **Smart Recognition**: Base swara matching (e.g., "G" matches "G3")
-- **Real-time Feedback**: Visual feedback for correct/incorrect answers
-- **Performance Tracking**: Score, accuracy, and performance messages
-- **Auto-advance**: Automatically moves to next round after each answer
+```sh
+npm run check          # Type checking, unit tests, and formatting
+npm run format         # Apply the shared formatting rules
+npx playwright install chromium
+npm run test:browser   # Desktop and mobile interaction tests
+```
 
-## 🚀 Getting Started
+To use an existing Chrome installation for browser tests, run `PLAYWRIGHT_CHANNEL=chrome npm run test:browser`.
 
-### Prerequisites
+## Production
 
-- Node.js 18+ and npm (or yarn/pnpm)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd CarnaticPractice
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Run the development server**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-### Build for Production
-
-```bash
+```sh
 npm run build
 npm start
 ```
 
-## 🚀 Deployment to GitHub Pages
+The build exports a static site to `out/`. The preview serves it at [localhost:4173/MusicPractice/](http://localhost:4173/MusicPractice/), matching the GitHub Pages path in `next.config.js`. Pushing to `main` runs the existing Pages deployment workflow.
 
-This project is configured for automatic deployment to GitHub Pages.
+Fonts and the tanpura sample are bundled with the app. Sampled instruments load soundfonts over the network; the Sine instrument is synthesized locally.
 
-### Setup Instructions
+## Project map
 
-1. **Enable GitHub Pages in your repository**:
-   - Go to your repository on GitHub
-   - Navigate to **Settings** → **Pages**
-   - Under **Source**, select **GitHub Actions**
-
-2. **Configure basePath (if needed)**:
-   - If your repository name is **NOT** `username.github.io`, you need to set the basePath
-   - Open `next.config.js` and uncomment/modify:
-     ```javascript
-     basePath: '/YourRepositoryName',
-     trailingSlash: true,
-     ```
-   - Replace `YourRepositoryName` with your actual repository name
-
-3. **Push to main branch**:
-   - The GitHub Actions workflow will automatically:
-     - Build the Next.js app
-     - Export static files
-     - Deploy to GitHub Pages
-   - Your site will be available at:
-     - `https://username.github.io/YourRepositoryName` (if using basePath)
-     - `https://username.github.io` (if repository is `username.github.io`)
-
-### Manual Deployment
-
-If you want to deploy manually:
-
-```bash
-npm run build
-# The static files will be in the /out directory
-# You can then push the /out directory to the gh-pages branch
+```text
+app/                 Route entry points and styles grouped by purpose
+components/
+  studio/            App shell, navigation, preferences, accompaniment
+  ui/                Shared controls, dialogs, and loading states
+  ragas/             Raga explorer, search, notation, reference material
+  practice/          Varisai, warm-up, and voice-pattern exercises
+  ear-training/      Listening exercises
+  rhythm/            Rhythm drills and glyphs
+  compositions/      Library and composition players
+  learn/             Lessons and interactive learning visuals
+  notation/          Shared swara glyphs
+hooks/               Settings, responsive behavior, and raga playback
+lib/
+  audio/             Audio graphs, soundfonts, tanpura, metronome
+  music/             Pitch, notation, raga search, and music rules
+  patterns/          Pure melodic-pattern generators
+  pitch/             Microphone pitch detection and visualization
+data/                Music catalog, composition JSON, exercise data
+scripts/             Catalog generation, MIDI import, static preview
+tests/               Settings regression tests and browser workflows
 ```
 
-### Troubleshooting
+See [architecture notes](docs/architecture.md) for state ownership and conventions.
 
-- **404 errors**: Make sure `basePath` is correctly set in `next.config.js` if your repo is not `username.github.io`
-- **Build fails**: Check that all dependencies are listed in `package.json`
-- **Actions not running**: Ensure GitHub Actions are enabled in repository settings
+## Adding music
 
-## 📖 Usage Guide
+Add composition JSON to `data/compositions/data/`, then run `npm run generate:compositions`. Development and production builds run this automatically. Do not edit `registry.generated.ts` manually.
 
-### Tanpura
-1. Select your desired key from the sidebar
-2. Click the play button to start the tanpura
-3. Adjust volume using the slider
-4. The tanpura will play continuously until you stop it
+Ragas live in `data/all_ragas.json`; [the raga template](docs/raga-template.json) documents the available fields. Varisai notation lives in `data/exercises/`.
 
-### Raga Practice
-1. Select a raga from the dropdown (sort by number or alphabetically)
-2. Adjust tempo (BPM) and notes per beat as needed
-3. Click the play button to hear the arohana and avarohana
-4. Enable loop mode for continuous practice
-5. Adjust volume to your preference
-
-### Varisai Practice
-1. Choose a varisai type (Sarali, Janta, Melasthayi, or Mandarasthayi)
-2. Select a raga to practice in
-3. Choose an exercise number
-4. Enable Practice Mode for structured practice (plays all exercises twice)
-5. Adjust speed and volume
-6. Click play to start
-
-### Auditory Practice
-1. Select a raga
-2. Choose practice mode (Untimed or Timed)
-3. If Timed, set the timer duration
-4. Select number of notes (1, 2, or 3)
-5. Click "Start Game"
-6. Listen to the notes and enter your answer
-7. Use "Root Note" to hear the base note (Sa)
-8. Use "Play Note(s)" to replay the sequence
-9. Enter answers in any format (e.g., "SRG", "Sa Re Ga", "S -> R -> G")
-10. The game automatically advances after each answer
-
-## 🏗️ Project Structure
-
-```
-CarnaticPractice/
-├── app/
-│   ├── layout.tsx          # Root layout
-│   ├── page.tsx            # Main page with tab navigation
-│   └── globals.css         # Global styles
-├── components/
-│   ├── TanpuraSidebar.tsx  # Tanpura controls sidebar
-│   ├── RagaPlayer.tsx      # Raga practice component
-│   ├── VarisaiPlayer.tsx   # Varisai practice component
-│   └── AuditoryPractice.tsx # Auditory training component
-├── data/
-│   ├── all_ragas.json      # Melakarta + janya ragas and metadata
-│   ├── ragas.ts            # Loads JSON; Raga types, MELAKARTA_RAGAS, JANYA_RAGAS, getSwarafrequency
-│   ├── saraliVarisai.ts    # Sarali varisai exercises
-│   ├── jantaVarisai.ts     # Janta varisai exercises
-│   ├── melasthayiVarisai.ts
-│   └── mandarasthayiVarisai.ts
-└── package.json
-```
-
-## 🛠️ Technology Stack
-
-- **Framework**: Next.js 16.1 (React 19)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Audio**: Web Audio API
-- **State Management**: React Hooks
-
-## 🎨 Key Features
-
-### Audio Engine
-- **Web Audio API**: Real-time audio synthesis
-- **Logarithmic Volume Control**: Natural-sounding volume adjustment
-- **Harmonic Synthesis**: Realistic tanpura sound with proper harmonics
-- **Note Envelopes**: Smooth attack, sustain, and release for each note
-
-### User Experience
-- **Responsive Design**: Works on desktop and tablet devices
-- **Dark Theme**: Easy on the eyes for extended practice
-- **Smooth Animations**: Polished UI with transitions
-- **Real-time Feedback**: Visual indicators for playback and answers
-
-### Music Theory
-- **Accurate Frequencies**: Proper swara frequencies based on Carnatic music theory
-- **Raga Conversion**: Convert exercises to any melakarta raga
-- **Octave Support**: Higher and lower octave indicators (>, <)
-- **Flexible Notation**: Support for various input formats
-
-## 📝 Notes
-
-- All audio is generated client-side using Web Audio API
-- No external audio files required
-- Works best in modern browsers (Chrome, Firefox, Safari, Edge)
-- Volume controls use logarithmic scaling for natural perception
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is private and for personal/educational use.
-
-## 🙏 Acknowledgments
-
-- Based on traditional Carnatic music practice methods
-- All 72 melakarta ragas included
-- Traditional varisai exercises from Carnatic music pedagogy
-
----
-
-**Happy Practicing! 🎵**
+Existing `?song=`, `?chitta=`, and `/songs/<slug>/` links still open the unified composition library.

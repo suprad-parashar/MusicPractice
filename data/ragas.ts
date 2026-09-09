@@ -174,8 +174,7 @@ export function getRagaByName(name: string): Raga | null {
   return (
     ALL_RAGAS.find(
       (r) =>
-        r.name.toLowerCase() === lower ||
-        r.meta.otherNames.some((o) => o.toLowerCase() === lower)
+        r.name.toLowerCase() === lower || r.meta.otherNames.some((o) => o.toLowerCase() === lower),
     ) ?? null
   );
 }
@@ -189,9 +188,7 @@ export function getRagaByIdOrName(ref: string): Raga | undefined {
 
 /** Melakarta raga with the given mela number (1–72), if present in the catalog. */
 export function getMelakartaByNumber(num: number): Raga | undefined {
-  return MELAKARTA_RAGAS.find(
-    (r) => r.meta.melakartaNumber === num || r.number === num
-  );
+  return MELAKARTA_RAGAS.find((r) => r.meta.melakartaNumber === num || r.number === num);
 }
 
 /**
